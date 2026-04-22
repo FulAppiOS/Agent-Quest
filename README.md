@@ -44,7 +44,7 @@ Agent Quest is a browser-based monitoring dashboard that visualizes active Claud
 
 ## Why?
 
-Claude Code sessions happen in a terminal — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to. It's a hobby project, built for fun and for the joy of seeing code work happen in a 2D pixel-art world.
+Claude Code sessions happen in a terminal — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
 
 ## Features
 
@@ -240,7 +240,7 @@ Issues and pull requests are welcome — bug reports, feature ideas, new buildin
 
 ## Support
 
-If Agent Quest makes your agents feel a little more alive, you can [buy me a beer](https://www.buymeacoffee.com/fulvio) 🍺 — every one helps keep this hobby project going.
+If Agent Quest makes your agents feel a little more alive, a beer is always welcome 🍺 — every one helps keep the updates flowing.
 
 <p align="left">
   <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20beer&emoji=%F0%9F%8D%BA&slug=fulvio&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a beer" /></a>
