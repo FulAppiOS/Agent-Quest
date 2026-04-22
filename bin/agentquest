@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+# agentquest — local dashboard for Claude Code agents
+# macOS-first; relies on bash 3.2+, git, bun >= 1.1.
+set -euo pipefail
+
+# ------------------------------------------------------------------ self-locate
+# Follows symlinks portably (macOS has no `readlink -f`).
+resolve_symlink() {
+  local src="$1"
+  while [[ -L "$src" ]]; do
+    local dir
+    dir="$(cd -P "$(dirname "$src")" && pwd)"
+    src="$(readlink "$src")"
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  printf '%s/%s\n' "$(cd -P "$(dirname "$src")" && pwd)" "$(basename "$src")"
+}
+SCRIPT_REAL="$(resolve_symlink "${BASH_SOURCE[0]}")"
+REPO_ROOT="$(cd -P "$(dirname "$(dirname "$SCRIPT_REAL")")" && pwd)"
+
+# ------------------------------------------------------------------ colours
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  C_BLUE=$'\033[34m'; C_GREEN=$'\033[32m'; C_RED=$'\033[31m'
+  C_YELLOW=$'\033[33m'; C_DIM=$'\033[2m'; C_RESET=$'\033[0m'
+else
+  C_BLUE=""; C_GREEN=""; C_RED=""; C_YELLOW=""; C_DIM=""; C_RESET=""
+fi
+info() { printf '%s==>%s %s\n' "$C_BLUE" "$C_RESET" "$1"; }
+ok()   { printf '%s✓%s %s\n'  "$C_GREEN" "$C_RESET" "$1"; }
+warn() { printf '%s!%s %s\n'  "$C_YELLOW" "$C_RESET" "$1" >&2; }
+err()  { printf '%sERROR:%s %s\n' "$C_RED" "$C_RESET" "$1" >&2; }
+
+# ------------------------------------------------------------------ helpers
+# Return 0 if $1 >= $2, treating both as dotted semver (prerelease tags ignored).
+semver_ge() {
+  local a="${1%%-*}" b="${2%%-*}"
+  local IFS=.
+  local -a ap bp
+  # shellcheck disable=SC2206
+  ap=( $a ); bp=( $b )
+  local i av bv
+  for i in 0 1 2; do
+    av="${ap[i]:-0}"; bv="${bp[i]:-0}"
+    if (( 10#$av > 10#$bv )); then return 0; fi
+    if (( 10#$av < 10#$bv )); then return 1; fi
+  done
+  return 0
+}
+
+read_pkg_version() {
+  local pkg="$REPO_ROOT/package.json"
+  if [[ -f "$pkg" ]]; then
+    grep -m1 '"version"' "$pkg" \
+      | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/' \
+      || true
+  else
+    echo "unknown"
+  fi
+}
+
+check_bun_runtime() {
+  if ! command -v bun >/dev/null 2>&1; then
+    err "Bun is not installed. Install from https://bun.sh"
+    exit 1
+  fi
+  local v
+  v="$(bun --version 2>/dev/null)" || { err "bun --version failed."; exit 1; }
+  if ! semver_ge "$v" "1.1.0"; then
+    err "Bun v$v is too old (need >= 1.1.0). Upgrade with: bun upgrade"
+    exit 1
+  fi
+}
+
+check_ports() {
+  command -v lsof >/dev/null 2>&1 || return 0
+  # Only flag processes *listening* on the ports — client-side connections in
+  # CLOSE_WAIT / ESTABLISHED (e.g. a lingering browser tab from a prior session)
+  # don't block a new bind and shouldn't trigger a false "port in use" error.
+  local busy
+  busy="$(lsof -ti:4444,4445 -sTCP:LISTEN 2>/dev/null || true)"
+  if [[ -n "$busy" ]]; then
+    err "A server is already listening on 4444 or 4445 (PIDs: $(echo "$busy" | tr '\n' ' '))."
+    err "Free them with:  lsof -ti:4444,4445 -sTCP:LISTEN | xargs kill -9"
+    exit 1
+  fi
+}
+
+check_claude_dirs() {
+  if ! compgen -G "$HOME/.claude*/projects" >/dev/null 2>&1; then
+    warn "No Claude Code installation detected. The village will be empty until a session starts."
+  fi
+}
+
+ensure_deps() {
+  if [[ ! -d "$REPO_ROOT/server/node_modules" || ! -d "$REPO_ROOT/client/node_modules" ]]; then
+    info "Dependencies missing — running bun install ..."
+    ( cd "$REPO_ROOT" && bun install --silent )
+  fi
+}
+
+open_browser_later() {
+  (
+    local i
+    for i in $(seq 1 30); do
+      if curl --silent --fail --max-time 1 http://localhost:4445 >/dev/null 2>&1; then
+        open http://localhost:4445 2>/dev/null || true
+        exit 0
+      fi
+      sleep 0.5
+    done
+    printf 'Dashboard available at http://localhost:4445\n'
+  ) &
+  disown
+}
+
+prompt_yn() {
+  # $1 question, $2 default (Y or n). Returns 0 for yes, 1 for no.
+  local q="$1" def="${2:-Y}" ans
+  if [[ -r /dev/tty ]]; then
+    read -r -p "$q " ans < /dev/tty
+  else
+    read -r ans || ans=""
+  fi
+  ans="${ans:-$def}"
+  [[ "$ans" =~ ^[Yy]$ ]]
+}
+
+# ------------------------------------------------------------------ sub-commands
+cmd_help() {
+  cat <<USAGE
+agentquest — fantasy village dashboard for Claude Code agents
+
+USAGE:
+  agentquest [start]           Start server + client, open browser
+  agentquest update            Pull upstream changes (preserves local maps)
+  agentquest --version, -v     Print version
+  agentquest --help,    -h     Print this help
+
+EQUIVALENT MANUAL COMMANDS (same behaviour, no CLI needed):
+  agentquest         →  bun start
+  agentquest update  →  git pull --ff-only && bun install
+
+REPO:  $REPO_ROOT
+USAGE
+}
+
+cmd_version() {
+  local v; v="$(read_pkg_version)"
+  local commit=""
+  if command -v git >/dev/null 2>&1 && [[ -d "$REPO_ROOT/.git" ]]; then
+    local c
+    c="$(cd "$REPO_ROOT" && git describe --always --dirty 2>/dev/null || true)"
+    [[ -n "$c" ]] && commit=" ($c)"
+  fi
+  printf 'agentquest v%s%s\n' "$v" "$commit"
+}
+
+cmd_start() {
+  check_bun_runtime
+  check_ports
+  check_claude_dirs
+  ensure_deps
+  open_browser_later
+  info "Starting Agent Quest (Ctrl+C to stop) ..."
+  cd "$REPO_ROOT"
+  exec bun start
+}
+
+cmd_update() {
+  cd "$REPO_ROOT"
+  info "Fetching upstream ..."
+  if ! git fetch origin main --quiet 2>/dev/null; then
+    err "Could not fetch from origin. Check your network connection and try again."
+    exit 1
+  fi
+  local local_sha upstream_sha
+  local_sha="$(git rev-parse HEAD)"
+  upstream_sha="$(git rev-parse origin/main 2>/dev/null || echo '')"
+  if [[ -z "$upstream_sha" ]]; then
+    err "No origin/main ref. Is this repo connected to a remote?"; exit 1
+  fi
+  if [[ "$local_sha" == "$upstream_sha" ]]; then
+    ok "Already up to date."; exit 0
+  fi
+  local branch; branch="$(git rev-parse --abbrev-ref HEAD)"
+  if [[ "$branch" != "main" ]]; then
+    warn "Not on main (on $branch). Switch to main or run git pull manually."
+    exit 1
+  fi
+  local ahead; ahead="$(git rev-list --count origin/main..HEAD)"
+  if [[ "$ahead" -gt 0 ]]; then
+    warn "You have $ahead local commit(s) ahead of origin/main. Merge or rebase manually."
+    exit 1
+  fi
+  local dirty; dirty="$(git status --porcelain)"
+  if [[ -n "$dirty" ]]; then
+    printf '\nLocal changes detected:\n'
+    echo "$dirty" | sed 's/^/  /'
+    printf '\n'
+    if ! prompt_yn "Keep your local changes and try to update? [Y/n]" "Y"; then
+      echo "Update cancelled."
+      exit 0
+    fi
+    local stash_msg="agentquest-update-$(date +%s)"
+    git stash push -u -m "$stash_msg" >/dev/null
+    # If the user interrupts (Ctrl+C) between the stash and the pop, tell them
+    # where their changes are. Cleared right after the successful pop below.
+    trap 'err "Interrupted — your local changes are stashed as '\''$stash_msg'\''. Recover with:  git stash pop"; exit 130' INT TERM
+    info "Stashed as '$stash_msg'. Pulling ..."
+    if ! git pull --ff-only --quiet; then
+      err "Pull failed. Your stashed changes are safe — recover with:"
+      err "  git stash list           (find the stash you just made)"
+      err "  git stash pop            (restore them)"
+      exit 1
+    fi
+    if ! git stash pop; then
+      err "Stash pop produced conflicts. Your original changes are still in:  git stash list"
+      err "To keep YOUR version:    git checkout --ours <file> && git add <file>"
+      err "To take upstream:        git checkout --theirs <file> && git add <file>"
+      err "Then:                    git stash drop"
+      exit 1
+    fi
+    trap - INT TERM
+    ok "Updated. Your local maps were preserved."
+  else
+    git pull --ff-only --quiet
+    ok "Updated."
+  fi
+  info "Installing dependencies ..."
+  bun install --silent
+  ok "Done. $(git describe --always --dirty 2>/dev/null || true)"
+}
+
+# ------------------------------------------------------------------ dispatch
+case "${1:-start}" in
+  start)                cmd_start ;;
+  update)               cmd_update ;;
+  --help|-h|help)       cmd_help ;;
+  --version|-v|version) cmd_version ;;
+  *) err "Unknown command: $1"; cmd_help; exit 1 ;;
+esac

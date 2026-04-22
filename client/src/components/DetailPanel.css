@@ -1,0 +1,98 @@
+.detail-panel {
+  position: absolute;
+  top: 48px;
+  right: 8px;
+  width: 320px;
+  max-height: calc(100% - 180px);
+  background: rgba(26, 26, 46, 0.9);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  border-radius: 4px;
+  overflow-y: auto;
+  z-index: 25;
+  font-family: 'Fira Code', monospace;
+}
+
+.detail-panel::-webkit-scrollbar { width: 6px; }
+.detail-panel::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
+.detail-panel::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
+
+.detail-header { padding: 10px 12px; border-bottom: 1px solid rgba(196, 163, 90, 0.3); }
+.detail-name { font-family: 'Cinzel', serif; color: #C4A35A; font-size: 16px; font-weight: 700; }
+.detail-class { font-size: 11px; color: #888; text-transform: capitalize; margin-top: 2px; }
+
+.detail-section { padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.detail-section-title { font-size: 10px; color: #C4A35A; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+
+.detail-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+.detail-label { color: #888; }
+.detail-value { color: #F5E6C8; }
+
+.detail-file-list { list-style: none; padding: 0; margin: 0; }
+.detail-file-list li { font-size: 10px; color: #7B9EC4; padding: 1px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.detail-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  color: #C4A35A;
+  cursor: pointer;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.detail-close:hover { background: rgba(196, 163, 90, 0.2); }
+
+.detail-last-message {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #F5E6C8;
+  word-break: break-word;
+}
+.detail-last-message p { margin: 0 0 6px; }
+.detail-last-message p:last-child { margin-bottom: 0; }
+.detail-last-message h1, .detail-last-message h2, .detail-last-message h3 {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 12px;
+  margin: 6px 0 3px;
+}
+.detail-last-message code {
+  background: rgba(196, 163, 90, 0.15);
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: #7BD4C5;
+}
+.detail-last-message pre {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  border-radius: 3px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  margin: 4px 0;
+}
+.detail-last-message pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  color: #7BD4C5;
+}
+.detail-last-message strong { color: #F5E6C8; font-weight: 700; }
+.detail-last-message em { color: #C4A35A; font-style: italic; }
+.detail-last-message ul, .detail-last-message ol {
+  padding-left: 16px;
+  margin: 4px 0;
+}
+.detail-last-message li { margin-bottom: 2px; }
+.detail-last-message a { color: #7B9EC4; text-decoration: none; }
+.detail-last-message a:hover { text-decoration: underline; }

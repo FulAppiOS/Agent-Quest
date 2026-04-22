@@ -1,0 +1,23 @@
+.minimap {
+  position: absolute;
+  top: 48px;
+  right: 8px;
+  width: 180px;
+  height: 140px;
+  background: rgba(26, 26, 46, 0.85);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  border-radius: 4px;
+  z-index: 24;
+  overflow: hidden;
+}
+
+.minimap-title {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.2);
+}
+
+.minimap-canvas { width: 100%; height: calc(100% - 20px); }

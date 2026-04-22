@@ -1,0 +1,225 @@
+.tutorial-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  font-family: 'Fira Code', monospace;
+}
+
+.tutorial-modal {
+  position: relative;
+  width: min(560px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: rgba(26, 26, 46, 0.96);
+  border: 1px solid rgba(196, 163, 90, 0.45);
+  border-radius: 6px;
+  padding: 20px 24px 22px;
+  color: #F5E6C8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.tutorial-modal::-webkit-scrollbar { width: 6px; }
+.tutorial-modal::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
+.tutorial-modal::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
+
+.tutorial-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  font-size: 18px;
+  background: none;
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  color: #C4A35A;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tutorial-close:hover {
+  color: #E2C77A;
+  border-color: rgba(196, 163, 90, 0.6);
+}
+
+.tutorial-logo {
+  display: block;
+  margin: 2px auto 10px;
+  max-width: 180px;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.tutorial-title {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.tutorial-tagline {
+  margin: 0 auto 14px;
+  padding: 10px 14px;
+  max-width: 460px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #F5E6C8;
+  background: linear-gradient(180deg, rgba(196, 163, 90, 0.14), rgba(196, 163, 90, 0.06));
+  border-left: 3px solid #C4A35A;
+  border-right: 3px solid #C4A35A;
+  border-radius: 3px;
+}
+
+.tutorial-tagline strong {
+  color: #E2C77A;
+}
+
+.tutorial-tip-jar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 auto 14px;
+  padding: 7px 16px;
+  background: linear-gradient(180deg, rgba(196, 163, 90, 0.2), rgba(196, 163, 90, 0.08));
+  border: 1px solid rgba(196, 163, 90, 0.5);
+  border-radius: 3px;
+  color: #E2C77A;
+  font-family: 'Cinzel', serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tutorial-tip-jar:hover {
+  background: linear-gradient(180deg, rgba(196, 163, 90, 0.3), rgba(196, 163, 90, 0.15));
+  border-color: rgba(196, 163, 90, 0.8);
+  color: #F5E6C8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(196, 163, 90, 0.22);
+}
+
+.tutorial-tip-jar-icon {
+  font-size: 15px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.tutorial-section-label {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin: 14px 0 6px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.25);
+  padding-bottom: 3px;
+}
+
+.tutorial-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #D6CBB0;
+  margin: 6px 0;
+}
+
+.tutorial-text code {
+  background: rgba(196, 163, 90, 0.12);
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  color: #E2C77A;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 11.5px;
+}
+
+.tutorial-text strong {
+  color: #F5E6C8;
+}
+
+.tutorial-text em {
+  color: #9FB7D4;
+  font-style: normal;
+}
+
+.tutorial-legend {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+.tutorial-legend td {
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: top;
+}
+
+.tutorial-legend tr:last-child td {
+  border-bottom: none;
+}
+
+.tutorial-legend-k {
+  color: #9FB7D4;
+  white-space: nowrap;
+}
+
+.tutorial-legend-v {
+  color: #C4A35A;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tutorial-legend-desc {
+  color: #888;
+  font-size: 11px;
+}
+
+.tutorial-list {
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #D6CBB0;
+}
+
+.tutorial-list li {
+  margin: 2px 0;
+}
+
+.tutorial-list code {
+  background: rgba(196, 163, 90, 0.12);
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  color: #E2C77A;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 11.5px;
+}
+
+.tutorial-link {
+  color: #9FB7D4;
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(159, 183, 212, 0.5);
+}
+
+.tutorial-link:hover {
+  color: #C4D4E8;
+  border-bottom-color: rgba(159, 183, 212, 0.9);
+}

@@ -1,0 +1,18 @@
+{
+  "name": "agent-quest",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": ["server", "client"],
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "scripts": {
+    "dev:server": "cd server && bun run dev",
+    "dev:client": "cd client && bun run dev",
+    "start": "concurrently -n server,client -c blue,green --kill-others-on-fail \"bun run dev:server\" \"bun run dev:client\"",
+    "check:assets": "bun run scripts/check-assets.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

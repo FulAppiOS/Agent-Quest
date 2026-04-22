@@ -1,0 +1,57 @@
+.mouse-hint {
+  --hint-accent: #C4A35A;
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(20, 22, 32, 0.78);
+  border: 1px solid rgba(196, 163, 90, 0.35);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: auto;
+  z-index: 40;
+  user-select: none;
+  animation: mouse-hint-fade-in 400ms ease-out;
+}
+
+.mouse-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mouse-hint-mouse {
+  flex-shrink: 0;
+}
+
+.mouse-hint-action {
+  flex-shrink: 0;
+}
+
+.mouse-hint-close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: rgba(201, 209, 220, 0.55);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.mouse-hint-close:hover {
+  color: var(--hint-accent);
+}
+
+@keyframes mouse-hint-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

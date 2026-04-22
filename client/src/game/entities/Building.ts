@@ -1,0 +1,64 @@
+import * as Phaser from 'phaser';
+import type { BuildingDef } from '../data/building-layout';
+import { eventBridge } from '../EventBridge';
+import { addCrispText } from '../text';
+import { getActiveTheme } from '../themes/registry';
+
+export class Building {
+  readonly def: BuildingDef;
+  readonly image: Phaser.GameObjects.Image;
+  readonly label: Phaser.GameObjects.Text;
+  readonly doorX: number;
+  readonly doorY: number;
+
+  constructor(scene: Phaser.Scene, def: BuildingDef) {
+    this.def = def;
+
+    this.image = scene.add.image(def.x, def.y, def.imageKey);
+    this.image.setOrigin(0.5, 1); // bottom-center — matches editor coordinate system
+    // Theme can override the default scale when its building PNG has a
+    // different native size than the BuildingDef baseline.
+    const themeScale = getActiveTheme().getBuildingScale?.(def.id);
+    this.image.setScale(themeScale ?? def.scale);
+    this.image.setInteractive({ useHandCursor: true });
+
+    // Click handler - emit building ID to React
+    this.image.on('pointerdown', () => {
+      eventBridge.emit('building:clicked', def.id);
+    });
+
+    // Hover highlight
+    this.image.on('pointerover', () => {
+      this.image.setTint(0xdddddd);
+    });
+    this.image.on('pointerout', () => {
+      this.image.clearTint();
+    });
+
+    // Door position: just below the image bottom (origin is bottom-center, so y IS the bottom)
+    this.doorX = def.x;
+    this.doorY = def.y + 5;
+
+    // Y-based depth: use doorY (bottom edge) so heroes sort correctly
+    this.image.setDepth(this.doorY);
+
+    // Label above building — image top is at y - displayHeight (since origin is bottom)
+    const labelY = def.y - this.image.displayHeight - 8;
+    this.label = addCrispText(scene, def.x, labelY, def.label, {
+      fontSize: '15px',
+      color: '#F5E6C8',
+      fontFamily: 'monospace',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5, 1).setDepth(this.doorY + 0.1);
+
+    // Subtitle (description) below the label
+    addCrispText(scene, def.x, labelY + 2, def.activity, {
+      fontSize: '11px',
+      color: '#aaa',
+      fontFamily: 'monospace',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5, 0).setDepth(this.doorY + 0.1);
+  }
+}

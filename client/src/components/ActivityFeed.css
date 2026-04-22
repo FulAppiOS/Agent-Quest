@@ -1,0 +1,40 @@
+.activity-feed {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: rgba(26, 26, 46, 0.9);
+  border-top: 1px solid rgba(196, 163, 90, 0.4);
+  z-index: 25;
+  font-family: 'Fira Code', monospace;
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-feed-title {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.2);
+  flex-shrink: 0;
+}
+
+.activity-feed-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.activity-feed-list::-webkit-scrollbar { width: 6px; }
+.activity-feed-list::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
+.activity-feed-list::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
+
+.feed-entry { padding: 2px 12px; font-size: 10px; display: flex; align-items: center; gap: 6px; line-height: 1.5; }
+.feed-icon { width: 16px; height: 16px; image-rendering: pixelated; flex-shrink: 0; }
+.feed-time { color: #666; flex-shrink: 0; width: 70px; }
+.feed-agent { color: #C4A35A; flex-shrink: 0; width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-action { color: #7B9EC4; flex-shrink: 0; width: 50px; }
+.feed-detail { color: #F5E6C8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

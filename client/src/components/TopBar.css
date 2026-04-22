@@ -1,0 +1,99 @@
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: rgba(26, 26, 46, 0.9);
+  border-bottom: 1px solid rgba(196, 163, 90, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 16px;
+  z-index: 30;
+  font-family: 'Fira Code', monospace;
+}
+
+.topbar-logo-button {
+  position: absolute;
+  left: 12px;
+  top: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 0;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.topbar-logo-button:hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+.topbar-logo-button:hover .topbar-logo {
+  filter: drop-shadow(0 3px 10px rgba(196, 163, 90, 0.55));
+}
+
+.topbar-logo-button:focus-visible {
+  outline: 2px solid rgba(196, 163, 90, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.topbar-logo {
+  display: block;
+  height: 68px;
+  width: auto;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  transition: filter 0.15s ease;
+}
+
+.topbar-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+  color: #F5E6C8;
+}
+
+.topbar-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topbar-stat-label { color: #888; }
+.topbar-stat-value { color: #F5E6C8; font-weight: 500; }
+.topbar-stat-value.active { color: #2E8B57; }
+.topbar-stat-value.idle { color: #C4A35A; }
+.topbar-stat-value.error { color: #8B2500; }
+
+.topbar-effects {
+  display: flex;
+  gap: 6px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(196, 163, 90, 0.3);
+}
+
+.topbar-effect-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.topbar-effect-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(196, 163, 90, 0.6);
+}
+
+.topbar-effect-btn.active {
+  background: rgba(196, 163, 90, 0.25);
+  border-color: #C4A35A;
+}
+

@@ -1,0 +1,627 @@
+/* ===== Map Editor overlay styles ===== */
+
+.editor-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+
+.editor-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  font-family: 'Fira Code', monospace;
+  color: #F5E6C8;
+}
+
+.editor-overlay > * {
+  pointer-events: auto;
+}
+
+/* ---- TopBar ---- */
+.editor-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: rgba(26, 26, 46, 0.9);
+  border-bottom: 1px solid rgba(196, 163, 90, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 40;
+}
+
+.editor-topbar-title {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.editor-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  color: #F5E6C8;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.editor-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #C4A35A;
+}
+.editor-btn.primary {
+  background: rgba(196, 163, 90, 0.22);
+  border-color: #C4A35A;
+  color: #F5E6C8;
+}
+.editor-btn.primary:hover {
+  background: rgba(196, 163, 90, 0.35);
+}
+.editor-btn.danger {
+  border-color: rgba(139, 37, 0, 0.6);
+}
+.editor-btn.danger:hover {
+  background: rgba(139, 37, 0, 0.2);
+}
+.editor-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.editor-status {
+  font-size: 11px;
+  color: #888;
+  margin-right: 8px;
+}
+.editor-status.dirty { color: #C4A35A; }
+.editor-status.saved { color: #2E8B57; }
+.editor-status.error { color: #8B2500; }
+
+/* ---- Asset warning banner ---- */
+.editor-asset-banner {
+  position: absolute;
+  top: 56px;
+  left: 16px;
+  right: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+  background: rgba(80, 20, 10, 0.92);
+  border: 1px solid rgba(230, 120, 60, 0.7);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #F5E6C8;
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  z-index: 45;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.editor-asset-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.editor-asset-banner-icon {
+  font-size: 16px;
+  color: #E07838;
+}
+.editor-asset-banner-title {
+  flex: 1;
+  font-weight: 700;
+}
+.editor-asset-banner-dismiss {
+  background: transparent;
+  border: none;
+  color: #F5E6C8;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 6px;
+  opacity: 0.7;
+}
+.editor-asset-banner-dismiss:hover {
+  opacity: 1;
+}
+.editor-asset-banner-body {
+  margin-top: 6px;
+}
+.editor-asset-banner-cats {
+  margin: 0 0 6px 0;
+  padding-left: 18px;
+  font-size: 11px;
+  color: #FFD6B0;
+}
+.editor-asset-banner-cats li { margin: 2px 0; }
+.editor-asset-banner-details {
+  font-size: 11px;
+}
+.editor-asset-banner-details summary {
+  cursor: pointer;
+  color: #FFD6B0;
+  user-select: none;
+}
+.editor-asset-banner-details ul {
+  margin: 6px 0;
+  padding-left: 18px;
+  max-height: 140px;
+  overflow: auto;
+}
+.editor-asset-banner-details code {
+  font-size: 10px;
+  color: #C4A35A;
+  word-break: break-all;
+}
+.editor-asset-banner-hint {
+  margin: 4px 0 0 0;
+  color: #aabbcc;
+}
+
+/* ---- ToolBar (left) ---- */
+.editor-toolbar {
+  position: absolute;
+  top: 56px;
+  left: 8px;
+  width: 56px;
+  background: rgba(26, 26, 46, 0.9);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  border-radius: 4px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 35;
+}
+
+.editor-tool-btn {
+  width: 44px;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  color: #F5E6C8;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 2px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.editor-tool-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.editor-tool-caption {
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.editor-tool-btn.active .editor-tool-caption {
+  opacity: 1;
+}
+.editor-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(196, 163, 90, 0.6);
+}
+.editor-tool-btn.active {
+  background: rgba(196, 163, 90, 0.28);
+  border-color: #C4A35A;
+  color: #C4A35A;
+}
+.editor-tool-divider {
+  height: 1px;
+  background: rgba(196, 163, 90, 0.3);
+  margin: 4px 2px;
+}
+
+/* ---- TilePalette (below toolbar) ---- */
+.editor-tile-palette {
+  position: absolute;
+  top: 56px;
+  left: 76px;
+  width: 440px;
+  max-height: calc(100vh - 72px);
+  background: rgba(26, 26, 46, 0.92);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.editor-palette-header {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.25);
+}
+
+button.editor-palette-header-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.25);
+  text-align: left;
+  cursor: pointer;
+  padding: 0 0 4px;
+}
+
+button.editor-palette-header-toggle:hover {
+  color: #E2C77A;
+}
+
+.editor-palette-caret {
+  display: inline-block;
+  width: 10px;
+  font-size: 10px;
+  color: #C4A35A;
+}
+
+.editor-palette-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.editor-palette-tab {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  color: #F5E6C8;
+  padding: 3px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.editor-palette-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.editor-palette-tab.active {
+  background: rgba(196, 163, 90, 0.28);
+  border-color: #C4A35A;
+  color: #C4A35A;
+}
+
+.editor-palette-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 32px);
+  gap: 2px;
+  overflow-y: auto;
+  max-height: 240px;
+  padding: 2px;
+}
+
+.editor-palette-tile {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background-size: 576px 384px;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  transform: scale(1);
+}
+.editor-palette-tile:hover {
+  outline: 1px solid rgba(196, 163, 90, 0.6);
+}
+.editor-palette-tile.active {
+  border: 2px solid #C4A35A;
+  box-shadow: 0 0 6px rgba(196, 163, 90, 0.6);
+}
+
+.editor-palette-section {
+  border-top: 1px solid rgba(196, 163, 90, 0.25);
+  padding-top: 6px;
+}
+
+.editor-palette-deco-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 180px;
+}
+
+.editor-palette-deco {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  overflow: hidden;
+}
+.editor-palette-deco:hover {
+  border-color: rgba(196, 163, 90, 0.6);
+}
+.editor-palette-deco.active {
+  border-color: #C4A35A;
+  box-shadow: 0 0 6px rgba(196, 163, 90, 0.6);
+}
+.editor-palette-deco img {
+  max-width: 100%;
+  max-height: 48px;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+
+/* ---- LayerPanel (right top) ---- */
+.editor-layers {
+  position: absolute;
+  top: 56px;
+  right: 8px;
+  width: 220px;
+  background: rgba(26, 26, 46, 0.92);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  gap: 8px;
+}
+.editor-row label { color: #F5E6C8; }
+.editor-row input[type="range"] { flex: 1; }
+.editor-row input[type="checkbox"] { accent-color: #C4A35A; }
+.editor-row select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  color: #F5E6C8;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+/* ---- Inspector (right bottom) ---- */
+.editor-inspector {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 220px;
+  background: rgba(26, 26, 46, 0.92);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  border-radius: 4px;
+  padding: 10px;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.editor-inspector-label {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.editor-inspector-value {
+  font-size: 12px;
+  color: #F5E6C8;
+}
+
+.editor-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.editor-stat-label { color: #888; }
+.editor-stat-value { color: #F5E6C8; font-weight: 500; }
+
+/* ---- Slot Tabs (TopBar) ---- */
+.editor-slot-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 16px;
+}
+.editor-slot-tab {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  color: #888;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  border-radius: 3px;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editor-slot-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(196, 163, 90, 0.5);
+}
+.editor-slot-tab.active {
+  background: rgba(196, 163, 90, 0.22);
+  border-color: #C4A35A;
+  color: #C4A35A;
+}
+.editor-slot-tab.has-map {
+  color: #F5E6C8;
+}
+
+/* ---- NPC Palette Grid ---- */
+.editor-npc-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.editor-npc-cell {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 60px;
+}
+.editor-npc-cell:hover {
+  border-color: rgba(196, 163, 90, 0.6);
+}
+.editor-npc-cell.active {
+  border-color: #C4A35A;
+  box-shadow: 0 0 6px rgba(196, 163, 90, 0.6);
+}
+.editor-npc-cell img {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+.editor-npc-cell span {
+  font-size: 8px;
+  color: #888;
+  text-align: center;
+}
+
+/* ---- Inspector sliders & selects ---- */
+.editor-inspector input[type="range"] {
+  flex: 1;
+  accent-color: #C4A35A;
+  height: 4px;
+}
+.editor-inspector select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  color: #F5E6C8;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 4px;
+  width: 100%;
+}
+
+/* ---- TileTree sidebar ---- */
+.tile-tree {
+  width: 200px;
+  min-width: 200px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  padding: 4px 0;
+}
+.tile-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: transparent;
+  color: #d8dee9;
+  border: none;
+  padding: 3px 6px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.tile-tree-row:hover { background: rgba(255,255,255,0.05); }
+.tile-tree-row.is-selected { background: rgba(97, 175, 239, 0.18); color: #fff; }
+.tile-tree-chevron {
+  width: 12px;
+  color: #888;
+  display: inline-block;
+  text-align: center;
+  flex-shrink: 0;
+}
+.tile-tree-name {
+  flex: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.tile-tree-count {
+  color: #667;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+/* ---- DecorationDetail (Animate toggle) ---- */
+.decoration-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px;
+}
+.decoration-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.decoration-detail-row > span:first-child {
+  min-width: 72px;
+}
+.decoration-detail-row select {
+  flex: 1;
+  background: #222;
+  color: #ddd;
+  border: 1px solid #333;
+  padding: 2px 4px;
+  font: inherit;
+}
+
+/* ---- Decorations two-pane (tree + grid) layout ---- */
+.editor-palette-decorations-layout {
+  display: flex;
+  min-height: 240px;
+  max-height: 480px;
+}
+.editor-palette-decorations-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 4px;
+  padding: 6px;
+  overflow-y: auto;
+  align-content: start;
+}
+.editor-palette-hint {
+  grid-column: 1 / -1;
+  color: #8b92a5;
+  font-style: italic;
+  padding: 12px;
+  font-size: 12px;
+}
