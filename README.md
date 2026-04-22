@@ -12,11 +12,12 @@
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-%E2%89%A51.1-black.svg" alt="Bun ≥ 1.1" /></a>
   <a href="https://react.dev"><img src="https://img.shields.io/badge/react-19-61dafb?logo=react&logoColor=white" alt="React 19" /></a>
   <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white" alt="TypeScript strict" /></a>
+  <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.shields.io/badge/Buy%20me%20a%20beer-%F0%9F%8D%BA-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a beer" /></a>
 </p>
 
 ---
 
-> **Use the Claude Code CLI as usual — and watch what your agents are doing.**
+> **Use the Claude Code CLI as usual — each agent session auto-spawns a hero on the dashboard, live.**
 
 Agent Quest is a browser-based monitoring dashboard that visualizes active Claude Code agent sessions as fantasy heroes in a 2D village. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on.
 
@@ -236,6 +237,14 @@ Native Windows (PowerShell / cmd.exe) should also work after this project's cros
 ## Contributing
 
 Issues and pull requests are welcome — bug reports, feature ideas, new building sprites, extra hero classes, anything. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the short version.
+
+## Support
+
+If Agent Quest makes your agents feel a little more alive, you can [buy me a beer](https://www.buymeacoffee.com/fulvio) 🍺 — every one helps keep this hobby project going.
+
+<p align="left">
+  <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20beer&emoji=%F0%9F%8D%BA&slug=fulvio&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a beer" /></a>
+</p>
 
 ## Credits
 

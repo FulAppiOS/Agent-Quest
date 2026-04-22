@@ -1,7 +1,46 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
-.DS_Store
-*.log
-.env
 *.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Merge / temp
+*.bak
+*.orig
+*.tmp
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Claude Code local state
 .claude/settings.local.json
+.claude/projects/
+.claude/todos/
+.claude/shell-snapshots/
+CLAUDE.local.md
+
+# User map slots (template.json is shipped; slots are per-user state)
+server/data/maps/slot-*.json
+server/data/maps/active-slot.json

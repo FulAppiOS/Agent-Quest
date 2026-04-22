@@ -64,8 +64,13 @@ export function registerMapRoutes(app: Hono, storage: MapStorage): void {
   // -------------------------------------------------------------------------
   // Procedural default map
   // -------------------------------------------------------------------------
-  app.get('/api/map/default', (c) => {
-    return c.json(migrateMap(buildDefaultMap(), 'default'));
+  app.get('/api/map/default', async (c) => {
+    const base = buildDefaultMap();
+    const template = await storage.loadTemplate();
+    if (template?.buildings?.length) {
+      return c.json(migrateMap({ ...base, buildings: template.buildings }, 'default (template)'));
+    }
+    return c.json(migrateMap(base, 'default (hardcoded)'));
   });
 
   // -------------------------------------------------------------------------

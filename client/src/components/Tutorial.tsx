@@ -33,7 +33,7 @@ export function Tutorial({ onClose }: TutorialProps) {
         <h2 className="tutorial-title">Welcome to Agent Quest</h2>
 
         <div className="tutorial-tagline">
-          Use the <strong>Claude Code CLI</strong> as usual — and watch what your agents are doing.
+          Use the <strong>Claude Code CLI</strong> as usual — each agent session auto-spawns a hero on the dashboard, live.
         </div>
 
         <a

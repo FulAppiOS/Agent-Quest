@@ -42,6 +42,23 @@ export class MapStorage {
   private async init(): Promise<void> {
     await mkdir(DATA_DIR, { recursive: true });
     await this.migrate();
+    await this.bootstrapFromTemplate();
+  }
+
+  /**
+   * First-run bootstrap: if no slot-*.json exists yet but template.json does,
+   * copy the template into slot-1 and mark it active. Ensures a fresh clone
+   * boots with the shipped map instead of the procedural fallback.
+   */
+  private async bootstrapFromTemplate(): Promise<void> {
+    for (let s = MIN_SLOT; s <= MAX_SLOT; s++) {
+      if (await Bun.file(slotPath(s)).exists()) return;
+    }
+    const template = Bun.file(TEMPLATE_PATH);
+    if (!(await template.exists())) return;
+    const content = await template.arrayBuffer();
+    await Bun.write(slotPath(1), content);
+    await Bun.write(ACTIVE_SLOT_PATH, JSON.stringify({ slot: 1 }, null, 2));
   }
 
   /**
