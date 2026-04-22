@@ -20,6 +20,7 @@ export type EditorAction =
   | 'save'
   | 'load-current'
   | 'load-default'
+  | 'load-template'
   | 'clear-terrain'
   | 'clear-decorations'
   | 'clear-paths'

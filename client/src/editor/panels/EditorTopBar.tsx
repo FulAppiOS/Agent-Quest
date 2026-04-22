@@ -37,9 +37,15 @@ export function EditorTopBar() {
     editorBridge.emit('ed:action', 'set-active');
   };
 
-  const onResetSlot = () => {
-    if (confirm('Reset this slot to defaults? This cannot be undone.')) {
+  const onClearMap = () => {
+    if (confirm('Clear the map? Terrain, decorations, paths, and NPCs will be wiped. You will still need to Save to persist.')) {
       editorBridge.emit('ed:action', 'reset-all');
+    }
+  };
+
+  const onLoadTemplate = () => {
+    if (confirm('Load the shipped template into this slot? Unsaved changes will be lost. You will still need to Save to persist.')) {
+      editorBridge.emit('ed:action', 'load-template');
     }
   };
 
@@ -90,7 +96,14 @@ export function EditorTopBar() {
         >
           Set Active {currentSlot === activeSlot ? '\u2605' : ''}
         </button>
-        <button className="editor-btn danger" onClick={onResetSlot}>Reset Slot</button>
+        <button
+          className="editor-btn"
+          onClick={onLoadTemplate}
+          title="Load the shipped template map into this slot (replaces current content)"
+        >
+          Load Template
+        </button>
+        <button className="editor-btn danger" onClick={onClearMap}>Clear Map</button>
         <a className="editor-btn" href="/" style={{ textDecoration: 'none' }}>Back to Village</a>
       </div>
     </div>

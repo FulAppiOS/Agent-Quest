@@ -1273,6 +1273,9 @@ export class EditorScene extends Phaser.Scene {
       case 'reset-all':
         await this.loadDefault();
         break;
+      case 'load-template':
+        await this.loadTemplate();
+        break;
     }
   }
 
@@ -1416,6 +1419,28 @@ export class EditorScene extends Phaser.Scene {
   private async loadDefault(): Promise<void> {
     try {
       const res = await fetch(`${SERVER_URL}/api/map/default`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      this.mapConfig = (await res.json()) as MapConfig;
+      if (!this.mapConfig.npcs) this.mapConfig.npcs = [];
+      if (!this.mapConfig.settings) this.mapConfig.settings = { heroScale: 0.50 };
+      this.renderAll();
+      this.drawGrid();
+      this.selection = null;
+      editorBridge.emit('ed:selected', null);
+      this.selectionOverlay.clear();
+      this.markDirty();
+      editorBridge.emit('ed:settings:loaded', this.mapConfig.settings);
+      void this.refreshSlotInfo();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      editorBridge.emit('ed:save:error', msg);
+    }
+  }
+
+  private async loadTemplate(): Promise<void> {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/map/template`);
+      if (res.status === 204) throw new Error('No template available');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       this.mapConfig = (await res.json()) as MapConfig;
       if (!this.mapConfig.npcs) this.mapConfig.npcs = [];
