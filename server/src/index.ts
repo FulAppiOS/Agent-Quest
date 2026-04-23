@@ -185,17 +185,25 @@ setInterval(() => {
   }
 }, 30_000);
 
-// Start file watcher before the HTTP server so the very first client
+// Start both providers before the HTTP server so the very first client
 // connection's snapshot already carries the discovered configDirs (instead
-// of racing the async auto-discovery and incorrectly reporting "no Claude
-// install").
+// of racing the async auto-discovery and incorrectly reporting "no agent
+// CLI install").
 await claudeProvider.start(providerHandlers);
 await codexProvider.start(providerHandlers);
 
+// If neither provider found anything on disk, emit a single aggregated
+// warning so the user sees one clear diagnostic line instead of per-provider
+// chatter. The client banner shows the equivalent message to the user.
+if (allConfigDirs().length === 0) {
+  console.warn('[Server] WARNING: no Claude Code or Codex install detected. Start a session with either to see heroes here.');
+}
+
 // Seed the liveness registry with the same config dirs the watcher just
 // auto-discovered, then prime it synchronously so the first WS snapshot can
-// already filter out phantom sessions. Registry stays Claude-only — the
-// pidfile oracle is a Claude-specific signal.
+// already filter out phantom sessions. Registry stays Claude-only by design —
+// the pidfile oracle is a Claude-specific signal; Codex liveness is inferred
+// purely from rollout-file activity.
 sessionRegistry.setConfigDirs(claudeProvider.getConfigDirs());
 await sessionRegistry.start(10_000);
 console.log(`[SessionRegistry] live session ids: ${sessionRegistry.snapshot().length}`);
