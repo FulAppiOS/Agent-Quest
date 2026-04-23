@@ -170,7 +170,7 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent, show
             {filtered.length === 0 ? (
               <div className="feed-empty">
                 <div>Waiting for agent activity...</div>
-                <div className="feed-empty-hint">Launch Claude Code in any project — it'll appear here.</div>
+                <div className="feed-empty-hint">Launch Claude Code or Codex in any project — it'll appear here.</div>
               </div>
             ) : (
               filtered.map((entry) => {
