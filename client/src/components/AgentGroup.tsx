@@ -42,7 +42,7 @@ export function AgentGroup({
             aria-label={`Select agent ${agentName}`}
             onClick={() => onSelectAgent(agentId)}
           >
-            <HeroAvatar agent={agent} />
+            <HeroAvatar agent={agent} size="inherit" />
           </button>
         ) : <span className="feed-group-avatar-placeholder" aria-hidden="true" />}
         <span

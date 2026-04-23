@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
 import { usePartyPrefs } from '../hooks/usePartyPrefs';
-import { eventBridge } from '../game/EventBridge';
 import type { AgentState } from '../types/agent';
 import './PartyBar.css';
 
@@ -11,7 +10,7 @@ interface PartyBarProps {
   onSelectAgent: (id: string | null) => void;
 }
 
-const AVATAR_SIZE = 40;
+const AVATAR_SIZE = 66;
 const FLASH_DURATION_MS = 400;
 
 const STATUS_ORDER: Record<AgentState['status'], number> = {
@@ -95,7 +94,6 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent }: PartyBarPro
 
   const handleClick = useCallback((id: string) => {
     onSelectAgent(id);
-    eventBridge.emit('camera:follow', id);
   }, [onSelectAgent]);
 
   return (

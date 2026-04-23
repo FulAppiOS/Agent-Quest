@@ -65,7 +65,7 @@ function ActivityRowImpl({
           aria-label={`Select agent ${agentName}`}
           onClick={() => onSelectAgent(agent.id)}
         >
-          <HeroAvatar agent={agent} />
+          <HeroAvatar agent={agent} size="inherit" />
         </button>
       )}
 

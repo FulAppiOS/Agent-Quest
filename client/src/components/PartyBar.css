@@ -13,8 +13,8 @@
   flex-direction: column;
   transition: width 0.18s ease;
 }
-.partybar.mode-full  { width: 220px; }
-.partybar.mode-icons { width: 60px;  }
+.partybar.mode-full  { width: 260px; }
+.partybar.mode-icons { width: 88px;  }
 
 /* === Header === */
 .partybar-header {
@@ -94,22 +94,31 @@
   transition: background 0.15s, box-shadow 0.15s;
   position: relative;
 }
-.partybar-agent:hover { background: rgba(196, 163, 90, 0.1); }
+.partybar-agent:hover { background: rgba(91, 163, 245, 0.1); }
 .partybar-agent.selected {
-  background: rgba(196, 163, 90, 0.3);
-  border-left: 3px solid #C4A35A;
+  background: rgba(91, 163, 245, 0.22);
+  border-left: 3px solid #5BA3F5;
   padding-left: 7px;
-  box-shadow: 0 0 12px rgba(196, 163, 90, 0.4);
+  animation: party-select-pulse 1.5s ease-in-out infinite;
+}
+.partybar-agent.selected .partybar-agent-name {
+  color: #FFFFFF;
+  text-shadow: 0 0 6px rgba(91, 163, 245, 0.9);
 }
 .partybar-agent.flashing {
-  animation: party-select-flash 0.4s ease-out;
+  animation: party-select-flash 0.4s ease-out, party-select-pulse 1.5s ease-in-out infinite 0.4s;
 }
 @keyframes party-select-flash {
-  0%   { box-shadow: 0 0 20px rgba(196, 163, 90, 0.9); background: rgba(196, 163, 90, 0.5); }
-  100% { box-shadow: 0 0 12px rgba(196, 163, 90, 0.4); background: rgba(196, 163, 90, 0.3); }
+  0%   { box-shadow: 0 0 22px rgba(91, 163, 245, 0.95); background: rgba(91, 163, 245, 0.45); }
+  100% { box-shadow: 0 0 12px rgba(91, 163, 245, 0.45); background: rgba(91, 163, 245, 0.22); }
+}
+@keyframes party-select-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(91, 163, 245, 0.35); }
+  50%      { box-shadow: 0 0 18px rgba(91, 163, 245, 0.8); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .partybar-agent.flashing { animation: none; }
+  .partybar-agent.flashing,
+  .partybar-agent.selected { animation: none; box-shadow: 0 0 12px rgba(91, 163, 245, 0.5); }
 }
 
 .partybar.mode-icons .partybar-agent {
@@ -127,8 +136,8 @@
   position: absolute;
   bottom: -2px;
   right: -2px;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   border: 2px solid #1a1a2e;
   box-sizing: content-box;
@@ -187,13 +196,13 @@
 
 /* === Responsive === */
 @media (max-width: 600px) {
-  .partybar.mode-full { width: 180px; }
-  .partybar-agent-name { max-width: 90px; font-size: 13px; }
+  .partybar.mode-full { width: 220px; }
+  .partybar-agent-name { max-width: 120px; font-size: 13px; }
   .partybar-activity { font-size: 11px; }
 }
 
 @media (max-width: 400px) {
-  .partybar.mode-full { width: 60px; }
+  .partybar.mode-full { width: 88px; }
   .partybar.mode-full .partybar-row-body,
   .partybar.mode-full .partybar-title { display: none; }
 }

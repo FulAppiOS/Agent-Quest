@@ -8,7 +8,8 @@
   --feed-error: rgba(139, 37, 0, 0.12);
   --feed-error-strong: #8B2500;
   --feed-row-min-height: 44px;
-  --feed-avatar-size: 24px;
+  --feed-avatar-size: 80px;
+  --feed-row-gap: 16px;
 }
 
 .activity-feed {
@@ -27,8 +28,8 @@
   transition: height 0.18s ease;
 }
 
-.activity-feed.fold-full    { height: 240px; }
-.activity-feed.fold-compact { height: 92px;  }
+.activity-feed.fold-full    { height: 420px; }
+.activity-feed.fold-compact { height: 120px; }
 .activity-feed.fold-closed  { height: 32px;  }
 
 /* === Header === */
@@ -202,8 +203,8 @@
 .feed-entry {
   display: grid;
   grid-template-columns: var(--feed-avatar-size) minmax(0, 1fr);
-  gap: 12px;
-  padding: 6px 14px;
+  gap: var(--feed-row-gap);
+  padding: 10px 14px;
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   position: relative;
@@ -233,8 +234,9 @@
   cursor: pointer;
   display: inline-block;
   line-height: 0;
-  min-width: var(--feed-avatar-size);
-  min-height: var(--feed-avatar-size);
+  width: var(--feed-avatar-size);
+  height: var(--feed-avatar-size);
+  flex-shrink: 0;
 }
 .feed-row-avatar:focus-visible {
   outline: 2px solid var(--feed-gold);
@@ -335,13 +337,20 @@
 .feed-group-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
+  gap: var(--feed-row-gap);
+  padding: 10px 14px;
   background: rgba(196, 163, 90, 0.06);
   border-bottom: 1px dashed rgba(196, 163, 90, 0.25);
 }
 .feed-group-avatar {
-  background: none; border: none; padding: 0; cursor: pointer; line-height: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+  width: var(--feed-avatar-size);
+  height: var(--feed-avatar-size);
+  flex-shrink: 0;
 }
 .feed-group-avatar-placeholder {
   width: var(--feed-avatar-size);
@@ -422,7 +431,12 @@
 
 /* === Responsive (tablet portrait and below) === */
 @media (max-width: 600px) {
-  .activity-feed.fold-full    { height: 220px; }
+  .activity-feed {
+    --feed-avatar-size: 56px;
+    --feed-row-gap: 12px;
+  }
+  .activity-feed.fold-full    { height: 360px; }
+  .activity-feed.fold-compact { height: 108px; }
   .feed-filter-row {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -449,16 +463,35 @@
 .feed-entry.is-highlighted.hl-other    { border-left-color: #888;                     background: rgba(136, 136, 136, 0.06); }
 
 .feed-entry.is-selected {
-  box-shadow: inset 4px 0 0 var(--feed-gold), 0 0 8px rgba(196, 163, 90, 0.25);
-  background: rgba(196, 163, 90, 0.08);
+  background: rgba(91, 163, 245, 0.1);
+  animation: feed-select-pulse 1.5s ease-in-out infinite;
 }
 .feed-entry.is-selected.is-highlighted {
-  box-shadow: inset 4px 0 0 var(--feed-gold), 0 0 10px rgba(196, 163, 90, 0.35);
+  background: rgba(91, 163, 245, 0.14);
+}
+.feed-entry.is-selected .feed-agent-name {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 6px rgba(91, 163, 245, 0.9);
 }
 
 .feed-group.is-selected > .feed-group-header {
-  background: rgba(196, 163, 90, 0.14);
-  box-shadow: inset 4px 0 0 var(--feed-gold);
+  background: rgba(91, 163, 245, 0.18);
+  animation: feed-select-pulse 1.5s ease-in-out infinite;
+}
+.feed-group.is-selected > .feed-group-header .feed-group-name {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 6px rgba(91, 163, 245, 0.9);
+}
+@keyframes feed-select-pulse {
+  0%, 100% { box-shadow: inset 4px 0 0 #5BA3F5, 0 0 6px rgba(91, 163, 245, 0.3); }
+  50%      { box-shadow: inset 4px 0 0 #5BA3F5, 0 0 14px rgba(91, 163, 245, 0.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-entry.is-selected,
+  .feed-group.is-selected > .feed-group-header {
+    animation: none;
+    box-shadow: inset 4px 0 0 #5BA3F5, 0 0 10px rgba(91, 163, 245, 0.5);
+  }
 }
 
 /* Category pill styling for agent/other/reads/messages (errors/edits/bash reuse existing) */

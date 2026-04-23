@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivityLogEntry, AgentState } from '../types/agent';
-import { eventBridge } from '../game/EventBridge';
 import { useFeedPrefs, type FoldState, type ViewMode } from '../hooks/useFeedPrefs';
 import { ActivityFeedHeader } from './ActivityFeedHeader';
 import { ActivityRow } from './ActivityRow';
@@ -78,6 +77,14 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
     if (foldState !== 'closed') setNewWhileClosed(0);
   }, [foldState]);
 
+  // Track the last non-closed fold state so the Close button can toggle
+  // back to it (full ↔ closed or compact ↔ closed) instead of requiring
+  // the user to re-pick the expanded state manually.
+  const previousFoldRef = useRef<FoldState>(foldState === 'closed' ? 'full' : foldState);
+  useEffect(() => {
+    if (foldState !== 'closed') previousFoldRef.current = foldState;
+  }, [foldState]);
+
   const onScroll = useCallback(() => {
     const el = listRef.current;
     if (el === null) return;
@@ -95,7 +102,6 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
 
   const handleSelectAgent = useCallback((id: string) => {
     onSelectAgent(id);
-    eventBridge.emit('camera:follow', id);
   }, [onSelectAgent]);
 
   const handleFilterAgent = useCallback((id: string) => {
@@ -105,8 +111,16 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
   const clearAgentFilter = useCallback(() => updatePrefs({ agentFilter: null }), [updatePrefs]);
 
   const onFoldChange = useCallback(
-    (s: FoldState) => updatePrefs({ foldState: s }),
-    [updatePrefs],
+    (s: FoldState) => {
+      // Close button is a toggle: if already closed, restore the previous
+      // non-closed state. Otherwise apply as-is.
+      if (s === 'closed' && foldState === 'closed') {
+        updatePrefs({ foldState: previousFoldRef.current });
+      } else {
+        updatePrefs({ foldState: s });
+      }
+    },
+    [foldState, updatePrefs],
   );
   const onViewModeChange = useCallback(
     (m: ViewMode) => updatePrefs({ viewMode: m }),
