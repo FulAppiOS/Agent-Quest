@@ -42,6 +42,9 @@
   flex-wrap: nowrap;
 }
 .feed-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 4px 12px;
   background: rgba(0, 0, 0, 0.15);
   border-bottom: 1px solid rgba(196, 163, 90, 0.15);
@@ -208,6 +211,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .feed-entry { animation: none; }
+  .feed-new-badge { animation: none; }
 }
 @keyframes feed-fade-in {
   from { opacity: 0; transform: translateY(-2px); }
@@ -222,6 +226,8 @@
   cursor: pointer;
   display: inline-block;
   line-height: 0;
+  min-width: var(--feed-avatar-size);
+  min-height: var(--feed-avatar-size);
 }
 .feed-row-avatar:focus-visible {
   outline: 2px solid var(--feed-gold);
@@ -339,7 +345,7 @@
 .feed-empty {
   text-align: center;
   padding: 24px 14px;
-  color: #666;
+  color: #999;
 }
 .feed-empty-hint {
   font-size: 11px;
@@ -351,11 +357,11 @@
 .feed-menu-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 200;
 }
 .feed-menu {
   position: fixed;
-  z-index: 101;
+  z-index: 201;
   background: rgba(26, 26, 46, 0.98);
   border: 1px solid var(--feed-border);
   border-radius: 4px;
