@@ -3,8 +3,9 @@ export type HeroClass = (typeof HERO_CLASSES)[number];
 
 // Kept in sync with server/src/types.ts — the state manager assigns round-robin
 // across the full palette. The 5 original entries map 1:1 to Tiny Swords sprite
-// variants; the extra entries reuse an existing sprite base and apply a Phaser
-// tint (see HERO_COLOR_SPRITE_BASE / HERO_COLOR_TINT below).
+// variants; the extra entries reuse an existing sprite base (see
+// `HERO_COLOR_SPRITE_BASE` below). Only the NAME LABEL gets the expanded color
+// — the sprite itself stays its base variant, untinted.
 export const HERO_COLORS = [
   'blue', 'yellow', 'red', 'black', 'purple',
   'teal', 'orange', 'green',
@@ -44,7 +45,8 @@ export const HERO_LABEL_COLOR: Record<HeroColor, string> = {
 /**
  * Sprite variant to actually render for each HeroColor. The extra palette
  * entries (teal/orange/green) don't have their own sprite sheets — they
- * piggy-back on an existing one and rely on `HERO_COLOR_TINT` for distinction.
+ * piggy-back on an existing one; only the name label reflects the expanded
+ * palette, the sprite itself stays the base variant untouched.
  */
 export const HERO_COLOR_SPRITE_BASE: Record<HeroColor, 'blue' | 'yellow' | 'red' | 'black' | 'purple'> = {
   blue:   'blue',
@@ -55,22 +57,6 @@ export const HERO_COLOR_SPRITE_BASE: Record<HeroColor, 'blue' | 'yellow' | 'red'
   teal:   'blue',
   orange: 'yellow',
   green:  'yellow',
-};
-
-/**
- * Phaser multiplicative tint (0xRRGGBB) applied on top of the base sprite to
- * differentiate the piggy-backed colors. `null` means no extra tint — the
- * sprite renders untouched (the theme may still apply its own tint).
- */
-export const HERO_COLOR_TINT: Record<HeroColor, number | null> = {
-  blue:   null,
-  yellow: null,
-  red:    null,
-  black:  null,
-  purple: null,
-  teal:   0x9EEFDD,
-  orange: 0xFFB878,
-  green:  0xB6E89B,
 };
 
 export type AgentActivity =
