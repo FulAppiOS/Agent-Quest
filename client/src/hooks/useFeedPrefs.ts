@@ -47,7 +47,9 @@ export function parsePrefs(raw: string | null): FeedPrefs {
     activeFilters: Array.isArray(o.activeFilters)
       ? o.activeFilters.filter(isFilter)
       : DEFAULT_PREFS.activeFilters,
-    agentFilter: typeof o.agentFilter === 'string' ? o.agentFilter : null,
+    agentFilter: typeof o.agentFilter === 'string' && o.agentFilter.length > 0
+      ? o.agentFilter
+      : null,
   };
 }
 
@@ -62,18 +64,34 @@ export function useFeedPrefs(): [FeedPrefs, (patch: Partial<FeedPrefs>) => void]
   });
 
   const writeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingValue = useRef<FeedPrefs | null>(null);
 
   useEffect(() => {
     if (writeTimer.current !== null) clearTimeout(writeTimer.current);
+    pendingValue.current = prefs;
     writeTimer.current = setTimeout(() => {
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
       } catch { /* quota or private mode — silently ignore */ }
+      pendingValue.current = null;
     }, WRITE_DEBOUNCE_MS);
     return () => {
       if (writeTimer.current !== null) clearTimeout(writeTimer.current);
     };
   }, [prefs]);
+
+  // Flush pending write on unmount so a fast close/navigation doesn't lose the
+  // last user change. Separate effect keeps the debounce loop above clean.
+  useEffect(() => {
+    return () => {
+      if (pendingValue.current !== null) {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(pendingValue.current));
+        } catch { /* quota or private mode — silently ignore */ }
+        pendingValue.current = null;
+      }
+    };
+  }, []);
 
   const update = useCallback((patch: Partial<FeedPrefs>) => {
     setPrefs((prev) => mergePrefs(prev, patch));

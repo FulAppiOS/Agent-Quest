@@ -42,6 +42,14 @@ describe('parsePrefs', () => {
     expect(result.viewMode).toBe('all');
     expect(result.activeFilters).toEqual(['edits']);
   });
+
+  it('rejects non-string agentFilter', () => {
+    expect(parsePrefs(JSON.stringify({ agentFilter: 42 })).agentFilter).toBeNull();
+  });
+
+  it('rejects empty-string agentFilter', () => {
+    expect(parsePrefs(JSON.stringify({ agentFilter: '' })).agentFilter).toBeNull();
+  });
 });
 
 describe('mergePrefs', () => {
