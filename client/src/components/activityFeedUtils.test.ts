@@ -5,6 +5,9 @@ import { getAgentNameFallback } from './activityFeedUtils';
 import { resolvePath } from './activityFeedUtils';
 import { filterByAction } from './activityFeedUtils';
 import { filterByAgent, groupByAgent } from './activityFeedUtils';
+import { categorizeEntry } from './activityFeedUtils';
+import { detectCategories } from './activityFeedUtils';
+import type { ActionFilter } from './activityFeedUtils';
 import type { ActivityLogEntry } from '../types/agent';
 
 describe('isPath', () => {
@@ -181,8 +184,6 @@ describe('groupByAgent', () => {
   });
 });
 
-import { categorizeEntry } from './activityFeedUtils';
-
 describe('categorizeEntry', () => {
   it('classifies Bash error as errors', () => {
     expect(categorizeEntry('Bash', 'npm run build → exit 1')).toBe('errors');
@@ -219,9 +220,6 @@ describe('categorizeEntry', () => {
     expect(categorizeEntry('WebFetch', 'https://example.com')).toBe('other');
   });
 });
-
-import { detectCategories } from './activityFeedUtils';
-import type { ActionFilter } from './activityFeedUtils';
 
 describe('detectCategories', () => {
   it('returns empty set and zero counts for empty log', () => {
