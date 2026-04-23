@@ -1,26 +1,39 @@
 import { useState } from 'react';
-import type { ActivityLogEntry, AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { ActivityRow } from './ActivityRow';
+import { categorizeEntry, type ActionFilter } from './activityFeedUtils';
 
 interface AgentGroupProps {
   agentId: string;
   agent: AgentState | undefined;
   agentName: string;
   entries: ActivityLogEntry[];
+  activeHighlights: ActionFilter[];
+  selectedAgentId: string | null;
   onSelectAgent: (id: string) => void;
   onFilterAgent: (id: string) => void;
 }
 
 const COLLAPSED_VISIBLE = 3;
 
-export function AgentGroup({ agentId, agent, agentName, entries, onSelectAgent, onFilterAgent }: AgentGroupProps) {
+export function AgentGroup({
+  agentId, agent, agentName, entries,
+  activeHighlights, selectedAgentId,
+  onSelectAgent, onFilterAgent,
+}: AgentGroupProps) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? entries : entries.slice(0, COLLAPSED_VISIBLE);
   const hidden = entries.length - visible.length;
+  const isSelected = agentId === selectedAgentId;
+
+  const shouldHighlight = (entry: ActivityLogEntry): boolean => {
+    if (activeHighlights.length === 0) return false;
+    return activeHighlights.includes(categorizeEntry(entry.action, entry.detail));
+  };
 
   return (
-    <section className="feed-group" aria-label={`Activity for ${agentName}`}>
+    <section className={`feed-group ${isSelected ? 'is-selected' : ''}`} aria-label={`Activity for ${agentName}`}>
       <header className="feed-group-header">
         {agent !== undefined ? (
           <button
@@ -32,7 +45,10 @@ export function AgentGroup({ agentId, agent, agentName, entries, onSelectAgent, 
             <HeroAvatar agent={agent} />
           </button>
         ) : <span className="feed-group-avatar-placeholder" aria-hidden="true" />}
-        <span className="feed-group-name">{agentName}</span>
+        <span
+          className="feed-group-name"
+          style={agent !== undefined ? { color: HERO_LABEL_COLOR[agent.heroColor] } : undefined}
+        >{agentName}</span>
         {agent !== undefined && (
           <span className="feed-group-activity">· {agent.currentActivity}</span>
         )}
@@ -46,6 +62,8 @@ export function AgentGroup({ agentId, agent, agentName, entries, onSelectAgent, 
             agent={agent}
             agentName={agentName}
             inGroup
+            highlighted={shouldHighlight(entry)}
+            isSelected={isSelected}
             onSelectAgent={onSelectAgent}
             onFilterAgent={onFilterAgent}
           />
