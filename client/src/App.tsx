@@ -51,6 +51,18 @@ export default function App() {
     };
   }, [handleSelectBuilding]);
 
+  // Listen for hero clicks from Phaser
+  useEffect(() => {
+    const onHeroClicked = (id: unknown) => {
+      if (typeof id !== 'string') return;
+      handleSelectAgent(id);
+    };
+    eventBridge.on('hero:clicked', onHeroClicked);
+    return () => {
+      eventBridge.off('hero:clicked', onHeroClicked);
+    };
+  }, [handleSelectAgent]);
+
   // Hide the HTML overlays (TopBar, PartyBar, etc.) while the BootScene is up.
   // VillageScene emits 'village:ready' in its create().
   useEffect(() => {
@@ -77,6 +89,10 @@ export default function App() {
   useEffect(() => {
     eventBridge.emit('agents:updated', agents);
   }, [agents]);
+
+  useEffect(() => {
+    eventBridge.emit('selection:changed', selectedAgentId);
+  }, [selectedAgentId]);
 
   useEffect(() => {
     if (connected) {
@@ -111,6 +127,7 @@ export default function App() {
           <ActivityFeed
             log={activityLog}
             agents={agents}
+            selectedAgentId={selectedAgentId}
             onSelectAgent={handleSelectAgent}
           />
         </div>
