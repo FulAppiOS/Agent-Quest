@@ -59,7 +59,7 @@ export class HeroSprite {
   private isErrorRecent = false;
   private nameBaseColor = '#DDDDDD';
   private selectionTween: Phaser.Tweens.Tween | null = null;
-  private selectionBaseScale = 1;
+  private selectionHalo: Phaser.GameObjects.Arc | null = null;
 
   /** Grid base position — used for slot repositioning. */
   gridBaseX = 0;
@@ -210,26 +210,30 @@ export class HeroSprite {
   }
 
   /**
-   * Apply or clear a selection visual: punchy pulse (scale 1→1.3 + alpha
-   * 1→0.55 yoyo 400ms, ~800ms cycle) with blue tint, so the selected hero
-   * is unmistakable against the rest of the scene.
+   * Apply or clear a selection visual: a pulsing blue halo BEHIND the sprite
+   * (alpha + scale yoyo ~1s cycle). The sprite itself stays untinted so the
+   * character's natural colors are preserved; only the surrounding light
+   * pulses. The name text is brightened so the selected hero's label stands
+   * out against its neighbors.
    */
   setSelected(selected: boolean): void {
     if (this.selectionTween !== null) {
       this.selectionTween.stop();
       this.selectionTween = null;
-      this.sprite.setScale(this.selectionBaseScale);
-      this.sprite.setAlpha(1);
+    }
+    if (this.selectionHalo !== null) {
+      this.selectionHalo.destroy();
+      this.selectionHalo = null;
     }
     if (selected) {
-      this.selectionBaseScale = this.sprite.scaleX;
-      this.sprite.setTint(0x5ba3f5);
+      const radius = Math.max(this.sprite.displayWidth, this.sprite.displayHeight) * 0.55;
+      this.selectionHalo = this.scene.add.circle(this._x, this._y, radius, 0x5ba3f5, 0.25);
+      this.selectionHalo.setDepth(this.sprite.depth - 0.1);
       this.selectionTween = this.scene.tweens.add({
-        targets: this.sprite,
-        scaleX: this.selectionBaseScale * 1.3,
-        scaleY: this.selectionBaseScale * 1.3,
+        targets: this.selectionHalo,
         alpha: 0.55,
-        duration: 400,
+        scale: 1.4,
+        duration: 500,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
@@ -237,7 +241,6 @@ export class HeroSprite {
       this.nameText.setColor('#FFFFFF');
       this.nameText.setStroke('#1E5FA3', 5);
     } else {
-      this.sprite.clearTint();
       this.nameText.setColor(this.nameBaseColor);
       this.nameText.setStroke('#000000', 3);
     }
@@ -336,6 +339,7 @@ export class HeroSprite {
     this.activityText.setDepth(footY + 0.6);
     this.detailText.setDepth(footY + 0.6);
     this.taskText.setDepth(footY + 0.6);
+    if (this.selectionHalo !== null) this.selectionHalo.setDepth(footY + 0.4);
   }
 
   /** Update the truncated task line shown below the detail. */
@@ -436,6 +440,9 @@ export class HeroSprite {
         this.activityText.setPosition(this._x, this._y + this.activityOffsetY);
         this.detailText.setPosition(this._x, this._y + this.detailOffsetY);
         this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
+        if (this.selectionHalo !== null) {
+          this.selectionHalo.setPosition(this._x, this._y);
+        }
         this.updateDepth();
       },
       onComplete: () => {
@@ -459,6 +466,14 @@ export class HeroSprite {
     if (this.errorTimer !== null) {
       this.errorTimer.remove();
       this.errorTimer = null;
+    }
+    if (this.selectionTween !== null) {
+      this.selectionTween.stop();
+      this.selectionTween = null;
+    }
+    if (this.selectionHalo !== null) {
+      this.selectionHalo.destroy();
+      this.selectionHalo = null;
     }
     this.sprite.destroy();
     this.nameText.destroy();
