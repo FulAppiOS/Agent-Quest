@@ -60,7 +60,7 @@ export class FileWatcher {
 
     this.pollInterval = setInterval(() => {
       this.scan().catch((err) => {
-        console.error('[FileWatcher] scan error:', err);
+        console.error('[ClaudeProvider] scan error:', err);
       });
     }, intervalMs);
 
@@ -69,7 +69,7 @@ export class FileWatcher {
       // bootstrap in index.ts prints a single aggregated warning.
       console.log('[ClaudeProvider] no ~/.claude* dir — provider inactive');
     } else {
-      console.log(`[FileWatcher] watching ${this.claudeDirs.length} config dir(s) every ${intervalMs}ms:`);
+      console.log(`[ClaudeProvider] watching ${this.claudeDirs.length} config dir(s) every ${intervalMs}ms:`);
       for (const d of this.claudeDirs) console.log(`  - ${d}`);
     }
   }
