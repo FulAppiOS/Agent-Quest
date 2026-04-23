@@ -138,6 +138,7 @@ export default function App() {
             agents={agents}
             selectedAgentId={selectedAgentId}
             onSelectAgent={handleSelectAgent}
+            showSourceBadge={showSourceBadge}
           />
         </div>
       )}

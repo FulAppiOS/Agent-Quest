@@ -73,6 +73,9 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
           <span className="partybar-row-top">
             <span className="partybar-agent-name">{agent.name}</span>
             <span className={`partybar-dot ${agent.status}`} aria-hidden="true" />
+          </span>
+          <span className="partybar-row-bottom">
+            <span className="partybar-activity">{agent.currentActivity}</span>
             {showSourceBadge && (
               <span
                 className="partybar-source-badge"
@@ -87,7 +90,6 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
               </span>
             )}
           </span>
-          <span className="partybar-activity">{agent.currentActivity}</span>
         </span>
       )}
     </button>

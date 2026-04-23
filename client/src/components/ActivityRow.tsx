@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { HERO_LABEL_COLOR, type ActivityLogEntry, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { isError, isPath, resolvePath, categorizeEntry } from './activityFeedUtils';
 import type { ActionFilter } from './activityFeedUtils';
@@ -21,6 +21,7 @@ interface ActivityRowProps {
   inGroup?: boolean;
   highlighted: boolean;
   isSelected: boolean;
+  showSourceBadge?: boolean;
   onSelectAgent: (id: string) => void;
   onFilterAgent: (id: string) => void;
 }
@@ -31,7 +32,7 @@ interface MenuState {
 }
 
 function ActivityRowImpl({
-  entry, agent, agentName, inGroup, highlighted, isSelected,
+  entry, agent, agentName, inGroup, highlighted, isSelected, showSourceBadge,
   onSelectAgent, onFilterAgent,
 }: ActivityRowProps) {
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -91,6 +92,19 @@ function ActivityRowImpl({
             >{agentName}</button>
           )}
           <span className={`feed-action-pill ${error ? 'is-error' : ''} ${pillVariant}`}>{entry.action}</span>
+          {showSourceBadge === true && !inGroup && agent !== undefined && (
+            <span
+              className="feed-source-badge"
+              style={{
+                color: SOURCE_BADGE_COLOR[agent.source],
+                borderColor: `${SOURCE_BADGE_COLOR[agent.source]}80`,
+                background: `${SOURCE_BADGE_COLOR[agent.source]}14`,
+              }}
+              aria-label={`source ${agent.source}`}
+            >
+              {agent.source.toUpperCase()}
+            </span>
+          )}
           <span className="feed-time">{time}</span>
         </div>
         {isMessage ? (
@@ -172,7 +186,9 @@ export const ActivityRow = memo(ActivityRowImpl, (prev, next) =>
   prev.agent?.cwd     === next.agent?.cwd     &&
   prev.agent?.heroClass === next.agent?.heroClass &&
   prev.agent?.heroColor === next.agent?.heroColor &&
+  prev.agent?.source  === next.agent?.source  &&
   prev.inGroup        === next.inGroup        &&
   prev.highlighted    === next.highlighted    &&
-  prev.isSelected     === next.isSelected
+  prev.isSelected     === next.isSelected     &&
+  prev.showSourceBadge === next.showSourceBadge
 );

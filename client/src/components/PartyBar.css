@@ -152,7 +152,7 @@
 .partybar-row-body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   min-width: 0;
   flex: 1;
 }
@@ -196,6 +196,12 @@
 .partybar-dot.completed { background: #555;    }
 .partybar-dot.error     { background: #8B2500; }
 .partybar-dot.waiting   { background: #FFD700; }
+.partybar-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .partybar-activity {
   font-size: 12px;
   color: #F5E6C8;
@@ -203,6 +209,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 /* === Responsive === */

@@ -14,11 +14,12 @@ interface ActivityFeedProps {
   agents: AgentState[];
   selectedAgentId: string | null;
   onSelectAgent: (id: string) => void;
+  showSourceBadge: boolean;
 }
 
 const SCROLL_PIN_THRESHOLD_PX = 8;
 
-export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: ActivityFeedProps) {
+export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent, showSourceBadge }: ActivityFeedProps) {
   const [prefs, updatePrefs] = useFeedPrefs();
   const { foldState, activeHighlights, agentFilter } = prefs;
 
@@ -182,6 +183,7 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
                     agentName={resolveName(entry.agentId)}
                     highlighted={shouldHighlight(entry)}
                     isSelected={entryKey === selectedEntryKey}
+                    showSourceBadge={showSourceBadge}
                     onSelectAgent={(id) => {
                       setSelectedEntry({ agentId: id, entryKey });
                       handleSelectAgent(id);
