@@ -1,8 +1,16 @@
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { HERO_LABEL_COLOR, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { isError, isPath, resolvePath, categorizeEntry } from './activityFeedUtils';
 import type { ActionFilter } from './activityFeedUtils';
+
+// Message cells render detail as markdown (bold, italic, code, links). The
+// custom `p` renderer emits a fragment so multiple paragraphs flow inline —
+// no extra vertical space, no visible paragraph breaks.
+const MD_COMPONENTS = {
+  p: ({ children }: { children?: ReactNode }) => <>{children}</>,
+};
 
 interface ActivityRowProps {
   entry: ActivityLogEntry;
@@ -85,7 +93,9 @@ function ActivityRowImpl({
           <span className="feed-time">{time}</span>
         </div>
         {isMessage ? (
-          <span className={`feed-detail is-message ${pillVariant}`}>{entry.detail}</span>
+          <div className={`feed-detail is-message ${pillVariant}`}>
+            <ReactMarkdown components={MD_COMPONENTS}>{entry.detail}</ReactMarkdown>
+          </div>
         ) : detailIsPath && absolute !== null ? (
           <a
             href={`vscode://file${encodeURI(absolute)}`}
