@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import type { AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, type AgentState } from '../types/agent';
 import './DetailPanel.css';
 
 interface DetailPanelProps {
@@ -26,7 +26,7 @@ export function DetailPanel({ agent, onClose }: DetailPanelProps) {
     <div className="detail-panel">
       <button className="detail-close" onClick={onClose}>✕</button>
       <div className="detail-header">
-        <div className="detail-name">{agent.name}</div>
+        <div className="detail-name" style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}>{agent.name}</div>
         <div className="detail-class">{agent.heroClass} — {agent.status}</div>
       </div>
       <div className="detail-section">

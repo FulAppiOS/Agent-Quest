@@ -4,6 +4,19 @@ export type HeroClass = (typeof HERO_CLASSES)[number];
 export const HERO_COLORS = ['blue', 'yellow', 'red', 'black', 'purple'] as const;
 export type HeroColor = (typeof HERO_COLORS)[number];
 
+/**
+ * Hero color tinted for text labels on dark backgrounds (Phaser name tag,
+ * Party Bar, feed rows). Bright enough to read against #1a1a2e. Keep in sync
+ * with the Minimap palette if you ever want the two to visually match.
+ */
+export const HERO_LABEL_COLOR: Record<HeroColor, string> = {
+  blue:   '#88BBFF',
+  yellow: '#FFD700',
+  red:    '#FF8866',
+  black:  '#B8B8D0',
+  purple: '#C48BE8',
+};
+
 export type AgentActivity =
   | 'reading'
   | 'editing'

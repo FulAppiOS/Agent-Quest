@@ -104,7 +104,7 @@ export class AgentStateManager {
     this.livenessOracle = oracle;
   }
 
-  processEvent(event: ParsedEvent, configDir = ''): ProcessResult | null {
+  processEvent(event: ParsedEvent, configDir = '', nameOverride?: string): ProcessResult | null {
     const existing = this.agents.get(event.sessionId);
 
     // Resume hints (last-prompt dumps) never create new agents and never advance
@@ -118,7 +118,7 @@ export class AgentStateManager {
     }
 
     if (existing === undefined) {
-      const agent = this.createAgent(event, configDir);
+      const agent = this.createAgent(event, configDir, nameOverride);
       this.agents.set(event.sessionId, agent);
       this.applyDerivedStatus(agent);
       this.applyTurnAndError(agent, event);
@@ -385,12 +385,37 @@ export class AgentStateManager {
     return color;
   }
 
-  private createAgent(event: ParsedEvent, configDir: string): AgentState {
+  /**
+   * Pick a color that no other currently-tracked agent with the same name owns.
+   * This keeps the name labels in the Activity Feed / Party Bar distinguishable
+   * when several Claude sessions run in the same project (they all derive the
+   * same name from slug/cwd). Falls back to the plain round-robin once all
+   * five colors are already in use for that name.
+   */
+  private pickUnusedColorFor(name: string): HeroColor {
+    const used = new Set<HeroColor>();
+    for (const a of this.agents.values()) {
+      if (a.name === name) used.add(a.heroColor);
+    }
+    for (let i = 0; i < HERO_COLORS.length; i++) {
+      const color = HERO_COLORS[(this.colorIndex + i) % HERO_COLORS.length]!;
+      if (!used.has(color)) {
+        this.colorIndex += i + 1;
+        return color;
+      }
+    }
+    return this.nextHeroColor();
+  }
+
+  private createAgent(event: ParsedEvent, configDir: string, nameOverride?: string): AgentState {
+    const name = nameOverride !== undefined && nameOverride.length > 0
+      ? nameOverride
+      : deriveAgentName(event.slug, event.cwd, event.sessionId);
     const agent: AgentState = {
       id: event.sessionId,
-      name: deriveAgentName(event.slug, event.cwd, event.sessionId),
+      name,
       heroClass: this.nextHeroClass(),
-      heroColor: this.nextHeroColor(),
+      heroColor: this.pickUnusedColorFor(name),
       status: 'active',
       currentActivity: event.activity,
       currentFile: event.file,

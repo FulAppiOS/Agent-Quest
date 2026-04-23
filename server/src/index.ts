@@ -4,6 +4,7 @@ import { cors } from 'hono/cors';
 import { AgentStateManager } from './state/agent-state-manager';
 import { FileWatcher } from './watchers/file-watcher';
 import { parseJsonlLine, parseSessionFile } from './parsers/session-parser';
+import { resolveSubagentLabel } from './parsers/subagent-label';
 import { SessionRegistry } from './session-registry';
 import { WebSocketServer } from './ws/websocket-server';
 import type { WsClient } from './ws/websocket-server';
@@ -85,12 +86,20 @@ const watcher = new FileWatcher({
     const contents = await file.text();
     const events = parseSessionFile(contents);
 
+    // Subagent files live under `.../<parentSessionId>/subagents/agent-*.jsonl`.
+    // Resolve a readable label (the parent's Agent tool `description`/`subagent_type`
+    // or a first-sentence fallback) before creating the agent, so the initial
+    // broadcast carries the human-friendly name instead of the hex sigla.
+    const nameOverride = sessionId.startsWith('agent-')
+      ? await resolveSubagentLabel(filePath).catch(() => undefined)
+      : undefined;
+
     for (const event of events) {
       // Subagent JSONL lines carry the PARENT's sessionId — rekey on the
       // filename-derived id so each subagent becomes its own hero instead
       // of being folded into the parent agent.
       event.sessionId = sessionId;
-      const result = stateManager.processEvent(event, configDir);
+      const result = stateManager.processEvent(event, configDir, nameOverride);
       if (result !== null && result.isNew) {
         wsServer.broadcastNewAgent(result.agent);
       }
@@ -124,6 +133,27 @@ const watcher = new FileWatcher({
       for (const tc of event.toolCalls) {
         const detail = event.file ?? event.command ?? '';
         wsServer.broadcastActivityLog(event.sessionId, tc.name, detail, tc.timestamp);
+      }
+
+      // User prompts: feed shows the message that kicked off the turn.
+      // Skip resume hints (historical last-prompt dumps) and subagents (their
+      // "prompt" is the parent's tool_use input, already visible as a Task row).
+      if (
+        event.kind === 'task' &&
+        event.currentTask !== undefined &&
+        event.isResumeHint !== true &&
+        !event.sessionId.startsWith('agent-')
+      ) {
+        const detail = event.currentTask.length > 500
+          ? `${event.currentTask.slice(0, 500)}…`
+          : event.currentTask;
+        wsServer.broadcastActivityLog(event.sessionId, 'Prompt', detail, event.timestamp);
+      }
+
+      // Claude's text reply at turn-end — lastMessage is already capped at 300
+      // chars by the parser.
+      if (event.isTurnEnd === true && event.lastMessage !== undefined) {
+        wsServer.broadcastActivityLog(event.sessionId, 'Reply', event.lastMessage, event.timestamp);
       }
     }
   },

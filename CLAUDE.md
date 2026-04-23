@@ -39,6 +39,10 @@ These are fixed. Do NOT use 3000, 3333, 5173, 5174, 8000 — reserved by other p
 - Code and identifiers in English, UI labels in English
 - Commit messages: conventional style (`feat:`, `fix:`, `refactor:`)
 
+## Git Workflow
+
+- **Never push to the remote automatically.** The repo is public on GitHub; every `git push` must be explicitly requested by the user. Commits are fine without asking (once changes are ready), but pushes require direct authorization.
+
 ## Key Type: AgentState
 
 The central data model flows from server to client. Defined in shared types. Maps tool calls to activities: Read/Grep/Glob → `reading`, Edit/Write → `editing`, Bash → `bash`, thinking → `thinking`, git → `git`, idle → `idle`, debug → `debugging`, review → `reviewing`.
