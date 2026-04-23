@@ -102,3 +102,109 @@ test('CodexProvider skips files older than maxAgeMs', async () => {
   expect(starts.length).toBe(0);
   p.stop();
 });
+
+test('CodexProvider.getConfigDirs returns [] when codex root does not exist', async () => {
+  const p = new CodexProvider({
+    codexRoot: '/tmp/definitely-not-a-real-path-codex-xyz-9999',
+    scanIntervalMs: 60_000,
+  });
+
+  await p.start({ onSessionStart: () => {}, onSessionEvents: () => {} });
+
+  // Missing install must NOT be advertised as a configured dir, or the UI's
+  // "no install" banner gets suppressed on a machine that has nothing running.
+  expect(p.getConfigDirs()).toEqual([]);
+
+  p.stop();
+});
+
+test('CodexProvider picks up a stale-on-first-sight file that resumes writing', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'codex-test-'));
+  const day = join(root, 'sessions', '2026', '04', '23');
+  mkdirSync(day, { recursive: true });
+  const file = join(day, 'rollout-resumed.jsonl');
+  writeFileSync(file, makeSessionMeta('resumed-thread', '/proj') + '\n');
+
+  // Backdate the file so first-sight classifies it as stale.
+  const { utimesSync } = await import('node:fs');
+  const old = new Date(Date.now() - 5 * 3600_000);
+  utimesSync(file, old, old);
+
+  const starts: unknown[] = [];
+  const p = new CodexProvider({
+    codexRoot: root,
+    scanIntervalMs: 60_000,
+    maxAgeMs: 3 * 3600_000,
+  });
+
+  await p.start({
+    onSessionStart: (payload) => starts.push(payload),
+    onSessionEvents: () => {},
+  });
+
+  // First scan ignores the stale file.
+  expect(starts.length).toBe(0);
+
+  // The thread wakes up and writes a user message. Append also bumps mtime
+  // back to "now", but the sentinel stored on first sight must not lock the
+  // file out — the provider should treat the growth as a resumed session.
+  appendFileSync(file, makeUserMessage('resumed') + '\n');
+
+  await (p as unknown as { scan: () => Promise<void> }).scan();
+
+  expect(starts.length).toBe(1);
+  const first = starts[0] as { sessionId: string; events: unknown[] };
+  expect(first.sessionId).toBe('resumed-thread');
+  // Full file is re-parsed → both the session_meta (dropped as noise) and the
+  // user_message land.
+  expect(first.events.length).toBe(1);
+
+  p.stop();
+});
+
+test('CodexProvider holds back partial trailing line until it is completed', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'codex-test-'));
+  const day = join(root, 'sessions', '2026', '04', '23');
+  mkdirSync(day, { recursive: true });
+  const file = join(day, 'rollout-partial.jsonl');
+  writeFileSync(
+    file,
+    makeSessionMeta('partial-thread', '/proj') + '\n' + makeUserMessage('first') + '\n',
+  );
+
+  const updates: unknown[] = [];
+  const p = new CodexProvider({
+    codexRoot: root,
+    scanIntervalMs: 60_000,
+  });
+
+  await p.start({
+    onSessionStart: () => {},
+    onSessionEvents: (payload) => updates.push(payload),
+  });
+
+  // Poll #1: write a COMPLETE event then a partial trailing fragment (no final '\n').
+  const fullEvent = makeTaskComplete();
+  const partial = '{"timestamp":"2026-04-23T18:00:05Z","type":"event_msg","payload":{"type":"user_message","message":"par'; // no closing brace, no newline
+  appendFileSync(file, fullEvent + '\n' + partial);
+
+  await (p as unknown as { scan: () => Promise<void> }).scan();
+
+  // The complete event should have been emitted; the partial one must NOT
+  // have been dropped as malformed (which would advance size past it and
+  // permanently lose it).
+  expect(updates.length).toBe(1);
+  expect((updates[0] as { events: unknown[] }).events.length).toBe(1);
+
+  // Poll #2: complete the partial line by appending its tail and a newline.
+  const tail = 'tial"}}\n';
+  appendFileSync(file, tail);
+
+  await (p as unknown as { scan: () => Promise<void> }).scan();
+
+  // Now the previously partial event must have been picked up.
+  expect(updates.length).toBe(2);
+  expect((updates[1] as { events: unknown[] }).events.length).toBe(1);
+
+  p.stop();
+});

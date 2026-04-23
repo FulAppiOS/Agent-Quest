@@ -31,6 +31,10 @@ export class CodexProvider implements SessionProvider {
   private handlers: ProviderHandlers | null = null;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private tracked = new Map<string, TrackedFile>();
+  /** Set when `start()` confirmed the codex root directory exists. Drives
+   * `getConfigDirs()` — we must not advertise a non-existent install, otherwise
+   * the client suppresses its missing-install banner. */
+  private rootExists = false;
 
   constructor(opts: CodexProviderOptions = {}) {
     this.codexRoot = opts.codexRoot ?? join(homedir(), '.codex');
@@ -46,6 +50,7 @@ export class CodexProvider implements SessionProvider {
       console.warn(`[CodexProvider] ${this.codexRoot} not found — Codex threads won't appear.`);
       return;
     }
+    this.rootExists = true;
 
     await this.scan();
     this.pollInterval = setInterval(() => {
@@ -66,7 +71,7 @@ export class CodexProvider implements SessionProvider {
   }
 
   getConfigDirs(): readonly string[] {
-    return [this.codexRoot];
+    return this.rootExists ? [this.codexRoot] : [];
   }
 
   private async scan(): Promise<void> {
@@ -117,20 +122,44 @@ export class CodexProvider implements SessionProvider {
       return;
     }
 
-    // Follow-up scan: detect growth.
-    if (tracked.sessionId === '') return; // stale-on-first-sight file; ignore
+    // Follow-up scan.
     if (s.size <= tracked.size) return;
+
+    // Stale-on-first-sight sentinel that just grew: the thread resumed after
+    // our grace window. Discard the sentinel and re-run as a fresh discovery
+    // (single hop, no infinite recursion — second call always finds a non-empty
+    // tracked entry OR a real sessionId).
+    if (tracked.sessionId === '') {
+      this.tracked.delete(filePath);
+      await this.processFile(filePath);
+      return;
+    }
 
     const fd = Bun.file(filePath);
     const newBytes = fd.slice(tracked.size, s.size);
     const newContent = await newBytes.text();
+
+    // Guard against partial JSONL writes: if polling catches Codex mid-write,
+    // the tail will not end with '\n'. Process only up to the last newline; hold
+    // back the trailing partial bytes until the next scan completes the line.
+    const lastNlIdx = newContent.lastIndexOf('\n');
+    if (lastNlIdx === -1) {
+      // No complete line yet — wait for next scan, don't advance.
+      return;
+    }
+    const complete = newContent.slice(0, lastNlIdx + 1);
+
     const events: ParsedEvent[] = [];
-    for (const line of newContent.split('\n')) {
+    for (const line of complete.split('\n')) {
       if (line.trim() === '') continue;
       const ev = parseCodexLine(line, tracked.sessionId, tracked.sessionCwd);
       if (ev !== null) events.push(ev);
     }
-    tracked.size = s.size;
+    // Advance by the BYTE length of the processed chunk (not char length) —
+    // required for UTF-8 content, safe for pure ASCII. `\n` is always 1 byte
+    // so the offset lines up exactly with the file position.
+    tracked.size += Buffer.byteLength(complete, 'utf8');
+
     if (events.length === 0) return;
 
     handlers.onSessionEvents({
