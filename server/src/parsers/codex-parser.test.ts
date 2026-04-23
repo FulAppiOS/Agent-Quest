@@ -109,6 +109,24 @@ test('parseCodexLine returns null for token_count / turn_context / response_item
   }
 });
 
+test('parseCodexLine returns null for agent_message and reasoning', () => {
+  // These events fire INTERLEAVED with tool events mid-turn. Emitting them as
+  // `activity: thinking` would make the hero ping-pong between buildings.
+  const agentMsg = JSON.stringify({
+    timestamp: '2026-04-23T18:00:00Z',
+    type: 'event_msg',
+    payload: { type: 'agent_message', message: 'reasoning chunk' },
+  });
+  expect(parseCodexLine(agentMsg, 'sess-1', '/cwd')).toBeNull();
+
+  const reasoning = JSON.stringify({
+    timestamp: '2026-04-23T18:00:00Z',
+    type: 'event_msg',
+    payload: { type: 'reasoning', text: 'thinking about it' },
+  });
+  expect(parseCodexLine(reasoning, 'sess-1', '/cwd')).toBeNull();
+});
+
 test('parseCodexLine maps patch_apply_end to editing with file toolCall', () => {
   // Two possible shapes — the parser must be tolerant. Test both.
   const withChanges = JSON.stringify({

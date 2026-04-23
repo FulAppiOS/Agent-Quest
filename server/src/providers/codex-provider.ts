@@ -35,6 +35,12 @@ export class CodexProvider implements SessionProvider {
    * `getConfigDirs()` — we must not advertise a non-existent install, otherwise
    * the client suppresses its missing-install banner. */
   private rootExists = false;
+  /** Re-entrancy guard for `scan()`. On machines with thousands of archived
+   * rollouts the recursive walk can take longer than `scanIntervalMs`, and
+   * overlapping scans race on `this.tracked` — the second scan sees `tracked`
+   * still undefined for a file the first one is mid-parsing, re-emits
+   * `onSessionStart`, and the state manager ends up with duplicate tool calls. */
+  private scanning = false;
 
   constructor(opts: CodexProviderOptions = {}) {
     this.codexRoot = opts.codexRoot ?? join(homedir(), '.codex');
@@ -75,10 +81,16 @@ export class CodexProvider implements SessionProvider {
   }
 
   private async scan(): Promise<void> {
-    const sessionsDir = join(this.codexRoot, 'sessions');
-    const files = await listRolloutFiles(sessionsDir).catch(() => [] as string[]);
-    for (const filePath of files) {
-      await this.processFile(filePath);
+    if (this.scanning) return;
+    this.scanning = true;
+    try {
+      const sessionsDir = join(this.codexRoot, 'sessions');
+      const files = await listRolloutFiles(sessionsDir).catch(() => [] as string[]);
+      for (const filePath of files) {
+        await this.processFile(filePath);
+      }
+    } finally {
+      this.scanning = false;
     }
   }
 

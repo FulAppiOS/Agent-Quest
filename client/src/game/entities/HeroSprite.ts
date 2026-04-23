@@ -402,7 +402,8 @@ export class HeroSprite {
    */
   setSourceBadgeVisible(visible: boolean): void {
     this.sourceBadgeVisible = visible;
-    if (visible && this.sourceText === null) {
+    const justCreated = visible && this.sourceText === null;
+    if (justCreated) {
       this.sourceText = addCrispText(
         this.scene,
         this._x,
@@ -421,6 +422,10 @@ export class HeroSprite {
       this.sourceText.setVisible(visible);
     }
     this.layoutSubagentAndSource();
+    // A hero parked at its building has no active move tween, so the text
+    // would keep its default depth (0) and render behind buildings until the
+    // next move. Force a depth sweep so the new badge is visible immediately.
+    if (justCreated) this.updateDepth();
   }
 
   /**

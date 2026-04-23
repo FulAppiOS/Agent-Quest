@@ -162,6 +162,39 @@ test('CodexProvider picks up a stale-on-first-sight file that resumes writing', 
   p.stop();
 });
 
+test('CodexProvider.scan is re-entrancy-safe under overlapping invocations', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'codex-test-'));
+  const day = join(root, 'sessions', '2026', '04', '23');
+  mkdirSync(day, { recursive: true });
+  const file = join(day, 'rollout-race.jsonl');
+  writeFileSync(
+    file,
+    makeSessionMeta('race-thread', '/proj') + '\n' + makeUserMessage('hi') + '\n',
+  );
+
+  const starts: unknown[] = [];
+  const p = new CodexProvider({
+    codexRoot: root,
+    scanIntervalMs: 60_000,
+  });
+
+  await p.start({
+    onSessionStart: (payload) => { starts.push(payload); },
+    onSessionEvents: () => {},
+  });
+
+  // Re-entrant call: start() already ran one scan; fire two more in parallel.
+  // Without the guard the second would re-enter the first-sight path for the
+  // same file (tracked still undefined from the in-flight parse) and emit a
+  // duplicate onSessionStart. With the guard, only one of the parallel calls
+  // actually runs, the other is a no-op, and we stay at one session start.
+  const scan = (p as unknown as { scan: () => Promise<void> }).scan.bind(p);
+  await Promise.all([scan(), scan()]);
+
+  expect(starts.length).toBe(1);
+  p.stop();
+});
+
 test('CodexProvider holds back partial trailing line until it is completed', async () => {
   const root = mkdtempSync(join(tmpdir(), 'codex-test-'));
   const day = join(root, 'sessions', '2026', '04', '23');

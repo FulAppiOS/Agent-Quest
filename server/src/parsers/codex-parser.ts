@@ -57,41 +57,21 @@ export function parseCodexLine(raw: string, sessionId: string, sessionCwd: strin
       };
     }
 
-    case 'agent_message': {
-      const p = payload as CodexAgentMessage;
-      if (typeof p.message !== 'string' || p.message.length === 0) return null;
-      return {
-        sessionId,
-        slug: undefined,
-        timestamp: tsMs,
-        activity: 'thinking',
-        toolCalls: [],
-        file: undefined,
-        command: undefined,
-        cwd: sessionCwd,
-        kind: 'tool',
-        lastMessage: p.message.slice(0, 300),
-        isTurnEnd: false,
-      };
-    }
-
-    case 'reasoning': {
-      const p = payload as CodexReasoning;
-      // Drop silent reasoning — noisy and not informative for the hero UI.
-      if (typeof p.text !== 'string' || p.text.length === 0) return null;
-      return {
-        sessionId,
-        slug: undefined,
-        timestamp: tsMs,
-        activity: 'thinking',
-        toolCalls: [],
-        file: undefined,
-        command: undefined,
-        cwd: sessionCwd,
-        kind: 'tool',
-        isTurnEnd: false,
-      };
-    }
+    // `agent_message` and `reasoning` fire INTERLEAVED with tool events during
+    // a Codex turn (reasoning happens between every tool call; agent_message
+    // is the final answer chunk). Emitting them as ParsedEvents with
+    // `activity: 'thinking'` would override the tool activity mid-turn and
+    // make the hero ping-pong between the Wizard Tower and the tool buildings.
+    //
+    // Drop both:
+    //  - The "Reply" line in the activity feed is already populated from
+    //    `task_complete.last_agent_message`, so no information is lost.
+    //  - While Codex is silently reasoning between tool calls, the hero stays
+    //    in the last tool building — same UX as Claude's assistant-with-
+    //    thinking-blocks-between-tool-uses path.
+    case 'agent_message':
+    case 'reasoning':
+      return null;
 
     case 'exec_command_end': {
       const p = payload as CodexExecCommandEnd;
