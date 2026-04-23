@@ -44,6 +44,7 @@ CLAUDE.local.md
 # Superpowers brainstorming artifacts
 .superpowers/
 docs/superpowers/
+docs/plans/
 
 # User map slots (template.json is shipped; slots are per-user state)
 server/data/maps/slot-*.json
