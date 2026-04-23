@@ -53,7 +53,7 @@ export class CodexProvider implements SessionProvider {
 
     const rootStat = await stat(this.codexRoot).catch(() => null);
     if (rootStat === null || !rootStat.isDirectory()) {
-      console.warn(`[CodexProvider] ${this.codexRoot} not found — Codex threads won't appear.`);
+      console.log(`[CodexProvider] ${this.codexRoot} not found — provider inactive`);
       return;
     }
     this.rootExists = true;

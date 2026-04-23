@@ -65,12 +65,9 @@ export class FileWatcher {
     }, intervalMs);
 
     if (this.claudeDirs.length === 0) {
-      // First-run / no-install diagnostic. The server keeps running (WS
-      // snapshot will be empty) but the user otherwise sees a silent empty
-      // village with no hint that Claude Code itself is missing.
-      console.warn('[FileWatcher] WARNING: no ~/.claude* directories with a projects/ subdir found.');
-      console.warn('[FileWatcher]   Install Claude Code and start a session — heroes appear as soon as JSONL logs land.');
-      console.warn('[FileWatcher]   See https://claude.ai/code');
+      // Per-provider diagnostic only. If *both* providers end up empty, the
+      // bootstrap in index.ts prints a single aggregated warning.
+      console.log('[ClaudeProvider] no ~/.claude* dir — provider inactive');
     } else {
       console.log(`[FileWatcher] watching ${this.claudeDirs.length} config dir(s) every ${intervalMs}ms:`);
       for (const d of this.claudeDirs) console.log(`  - ${d}`);
