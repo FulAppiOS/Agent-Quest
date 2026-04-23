@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import type { ActivityLogEntry, AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { isError, isPath, resolvePath } from './activityFeedUtils';
@@ -54,12 +54,12 @@ function ActivityRowImpl({ entry, agent, agentName, inGroup, onSelectAgent, onFi
 
       <div className="feed-row-body">
         <div className="feed-row-meta">
-          {!inGroup && (
+          {!inGroup && agent !== undefined && (
             <button
               type="button"
               className="feed-agent-name"
               aria-label={`Filter feed to ${agentName}`}
-              onClick={() => agent !== undefined && onFilterAgent(agent.id)}
+              onClick={() => onFilterAgent(agent.id)}
               title={agentName}
             >{agentName}</button>
           )}
@@ -68,7 +68,7 @@ function ActivityRowImpl({ entry, agent, agentName, inGroup, onSelectAgent, onFi
         </div>
         {detailIsPath && absolute !== null ? (
           <a
-            href={`vscode://file${absolute}`}
+            href={`vscode://file${encodeURI(absolute)}`}
             className="feed-detail is-path"
             title={entry.detail}
           >{entry.detail}</a>
@@ -103,6 +103,14 @@ interface ContextMenuProps {
 }
 
 function ContextMenu({ x, y, onClose, actions }: ContextMenuProps) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <>
       <div className="feed-menu-overlay" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} />
@@ -117,6 +125,9 @@ function ContextMenu({ x, y, onClose, actions }: ContextMenuProps) {
   );
 }
 
+// Callbacks (onSelectAgent, onFilterAgent) intentionally omitted from the
+// comparator — the parent must memoize them (useCallback) so their identity
+// stays stable across renders, otherwise stale closures can fire.
 export const ActivityRow = memo(ActivityRowImpl, (prev, next) =>
   prev.entry.timestamp === next.entry.timestamp &&
   prev.entry.agentId  === next.entry.agentId  &&
