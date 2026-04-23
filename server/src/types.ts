@@ -51,11 +51,13 @@ export interface AgentState {
   busy?: boolean;         // true when agent is mid-turn (user prompt or tool_use without isTurnEnd)
   currentTask?: string;   // current user prompt (from JSONL last-prompt) — what the agent is working on
   cwd: string;            // project working directory
-  configDir: string;      // Claude config dir (e.g. ~/.claude, ~/.claude-work) — identifies which installation
+  configDir: string;      // Config dir of the provider that produced the session (e.g. ~/.claude,
+                          // ~/.claude-work, ~/.codex) — identifies which installation
   source: AgentSource;    // 'claude' | 'codex' — which CLI produced this session
 }
 
-// --- Session metadata from ~/.claude/sessions/<pid>.json ---
+// --- Session metadata from ~/.claude/sessions/<pid>.json
+//     (Claude Code only — Codex has no equivalent pidfile) ---
 export interface SessionMeta {
   pid: number;
   sessionId: string;

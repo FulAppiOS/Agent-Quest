@@ -30,7 +30,9 @@ const defaultPidAlive: PidLivenessCheck = (pid) => {
 };
 
 export interface SessionRegistryOptions {
-  /** Claude config dirs to watch (each scanned under `<dir>/sessions/*.json`). */
+  /** Claude Code config dirs to watch (each scanned under `<dir>/sessions/*.json`).
+   * Registry is Claude-only by design — the pidfile oracle is a Claude-specific
+   * signal. Codex liveness is inferred purely from rollout-file activity. */
   configDirs: string[];
   /** Override for tests. Defaults to a real `process.kill(pid, 0)` probe. */
   pidAlive?: PidLivenessCheck;

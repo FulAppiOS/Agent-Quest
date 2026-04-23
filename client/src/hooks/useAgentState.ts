@@ -12,7 +12,7 @@ export interface AgentStateHook {
   connected: boolean;
   /** Config dirs reported by the server in the last snapshot. `null` means
    * we haven't received a snapshot yet (still connecting); an empty array
-   * means the server found no ~/.claude* install on disk. */
+   * means the server found neither ~/.claude* nor ~/.codex install on disk. */
   configDirs: string[] | null;
 }
 
