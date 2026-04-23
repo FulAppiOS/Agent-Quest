@@ -218,6 +218,13 @@
   to   { opacity: 1; transform: none; }
 }
 .feed-entry.is-error { background: var(--feed-error); }
+.feed-entry.is-message {
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: rgba(123, 158, 196, 0.05);
+}
+.feed-entry.is-message .feed-row-avatar { margin-top: 2px; }
 
 .feed-row-avatar {
   background: none;
@@ -274,6 +281,14 @@
   background: rgba(139, 37, 0, 0.4);
   color: #ffaaaa;
 }
+.feed-action-pill.is-reply {
+  background: rgba(196, 163, 90, 0.3);
+  color: var(--feed-gold);
+}
+.feed-action-pill.is-prompt {
+  background: rgba(158, 196, 245, 0.2);
+  color: var(--feed-path);
+}
 
 .feed-time {
   color: #888;
@@ -283,7 +298,7 @@
 }
 
 .feed-detail {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--feed-pergamena);
   opacity: 0.95;
   overflow: hidden;
@@ -295,6 +310,22 @@
 .feed-detail.is-path { color: var(--feed-path); }
 .feed-detail.is-path:hover { text-decoration: underline; color: #fff; }
 .feed-detail.is-path-unresolved { color: var(--feed-path); opacity: 0.7; }
+.feed-detail.is-message {
+  white-space: pre-wrap;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+  word-break: break-word;
+  max-height: 8.5em;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 163, 90, 0.4) transparent;
+}
+.feed-detail.is-message::-webkit-scrollbar { width: 4px; }
+.feed-detail.is-message::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 2px; }
+.feed-detail.is-message.is-reply { color: var(--feed-pergamena); }
+.feed-detail.is-message.is-prompt { color: #d8e3f2; font-style: italic; }
 
 /* === Group (By Agent) === */
 .feed-group {
@@ -399,6 +430,43 @@
   }
   .feed-agent-name { max-width: 90px; }
   .feed-row-meta { font-size: 10px; }
-  .feed-detail { font-size: 13px; }
+  .feed-detail { font-size: 15px; }
   .feed-time { font-size: 10px; }
 }
+
+/* === Highlight (pill-matched) and selection states === */
+.feed-entry.is-highlighted {
+  background: rgba(196, 163, 90, 0.06);
+  border-left: 3px solid var(--feed-gold);
+  padding-left: 11px;
+}
+.feed-entry.is-highlighted.hl-errors   { border-left-color: var(--feed-error-strong); background: rgba(139, 37, 0, 0.08); }
+.feed-entry.is-highlighted.hl-edits    { border-left-color: var(--feed-blue);         background: rgba(123, 158, 196, 0.08); }
+.feed-entry.is-highlighted.hl-bash     { border-left-color: var(--feed-gold);         background: rgba(196, 163, 90, 0.08); }
+.feed-entry.is-highlighted.hl-reads    { border-left-color: #9a7ac4;                  background: rgba(154, 122, 196, 0.08); }
+.feed-entry.is-highlighted.hl-messages { border-left-color: #e08a3f;                  background: rgba(224, 138, 63, 0.08); }
+.feed-entry.is-highlighted.hl-agent    { border-left-color: #7ac49a;                  background: rgba(122, 196, 154, 0.08); }
+.feed-entry.is-highlighted.hl-other    { border-left-color: #888;                     background: rgba(136, 136, 136, 0.06); }
+
+.feed-entry.is-selected {
+  box-shadow: inset 4px 0 0 var(--feed-gold), 0 0 8px rgba(196, 163, 90, 0.25);
+  background: rgba(196, 163, 90, 0.08);
+}
+.feed-entry.is-selected.is-highlighted {
+  box-shadow: inset 4px 0 0 var(--feed-gold), 0 0 10px rgba(196, 163, 90, 0.35);
+}
+
+.feed-group.is-selected > .feed-group-header {
+  background: rgba(196, 163, 90, 0.14);
+  box-shadow: inset 4px 0 0 var(--feed-gold);
+}
+
+/* Category pill styling for agent/other/reads/messages (errors/edits/bash reuse existing) */
+.feed-pill.messages    { background: rgba(224, 138, 63, 0.15); color: #f0c99a; border-color: rgba(224, 138, 63, 0.4); }
+.feed-pill.messages.on { background: rgba(224, 138, 63, 0.35); color: #fff;    border-color: #e08a3f; }
+.feed-pill.agent       { background: rgba(122, 196, 154, 0.15); color: #9eddbb; border-color: rgba(122, 196, 154, 0.4); }
+.feed-pill.agent.on    { background: rgba(122, 196, 154, 0.35); color: #fff;    border-color: #7ac49a; }
+.feed-pill.other       { background: rgba(136, 136, 136, 0.15); color: #bbb;    border-color: rgba(136, 136, 136, 0.4); }
+.feed-pill.other.on    { background: rgba(136, 136, 136, 0.35); color: #fff;    border-color: #aaa; }
+.feed-pill.reads       { background: rgba(154, 122, 196, 0.15); color: #bda5dc; border-color: rgba(154, 122, 196, 0.4); }
+.feed-pill.reads.on    { background: rgba(154, 122, 196, 0.35); color: #fff;    border-color: #9a7ac4; }
