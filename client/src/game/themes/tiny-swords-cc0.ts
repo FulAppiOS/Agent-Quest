@@ -41,16 +41,21 @@ const GOBLIN_DIR: Record<'tnt' | 'torch', string> = {
 /** Per-unit sheet shape and animation frame indices (0-based, row-major). */
 type UnitSheetSpec = {
   sheetCols: number;
+  sheetRows: number;
   idleFrames: number;
   runFrames: number;
   idleFrameIndices: number[];
   runFrameIndices: number[];
 };
 
-/** Per-unit sheet shape and animation frame indices. */
+/** Per-unit sheet shape and animation frame indices.
+ * Row counts verified against upstream PNG dimensions (frame = 192 px):
+ *   warrior 1152×1536 → 6×8, pawn 1152×1152 → 6×6,
+ *   archer 1536×1344 → 8×7, tnt 1344×576 → 7×3, torch 1344×960 → 7×5. */
 const SHEET_SPEC: Record<UnitType, UnitSheetSpec> = {
   warrior: {
     sheetCols: 6,
+    sheetRows: 8,
     idleFrames: 6,
     runFrames: 6,
     idleFrameIndices: [0, 1, 2, 3, 4, 5],
@@ -58,6 +63,7 @@ const SHEET_SPEC: Record<UnitType, UnitSheetSpec> = {
   },
   archer: {
     sheetCols: 8,
+    sheetRows: 7,
     idleFrames: 6,
     // The CC0 archer sheet has row 0 and row 1 as idle variants (same
     // pose, subtle sway) and rows 2-4 as shoot animations with visible
@@ -71,6 +77,7 @@ const SHEET_SPEC: Record<UnitType, UnitSheetSpec> = {
   },
   pawn: {
     sheetCols: 6,
+    sheetRows: 6,
     idleFrames: 6,
     runFrames: 6,
     idleFrameIndices: [0, 1, 2, 3, 4, 5],
@@ -82,6 +89,7 @@ const SHEET_SPEC: Record<UnitType, UnitSheetSpec> = {
   // leave a blank frame per cycle → visible flicker. Use 6.
   tnt: {
     sheetCols: 7,
+    sheetRows: 3,
     idleFrames: 6,
     runFrames: 6,
     idleFrameIndices: [0, 1, 2, 3, 4, 5],
@@ -89,6 +97,7 @@ const SHEET_SPEC: Record<UnitType, UnitSheetSpec> = {
   },
   torch: {
     sheetCols: 7,
+    sheetRows: 5,
     idleFrames: 6,
     runFrames: 6,
     idleFrameIndices: [0, 1, 2, 3, 4, 5],
@@ -170,6 +179,7 @@ export const tinySwordsCc0Theme: ThemeManifest = {
     return {
       url: `/${filePath(color, unit)}`,
       sheetColumns: spec.sheetCols,
+      sheetRows: spec.sheetRows,
       frameWidth: 192,
       frameHeight: 192,
     };

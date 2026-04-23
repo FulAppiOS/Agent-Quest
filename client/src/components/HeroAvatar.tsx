@@ -13,16 +13,17 @@ const DEFAULT_SIZE = 24;
 export function HeroAvatar({ agent, size = DEFAULT_SIZE, className, title }: HeroAvatarProps) {
   const preview = getActiveTheme().getHeroPreview(agent.heroColor, agent.heroClass);
   const bgWidth = preview.sheetColumns * size;
+  const bgHeight = preview.sheetRows * size;
 
   return (
     <div
-      className={className ?? 'hero-avatar'}
+      className={className}
       title={title ?? agent.heroClass}
       role="img"
       aria-label={`${agent.heroClass} ${agent.name}`}
       style={{
         backgroundImage: `url('${preview.url}')`,
-        backgroundSize: `${bgWidth}px ${size}px`,
+        backgroundSize: `${bgWidth}px ${bgHeight}px`,
         backgroundPosition: '0 0',
         backgroundRepeat: 'no-repeat',
         width: size,

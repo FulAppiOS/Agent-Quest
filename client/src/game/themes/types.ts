@@ -49,6 +49,8 @@ export interface HeroPreview {
   url: string;
   /** Number of frames in one row of the idle sheet (for CSS background-size). */
   sheetColumns: number;
+  /** Number of rows in the combined sheet (for CSS background-size). */
+  sheetRows: number;
   /** Native frame dimensions in the sheet. */
   frameWidth: number;
   frameHeight: number;
