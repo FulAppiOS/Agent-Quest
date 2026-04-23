@@ -40,9 +40,9 @@ export interface SessionRegistryOptions {
 
 /**
  * Periodically snapshots `<configDir>/sessions/<pid>.json` and keeps the set of
- * sessionIds whose pid is still running. Used to filter out phantom agents
- * whose JSONLs were touched by Claude Code resume/hook machinery but whose
- * real process has long since exited.
+ * Claude Code sessionIds whose pid is still running. Used to filter out phantom
+ * agents whose JSONLs were touched by Claude Code resume/hook machinery but
+ * whose real process has long since exited.
  */
 export class SessionRegistry implements SessionLivenessOracle {
   private configDirs: string[];
