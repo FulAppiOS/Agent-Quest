@@ -97,8 +97,7 @@ function ActivityRowImpl({
               className="feed-source-badge"
               style={{
                 color: SOURCE_BADGE_COLOR[agent.source],
-                borderColor: `${SOURCE_BADGE_COLOR[agent.source]}80`,
-                background: `${SOURCE_BADGE_COLOR[agent.source]}14`,
+                background: `${SOURCE_BADGE_COLOR[agent.source]}26`,
               }}
               aria-label={`source ${agent.source}`}
             >

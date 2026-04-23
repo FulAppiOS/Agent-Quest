@@ -294,14 +294,13 @@
 
 .feed-source-badge {
   font-family: 'Fira Code', monospace;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  border: 1px solid transparent;
-  padding: 1px 5px;
+  letter-spacing: 0.5px;
+  padding: 0 6px;
   border-radius: 3px;
-  line-height: 1.2;
   flex-shrink: 0;
+  align-self: center;
 }
 
 .feed-time {

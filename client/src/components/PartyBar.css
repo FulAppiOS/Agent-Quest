@@ -152,13 +152,14 @@
 .partybar-row-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
   flex: 1;
+  justify-content: center;
 }
 .partybar-row-top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }
