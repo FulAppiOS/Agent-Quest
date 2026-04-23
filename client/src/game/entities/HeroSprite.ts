@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import type { HeroClass, HeroColor, AgentActivity, AgentState } from '../../types/agent';
+import { HERO_LABEL_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentState } from '../../types/agent';
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
@@ -132,13 +132,7 @@ export class HeroSprite {
 
     this.sprite.play(idleAnimKey);
 
-    const nameColor =
-      heroColor === 'blue'   ? '#88BBFF' :
-      heroColor === 'yellow' ? '#FFD700' :
-      heroColor === 'red'    ? '#FF8866' :
-      heroColor === 'black'  ? '#B8B8D0' :
-      heroColor === 'purple' ? '#C48BE8' :
-                               '#DDDDDD';
+    const nameColor = HERO_LABEL_COLOR[heroColor] ?? '#DDDDDD';
     this.nameText = addCrispText(scene, x, y + this.nameOffsetY, name, {
       fontSize: '14px',
       color: nameColor,
@@ -198,6 +192,23 @@ export class HeroSprite {
   /** Override the default hero scale (e.g. from MapConfig settings). */
   setHeroScale(scale: number): void {
     this.sprite.setScale(scale);
+  }
+
+  /** Make the sprite respond to pointerdown with the supplied callback. */
+  setInteractiveForSelection(onClick: () => void): void {
+    if (!this.sprite.input || !this.sprite.input.enabled) {
+      this.sprite.setInteractive({ useHandCursor: true });
+    }
+    this.sprite.on('pointerdown', onClick);
+  }
+
+  /** Apply or clear a selection visual (warm gold tint). */
+  setSelected(selected: boolean): void {
+    if (selected) {
+      this.sprite.setTint(0xffdd88);
+    } else {
+      this.sprite.clearTint();
+    }
   }
 
   /** Update the displayed activity label and internal state. */

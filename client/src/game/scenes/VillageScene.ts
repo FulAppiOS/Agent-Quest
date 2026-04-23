@@ -37,6 +37,7 @@ export class VillageScene extends Phaser.Scene {
   private heroes = new Map<string, HeroSprite>();
   private onAgentsUpdated: ((agents: unknown) => void) | null = null;
   private onCameraFollow: ((agentId: unknown) => void) | null = null;
+  private onSelectionChanged: ((agentId: unknown) => void) | null = null;
 
   /** Tracks which hero IDs are at each building, in arrival order. */
   private buildingSlots = new Map<string, string[]>();
@@ -322,6 +323,15 @@ export class VillageScene extends Phaser.Scene {
     };
     eventBridge.on('camera:follow', this.onCameraFollow);
 
+    // Apply outline/tint to the selected hero whenever selection changes.
+    this.onSelectionChanged = (agentId: unknown) => {
+      const selectedId = typeof agentId === 'string' ? agentId : null;
+      for (const [id, hero] of this.heroes) {
+        hero.setSelected(id === selectedId);
+      }
+    };
+    eventBridge.on('selection:changed', this.onSelectionChanged);
+
     const cleanup = () => {
       if (this.onAgentsUpdated !== null) {
         eventBridge.off('agents:updated', this.onAgentsUpdated);
@@ -338,6 +348,10 @@ export class VillageScene extends Phaser.Scene {
       if (this.onCameraFollow !== null) {
         eventBridge.off('camera:follow', this.onCameraFollow);
         this.onCameraFollow = null;
+      }
+      if (this.onSelectionChanged !== null) {
+        eventBridge.off('selection:changed', this.onSelectionChanged);
+        this.onSelectionChanged = null;
       }
       this.lightningTimer?.remove();
       this.lightningTimer = null;
@@ -647,6 +661,9 @@ export class VillageScene extends Phaser.Scene {
         hero.updateDetail(agent.currentFile, agent.currentCommand);
         hero.updateTask(agent.currentTask);
         this.heroes.set(agent.id, hero);
+        hero.setInteractiveForSelection(() => {
+          eventBridge.emit('hero:clicked', agent.id);
+        });
         this.addToSlot(buildingDef.id, agent.id);
         buildingsToReposition.add(buildingDef.id);
       } else {
