@@ -1,4 +1,4 @@
-import type { AgentState, HeroClass, HeroColor } from '../types';
+import type { AgentSource, AgentState, HeroClass, HeroColor } from '../types';
 import { HERO_CLASSES, HERO_COLORS } from '../types';
 import type { ParsedEvent } from '../parsers/session-parser';
 
@@ -104,7 +104,12 @@ export class AgentStateManager {
     this.livenessOracle = oracle;
   }
 
-  processEvent(event: ParsedEvent, configDir = '', nameOverride?: string): ProcessResult | null {
+  processEvent(
+    event: ParsedEvent,
+    configDir = '',
+    source: AgentSource = 'claude',
+    nameOverride?: string,
+  ): ProcessResult | null {
     const existing = this.agents.get(event.sessionId);
 
     // Resume hints (last-prompt dumps) never create new agents and never advance
@@ -118,7 +123,7 @@ export class AgentStateManager {
     }
 
     if (existing === undefined) {
-      const agent = this.createAgent(event, configDir, nameOverride);
+      const agent = this.createAgent(event, configDir, source, nameOverride);
       this.agents.set(event.sessionId, agent);
       this.applyDerivedStatus(agent);
       this.applyTurnAndError(agent, event);
@@ -164,6 +169,7 @@ export class AgentStateManager {
     if (
       this.livenessOracle !== undefined &&
       this.livenessOracle.hasAnyLive() &&
+      agent.source === 'claude' &&
       !isSubagentSessionId(agent.id) &&
       !this.livenessOracle.isLive(agent.id)
     ) {
@@ -407,7 +413,12 @@ export class AgentStateManager {
     return this.nextHeroColor();
   }
 
-  private createAgent(event: ParsedEvent, configDir: string, nameOverride?: string): AgentState {
+  private createAgent(
+    event: ParsedEvent,
+    configDir: string,
+    source: AgentSource,
+    nameOverride?: string,
+  ): AgentState {
     const name = nameOverride !== undefined && nameOverride.length > 0
       ? nameOverride
       : deriveAgentName(event.slug, event.cwd, event.sessionId);
@@ -431,6 +442,7 @@ export class AgentStateManager {
       currentTask: event.currentTask,
       cwd: event.cwd ?? '',
       configDir,
+      source,
     };
     return agent;
   }

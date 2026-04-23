@@ -716,4 +716,28 @@ describe('AgentStateManager', () => {
     expect(all[1]!.id).toBe('middle');
     expect(all[2]!.id).toBe('oldest');
   });
+
+  test('applyLivenessOverride skips non-claude sources', () => {
+    const oracle = {
+      hasAnyLive: () => true,
+      isLive: (_: string) => false,
+    };
+    const m = new AgentStateManager({ livenessOracle: oracle });
+    const ev: ParsedEvent = {
+      sessionId: 'codex-thread-1',
+      slug: undefined,
+      timestamp: Date.now(),
+      activity: 'thinking',
+      toolCalls: [],
+      file: undefined,
+      command: undefined,
+      cwd: '/tmp/proj',
+      kind: 'tool',
+      isTurnEnd: false,
+    };
+    const res = m.processEvent(ev, '/home/x/.codex', 'codex');
+    expect(res).not.toBeNull();
+    expect(res!.agent.source).toBe('codex');
+    expect(res!.agent.status).toBe('active');  // NOT completed despite oracle saying "not live"
+  });
 });
