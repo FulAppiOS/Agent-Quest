@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
+import { configDirLabel } from './configDirLabel';
 import { isPath, resolvePath } from './activityFeedUtils';
 import './DetailPanel.css';
 
@@ -16,13 +17,6 @@ function formatDuration(startMs: number): string {
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
   return `${mins}m ${secs}s`;
-}
-
-function profileLabel(configDir: string): string {
-  if (configDir === '') return 'default';
-  const base = configDir.split('/').pop() ?? configDir;
-  if (base === '.claude') return 'default';
-  return base.replace(/^\.claude-?/, '') || base;
 }
 
 function PathValue({ path, cwd, className }: { path: string; cwd: string; className?: string }) {
@@ -122,7 +116,7 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
           </div>
           <div className="detail-row">
             <span className="detail-label">Profile</span>
-            <span className="detail-value">{profileLabel(agent.configDir)}</span>
+            <span className="detail-value">{configDirLabel(agent.configDir)}</span>
           </div>
         </div>
 
