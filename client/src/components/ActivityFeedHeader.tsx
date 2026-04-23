@@ -6,38 +6,47 @@ import { HeroAvatar } from './HeroAvatar';
 interface ActivityFeedHeaderProps {
   foldState: FoldState;
   viewMode: ViewMode;
-  activeFilters: ActionFilter[];
+  activeHighlights: ActionFilter[];
+  availableCategories: Set<ActionFilter>;
+  categoryCounts: Record<ActionFilter, number>;
   agentFilter: string | null;
   agents: AgentState[];
   newCount: number;
   onFoldChange: (state: FoldState) => void;
   onViewModeChange: (mode: ViewMode) => void;
-  onFiltersChange: (filters: ActionFilter[]) => void;
+  onHighlightsChange: (highlights: ActionFilter[]) => void;
   onClearAgentFilter: () => void;
 }
 
-const ALL_FILTERS: { id: ActionFilter; label: string }[] = [
-  { id: 'errors', label: 'Errors' },
-  { id: 'edits',  label: 'Edits'  },
-  { id: 'bash',   label: 'Bash'   },
-  { id: 'reads',  label: 'Reads'  },
+const PILL_ORDER: { id: ActionFilter; label: string }[] = [
+  { id: 'messages', label: 'Messages' },
+  { id: 'errors',   label: 'Errors'   },
+  { id: 'edits',    label: 'Edits'    },
+  { id: 'bash',     label: 'Bash'     },
+  { id: 'reads',    label: 'Reads'    },
+  { id: 'agent',    label: 'Agent'    },
+  { id: 'other',    label: 'Other'    },
 ];
 
 export function ActivityFeedHeader({
-  foldState, viewMode, activeFilters, agentFilter, agents, newCount,
-  onFoldChange, onViewModeChange, onFiltersChange, onClearAgentFilter,
+  foldState, viewMode, activeHighlights, availableCategories, categoryCounts,
+  agentFilter, agents, newCount,
+  onFoldChange, onViewModeChange, onHighlightsChange, onClearAgentFilter,
 }: ActivityFeedHeaderProps) {
   const filteredAgent = agentFilter !== null ? agents.find((a) => a.id === agentFilter) ?? null : null;
 
-  function toggleFilter(id: ActionFilter) {
-    if (activeFilters.includes(id)) {
-      onFiltersChange(activeFilters.filter((f) => f !== id));
+  function toggleHighlight(id: ActionFilter) {
+    if (activeHighlights.includes(id)) {
+      onHighlightsChange(activeHighlights.filter((f) => f !== id));
     } else {
-      onFiltersChange([...activeFilters, id]);
+      onHighlightsChange([...activeHighlights, id]);
     }
   }
 
   const showSecondRow = foldState === 'full';
+  const pills = PILL_ORDER.filter((p) => availableCategories.has(p.id));
+  const hasChip = filteredAgent !== null;
+  const secondRowHasContent = pills.length > 0 || hasChip;
 
   return (
     <div className="feed-header">
@@ -93,16 +102,16 @@ export function ActivityFeedHeader({
         </div>
       </div>
 
-      {showSecondRow && (
+      {showSecondRow && secondRowHasContent && (
         <div className="feed-header-row feed-filter-row">
-          {ALL_FILTERS.map(({ id, label }) => (
+          {pills.map(({ id, label }) => (
             <button
               type="button"
               key={id}
-              aria-pressed={activeFilters.includes(id)}
-              className={`feed-pill ${id} ${activeFilters.includes(id) ? 'on' : ''}`}
-              onClick={() => toggleFilter(id)}
-            >{label}</button>
+              aria-pressed={activeHighlights.includes(id)}
+              className={`feed-pill ${id} ${activeHighlights.includes(id) ? 'on' : ''}`}
+              onClick={() => toggleHighlight(id)}
+            >{label} ({categoryCounts[id]})</button>
           ))}
           {filteredAgent !== null && (
             <span className="feed-agent-chip">
