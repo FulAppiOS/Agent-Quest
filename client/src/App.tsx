@@ -108,7 +108,12 @@ export default function App() {
               onClose={() => setSelectedBuildingId(null)}
             />
           )}
-          <ActivityFeed log={activityLog} agents={agents} />
+          <ActivityFeed
+            log={activityLog}
+            agents={agents}
+            selectedAgentId={selectedAgentId}
+            onSelectAgent={handleSelectAgent}
+          />
         </div>
       )}
       {tutorialOpen && <Tutorial onClose={closeTutorial} />}
