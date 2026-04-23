@@ -6,6 +6,10 @@ export type HeroClass = (typeof HERO_CLASSES)[number];
 export const HERO_COLORS = ['blue', 'yellow', 'red', 'black', 'purple'] as const;
 export type HeroColor = (typeof HERO_COLORS)[number];
 
+// --- Agent source (which external agent produced this session) ---
+export const AGENT_SOURCES = ['claude', 'codex'] as const;
+export type AgentSource = (typeof AGENT_SOURCES)[number];
+
 // --- Agent activity (maps to village buildings) ---
 export type AgentActivity =
   | 'reading'    // Library: Read, Grep, Glob
@@ -48,6 +52,7 @@ export interface AgentState {
   currentTask?: string;   // current user prompt (from JSONL last-prompt) — what the agent is working on
   cwd: string;            // project working directory
   configDir: string;      // Claude config dir (e.g. ~/.claude, ~/.claude-work) — identifies which installation
+  source: AgentSource;    // 'claude' | 'codex' — which CLI produced this session
 }
 
 // --- Session metadata from ~/.claude/sessions/<pid>.json ---
