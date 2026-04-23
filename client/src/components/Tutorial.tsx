@@ -33,7 +33,7 @@ export function Tutorial({ onClose }: TutorialProps) {
         <h2 className="tutorial-title">Welcome to Agent Quest</h2>
 
         <div className="tutorial-tagline">
-          Use the <strong>Claude Code CLI</strong> as usual — each agent session auto-spawns a hero on the dashboard, live.
+          Use <strong>Claude Code</strong> or <strong>Codex</strong> as usual — each session auto-spawns a hero on the dashboard, live.
         </div>
 
         <a
@@ -49,9 +49,9 @@ export function Tutorial({ onClose }: TutorialProps) {
 
         <p className="tutorial-text">
           Agent Quest is a live dashboard that turns your{' '}
-          <strong>Claude Code CLI</strong> sessions into a 2D fantasy village. Every
-          running agent becomes a <strong>hero</strong> who walks between buildings
-          based on what it's doing.
+          <strong>Claude Code</strong> and <strong>Codex</strong> sessions into a 2D
+          fantasy village. Every running agent becomes a <strong>hero</strong> who
+          walks between buildings based on what it's doing.
         </p>
         <p className="tutorial-text">
           Works with{' '}
@@ -62,9 +62,10 @@ export function Tutorial({ onClose }: TutorialProps) {
             rel="noreferrer"
           >Claude Code</a>
           {' '}in any form that writes session logs locally — the terminal CLI and
-          the official IDE extensions (VS Code, JetBrains). It does not work with
-          the Claude desktop app or claude.ai in the browser, since those don't
-          expose local session files.
+          the official IDE extensions (VS Code, JetBrains). Also works with{' '}
+          <strong>Codex</strong>, reading rollout logs from{' '}
+          <code>~/.codex/sessions/</code>. It doesn't work with the Claude desktop
+          app or claude.ai in the browser, since those don't expose local session files.
         </p>
 
         <div className="tutorial-section-label">Activity → Building</div>
@@ -80,9 +81,15 @@ export function Tutorial({ onClose }: TutorialProps) {
           </tbody>
         </table>
 
+        <p className="tutorial-text">
+          When both Claude Code and Codex have active agents, each hero shows a small{' '}
+          <strong>CLAUDE</strong> or <strong>CODEX</strong> badge so you can tell which
+          CLI it came from.
+        </p>
+
         <div className="tutorial-section-label">How to use it</div>
         <p className="tutorial-text">
-          Heroes appear in real time as you spawn new Claude Code sessions. Click a
+          Heroes appear in real time as you spawn new Claude Code or Codex sessions. Click a
           hero in the <em>Party Bar</em> (bottom) to see what it's doing; click any
           building to see which heroes are there. The 🗺️ icon in the top bar opens
           the map editor. Reopen this tutorial any time with the{' '}
@@ -118,14 +125,15 @@ export function Tutorial({ onClose }: TutorialProps) {
         <div className="tutorial-section-label">Privacy</div>
         <p className="tutorial-text">
           Everything runs locally on your machine. Nothing is uploaded, shared or
-          persisted — Agent Quest only reads the logs Claude Code already keeps on
-          your disk.
+          persisted — Agent Quest only reads the logs Claude Code and Codex already
+          keep on your disk.
         </p>
 
         <div className="tutorial-section-label">Platform</div>
         <p className="tutorial-text">
-          Runs on macOS and Linux. On Windows, use <strong>WSL2</strong> — see the
-          README for setup notes.
+          <strong>Claude Code:</strong> tested on macOS and Windows (via <strong>WSL2</strong> — see the README).
+          Linux supported.<br />
+          <strong>Codex:</strong> macOS tested. Windows not yet verified.
         </p>
 
         <div className="tutorial-section-label">About</div>
