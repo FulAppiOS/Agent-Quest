@@ -333,11 +333,14 @@ export class VillageScene extends Phaser.Scene {
     };
     eventBridge.on('selection:changed', this.onSelectionChanged);
 
-    // Click on empty map (no interactive hero hit) → deselect. Heroes are
-    // tagged with data `isHero=true` in setInteractiveForSelection; any
-    // other hit (building, NPC) also counts as "not a hero" and deselects.
+    // Click on TRULY empty map (no interactive object at all) → deselect
+    // whatever is currently selected. We used to emit this whenever the hit
+    // wasn't a hero, but that racing with the building's own `building:clicked`
+    // meant clicking a building wiped its info panel the moment it opened
+    // (App.handleSelectAgent(null) clears `selectedBuildingId` too). Now the
+    // building's own pointerdown is responsible for switching selection.
     this.onBackgroundPointerDown = (_p, hits) => {
-      if (!hits.some((obj) => obj.getData('isHero') === true)) {
+      if (hits.length === 0) {
         eventBridge.emit('hero:clicked', null);
       }
     };
