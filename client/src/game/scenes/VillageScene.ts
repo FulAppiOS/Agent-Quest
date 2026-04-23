@@ -36,6 +36,7 @@ export class VillageScene extends Phaser.Scene {
   private buildings: Building[] = [];
   private heroes = new Map<string, HeroSprite>();
   private onAgentsUpdated: ((agents: unknown) => void) | null = null;
+  private onCameraFollow: ((agentId: unknown) => void) | null = null;
 
   /** Tracks which hero IDs are at each building, in arrival order. */
   private buildingSlots = new Map<string, string[]>();
@@ -310,6 +311,17 @@ export class VillageScene extends Phaser.Scene {
     };
     eventBridge.on('agents:updated', this.onAgentsUpdated);
 
+    // Pan the camera to a hero when the Activity Feed requests it
+    // (user clicks an agent sprite in the feed).
+    this.onCameraFollow = (agentId: unknown) => {
+      if (typeof agentId !== 'string') return;
+      try { if (!this.sys.isActive()) return; } catch { return; }
+      const hero = this.heroes.get(agentId);
+      if (hero === undefined) return;
+      this.cameras.main.pan(hero.x, hero.y, 600, 'Sine.easeInOut');
+    };
+    eventBridge.on('camera:follow', this.onCameraFollow);
+
     const cleanup = () => {
       if (this.onAgentsUpdated !== null) {
         eventBridge.off('agents:updated', this.onAgentsUpdated);
@@ -322,6 +334,10 @@ export class VillageScene extends Phaser.Scene {
       if (this.onRainToggle !== null) {
         eventBridge.off('effect:rain:toggle', this.onRainToggle);
         this.onRainToggle = null;
+      }
+      if (this.onCameraFollow !== null) {
+        eventBridge.off('camera:follow', this.onCameraFollow);
+        this.onCameraFollow = null;
       }
       this.lightningTimer?.remove();
       this.lightningTimer = null;
