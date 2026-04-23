@@ -31,6 +31,32 @@ const WAITING_COLOR = '#FFD700';
 const ERROR_COLOR = '#FF4444';
 const ERROR_WINDOW_MS = 90 * 1000;
 
+const HALO_TEXTURE_KEY = 'hero-selection-halo';
+
+/**
+ * Lazily build a soft radial-gradient texture we can reuse as the selection
+ * halo. Generated once per scene; subsequent callers hit the texture cache.
+ * The gradient fades white → transparent so the glow blends with the scene
+ * instead of looking like a flat disc.
+ */
+function ensureHaloTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists(HALO_TEXTURE_KEY)) return;
+  const size = 128;
+  const tex = scene.textures.createCanvas(HALO_TEXTURE_KEY, size, size);
+  if (tex === null) return;
+  const ctx = tex.getContext();
+  const cx = size / 2;
+  const cy = size / 2;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx);
+  grad.addColorStop(0.00, 'rgba(255, 255, 255, 0.9)');
+  grad.addColorStop(0.35, 'rgba(255, 255, 255, 0.45)');
+  grad.addColorStop(0.70, 'rgba(255, 255, 255, 0.12)');
+  grad.addColorStop(1.00, 'rgba(255, 255, 255, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  tex.refresh();
+}
+
 export class HeroSprite {
   readonly id: string;
   readonly heroClass: HeroClass;
@@ -59,7 +85,7 @@ export class HeroSprite {
   private isErrorRecent = false;
   private nameBaseColor = '#DDDDDD';
   private selectionTween: Phaser.Tweens.Tween | null = null;
-  private selectionHalo: Phaser.GameObjects.Arc | null = null;
+  private selectionHalo: Phaser.GameObjects.Image | null = null;
 
   /** Grid base position — used for slot repositioning. */
   gridBaseX = 0;
@@ -226,14 +252,19 @@ export class HeroSprite {
       this.selectionHalo = null;
     }
     if (selected) {
-      const radius = Math.max(this.sprite.displayWidth, this.sprite.displayHeight) * 0.32;
-      this.selectionHalo = this.scene.add.circle(this._x, this._y, radius, 0xffffff, 0.25);
-      this.selectionHalo.setDepth(this.sprite.depth - 0.1);
+      ensureHaloTexture(this.scene);
+      const diameter = Math.max(this.sprite.displayWidth, this.sprite.displayHeight) * 1.1;
+      const halo = this.scene.add.image(this._x, this._y, HALO_TEXTURE_KEY);
+      halo.setDisplaySize(diameter, diameter);
+      halo.setAlpha(0.35);
+      halo.setDepth(this.sprite.depth - 0.1);
+      this.selectionHalo = halo;
       this.selectionTween = this.scene.tweens.add({
-        targets: this.selectionHalo,
-        alpha: 0.55,
-        scale: 1.3,
-        duration: 500,
+        targets: halo,
+        alpha: 0.75,
+        scaleX: halo.scaleX * 1.25,
+        scaleY: halo.scaleY * 1.25,
+        duration: 650,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
