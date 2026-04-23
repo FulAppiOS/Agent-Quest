@@ -41,6 +41,9 @@ coverage/
 .claude/shell-snapshots/
 CLAUDE.local.md
 
+# Superpowers brainstorming artifacts
+.superpowers/
+
 # User map slots (template.json is shipped; slots are per-user state)
 server/data/maps/slot-*.json
 server/data/maps/active-slot.json
