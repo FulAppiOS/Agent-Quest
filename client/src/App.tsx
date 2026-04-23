@@ -15,7 +15,10 @@ import './App.css';
 export default function App() {
   const { agents, activityLog, connected, configDirs } = useAgentState();
   const { selectedAgentId, selectAgent } = useSelectedAgent();
-  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<{
+    id: string;
+    anchor: { x: number; y: number };
+  } | null>(null);
   const [villageReady, setVillageReady] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
@@ -38,19 +41,24 @@ export default function App() {
   // When selecting agent, clear building
   const handleSelectAgent = useCallback((id: string | null) => {
     selectAgent(id);
-    setSelectedBuildingId(null);
+    setSelectedBuilding(null);
   }, [selectAgent]);
 
-  // When selecting building, clear agent
-  const handleSelectBuilding = useCallback((id: string) => {
-    setSelectedBuildingId((prev) => (prev === id ? null : id));
+  // When selecting building, clear agent. `anchor` is the click's screen-space
+  // position, captured by the Building entity and used by BuildingInfoPanel
+  // to place itself next to the clicked structure.
+  const handleSelectBuilding = useCallback((id: string, anchor: { x: number; y: number }) => {
+    setSelectedBuilding((prev) => (prev?.id === id ? null : { id, anchor }));
     selectAgent(null);
   }, [selectAgent]);
 
   // Listen for building clicks from Phaser
   useEffect(() => {
-    const onBuildingClicked = (id: unknown) => {
-      handleSelectBuilding(id as string);
+    const onBuildingClicked = (payload: unknown) => {
+      if (typeof payload === 'object' && payload !== null && 'id' in payload) {
+        const p = payload as { id: string; screenX: number; screenY: number };
+        handleSelectBuilding(p.id, { x: p.screenX, y: p.screenY });
+      }
     };
     eventBridge.on('building:clicked', onBuildingClicked);
     return () => {
@@ -126,11 +134,12 @@ export default function App() {
           {selectedAgent !== null && (
             <DetailPanel agent={selectedAgent} onClose={() => handleSelectAgent(null)} showSourceBadge={showSourceBadge} />
           )}
-          {selectedBuildingId !== null && (
+          {selectedBuilding !== null && (
             <BuildingInfoPanel
-              buildingId={selectedBuildingId}
+              buildingId={selectedBuilding.id}
+              anchor={selectedBuilding.anchor}
               agents={agents}
-              onClose={() => setSelectedBuildingId(null)}
+              onClose={() => setSelectedBuilding(null)}
             />
           )}
           <ActivityFeed

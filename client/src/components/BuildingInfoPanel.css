@@ -1,8 +1,9 @@
 .building-info-panel {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  /* Positioned imperatively by BuildingInfoPanel.tsx at the clicked building's
+   * screen coords, then clamped to the viewport. `position: fixed` anchors it
+   * to the viewport rather than the overlay wrapper, so the coords don't need
+   * to account for scroll offsets. */
+  position: fixed;
   width: 320px;
   background: rgba(26, 26, 46, 0.95);
   border: 2px solid rgba(196, 163, 90, 0.6);

@@ -22,9 +22,15 @@ export class Building {
     this.image.setScale(themeScale ?? def.scale);
     this.image.setInteractive({ useHandCursor: true });
 
-    // Click handler - emit building ID to React
-    this.image.on('pointerdown', () => {
-      eventBridge.emit('building:clicked', def.id);
+    // Click handler — emit the building id AND the pointer's screen-space
+    // position so the React panel can anchor itself next to the clicked
+    // structure instead of always opening at the viewport center.
+    this.image.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      eventBridge.emit('building:clicked', {
+        id: def.id,
+        screenX: pointer.x,
+        screenY: pointer.y,
+      });
     });
 
     // Hover highlight
