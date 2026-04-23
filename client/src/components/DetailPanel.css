@@ -202,6 +202,39 @@
   line-height: 1.65;
   color: #F5E6C8;
   word-break: break-word;
+  position: relative;
+}
+.detail-last-message.collapsed {
+  max-height: 200px;
+  overflow: hidden;
+  /* Fade the bottom edge so the user sees the message is truncated even
+   * before they notice the "Show more" button below. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 80%, transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 0%, #000 80%, transparent 100%);
+}
+.detail-last-message.expanded {
+  max-height: none;
+}
+.detail-last-message-toggle {
+  margin-top: 6px;
+  background: none;
+  border: 1px solid rgba(196, 163, 90, 0.35);
+  color: #C4A35A;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, border-color 0.15s;
+}
+.detail-last-message-toggle:hover {
+  background: rgba(196, 163, 90, 0.12);
+  border-color: rgba(196, 163, 90, 0.6);
+}
+.detail-last-message-toggle:focus-visible {
+  outline: 2px solid #C4A35A;
+  outline-offset: 1px;
 }
 .detail-last-message p { margin: 0 0 8px; }
 .detail-last-message p:last-child { margin-bottom: 0; }

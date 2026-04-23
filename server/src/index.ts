@@ -100,10 +100,14 @@ function broadcastAgentEventSideEffects(event: ParsedEvent): void {
     wsServer.broadcastActivityLog(event.sessionId, 'Prompt', detail, event.timestamp);
   }
 
-  // Claude's text reply at turn-end — lastMessage is already capped at 300
-  // chars by the parser.
+  // Claude's text reply at turn-end. The full message lives on AgentState
+  // (DetailPanel lets the user expand it), but the activity feed row stays
+  // compact — cap it here so scrolling the feed doesn't render walls of text.
   if (event.isTurnEnd === true && event.lastMessage !== undefined) {
-    wsServer.broadcastActivityLog(event.sessionId, 'Reply', event.lastMessage, event.timestamp);
+    const feedDetail = event.lastMessage.length > 300
+      ? `${event.lastMessage.slice(0, 300)}…`
+      : event.lastMessage;
+    wsServer.broadcastActivityLog(event.sessionId, 'Reply', feedDetail, event.timestamp);
   }
 }
 

@@ -164,7 +164,7 @@ export function parseCodexLine(raw: string, sessionId: string, sessionCwd: strin
 
     case 'task_complete': {
       const p = payload as CodexTaskComplete;
-      const msg = typeof p.last_agent_message === 'string' ? p.last_agent_message.slice(0, 300) : undefined;
+      const msg = typeof p.last_agent_message === 'string' ? p.last_agent_message : undefined;
       return {
         sessionId,
         slug: undefined,

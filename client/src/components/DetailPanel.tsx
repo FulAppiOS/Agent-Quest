@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
@@ -54,6 +54,29 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
   const currentFile = isLive ? agent.currentFile : undefined;
   const currentCommand = isLive ? agent.currentCommand : undefined;
   const lastMessage = isLive ? agent.lastMessage : undefined;
+
+  // Last-message collapse/expand: measure whether the rendered markdown
+  // exceeds the collapsed CSS height. The toggle button only appears when
+  // content is actually truncated.
+  const lastMessageRef = useRef<HTMLDivElement | null>(null);
+  const [messageExpanded, setMessageExpanded] = useState(false);
+  const [messageOverflows, setMessageOverflows] = useState(false);
+  // Reset expansion + re-measure whenever the message text or the agent changes.
+  useEffect(() => {
+    setMessageExpanded(false);
+  }, [agent.id, lastMessage]);
+  useLayoutEffect(() => {
+    const el = lastMessageRef.current;
+    if (el === null || lastMessage === undefined) {
+      setMessageOverflows(false);
+      return;
+    }
+    // Compare scrollHeight against clientHeight. Match only when the collapsed
+    // class is applied (expanded view intentionally has no max-height).
+    if (!messageExpanded) {
+      setMessageOverflows(el.scrollHeight > el.clientHeight + 1);
+    }
+  }, [lastMessage, messageExpanded, agent.id]);
 
   return (
     <div className="detail-panel">
@@ -127,9 +150,22 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
         {lastMessage !== undefined && (
           <div className="detail-section">
             <div className="detail-section-title">Last Message</div>
-            <div className="detail-last-message">
+            <div
+              ref={lastMessageRef}
+              className={`detail-last-message ${messageExpanded ? 'expanded' : 'collapsed'}`}
+            >
               <ReactMarkdown>{lastMessage}</ReactMarkdown>
             </div>
+            {(messageOverflows || messageExpanded) && (
+              <button
+                type="button"
+                className="detail-last-message-toggle"
+                onClick={() => setMessageExpanded((v) => !v)}
+                aria-expanded={messageExpanded}
+              >
+                {messageExpanded ? 'Show less' : 'Show more'}
+              </button>
+            )}
           </div>
         )}
 

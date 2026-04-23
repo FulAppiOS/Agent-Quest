@@ -224,7 +224,7 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     file,
     command,
     cwd: asst.cwd,
-    lastMessage: lastMessage !== undefined ? lastMessage.slice(0, 300) : undefined,
+    lastMessage,
     kind: 'tool',
     isTurnEnd,
   };
