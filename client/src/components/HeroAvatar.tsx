@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { getActiveTheme } from '../game/themes/registry';
-import type { AgentState } from '../types/agent';
+import { HERO_COLOR_SPRITE_BASE, type AgentState } from '../types/agent';
 
 interface HeroAvatarProps {
   agent: AgentState;
@@ -24,7 +24,11 @@ interface HeroAvatarProps {
 const DEFAULT_SIZE = 24;
 
 export function HeroAvatar({ agent, size = DEFAULT_SIZE, className, title }: HeroAvatarProps) {
-  const preview = getActiveTheme().getHeroPreview(agent.heroColor, agent.heroClass);
+  // Map expanded palette to the 5-color sprite set the theme actually ships.
+  // Extra palette colors (teal/orange/green) show up here untinted — the
+  // avatar is small enough that the Phaser-canvas tint would be invisible
+  // anyway, so we just fall back to the sprite base without distortion.
+  const preview = getActiveTheme().getHeroPreview(HERO_COLOR_SPRITE_BASE[agent.heroColor], agent.heroClass);
   const inherit = size === 'inherit';
   const backgroundSize = inherit
     ? `${preview.sheetColumns * 100}% ${preview.sheetRows * 100}%`

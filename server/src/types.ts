@@ -2,8 +2,14 @@
 export const HERO_CLASSES = ['warrior', 'archer', 'pawn'] as const;
 export type HeroClass = (typeof HERO_CLASSES)[number];
 
-// --- Hero colors (5 total, assigned cyclically, independent of class) ---
-export const HERO_COLORS = ['blue', 'yellow', 'red', 'black', 'purple'] as const;
+// --- Hero colors (assigned cyclically, independent of class) ---
+// Kept in sync with client/src/types/agent.ts — the state manager assigns
+// round-robin across the full palette, the client maps each entry to a sprite
+// base + optional tint. Add new entries on BOTH sides.
+export const HERO_COLORS = [
+  'blue', 'yellow', 'red', 'black', 'purple',
+  'teal', 'orange', 'green',
+] as const;
 export type HeroColor = (typeof HERO_COLORS)[number];
 
 // --- Agent source (which external agent produced this session) ---

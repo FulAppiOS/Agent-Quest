@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
 import { usePartyPrefs } from '../hooks/usePartyPrefs';
-import { SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
 import './PartyBar.css';
 
 interface PartyBarProps {
@@ -71,7 +71,10 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
       {mode === 'full' && (
         <span className="partybar-row-body">
           <span className="partybar-row-top">
-            <span className="partybar-agent-name">{agent.name}</span>
+            <span
+              className="partybar-agent-name"
+              style={isSelected ? undefined : { color: HERO_LABEL_COLOR[agent.heroColor] }}
+            >{agent.name}</span>
             <span className={`partybar-dot ${agent.status}`} aria-hidden="true" />
           </span>
           <span className="partybar-row-bottom">

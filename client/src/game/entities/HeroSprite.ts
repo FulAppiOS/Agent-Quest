@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
+import { HERO_COLOR_SPRITE_BASE, HERO_COLOR_TINT, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
@@ -116,7 +116,11 @@ export class HeroSprite {
     this._y = y;
 
     const theme = getActiveTheme();
-    const cfg = theme.getHeroConfig(heroColor, heroClass);
+    // Map the logical hero color to a sprite base the theme actually ships
+    // with. Extra palette entries (teal/orange/green) piggy-back on one of
+    // the 5 canonical variants and rely on an extra tint for distinction.
+    const spriteBase = HERO_COLOR_SPRITE_BASE[heroColor];
+    const cfg = theme.getHeroConfig(spriteBase, heroClass);
     this.idleKey = cfg.idleKey;
     this.runKey = cfg.runKey;
     this.facesLeft = cfg.facesLeft;
@@ -126,7 +130,11 @@ export class HeroSprite {
     this.sprite.setScale(theme.heroScale);
     // Flip sprites that natively face left so they face right by default
     this.sprite.setFlipX(this.facesLeft);
-    if (cfg.tint !== null) this.sprite.setTint(cfg.tint);
+    // Palette-level tint takes precedence over the theme's built-in tint so
+    // teal/orange/green heroes are visibly different from their sprite base.
+    const paletteTint = HERO_COLOR_TINT[heroColor];
+    if (paletteTint !== null) this.sprite.setTint(paletteTint);
+    else if (cfg.tint !== null) this.sprite.setTint(cfg.tint);
     // Tag at construction time so the scene-level background-click
     // detector (VillageScene) can classify pointerdown hits correctly
     // regardless of which code path later wires up interactivity.

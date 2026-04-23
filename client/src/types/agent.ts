@@ -1,7 +1,14 @@
 export const HERO_CLASSES = ['warrior', 'archer', 'pawn'] as const;
 export type HeroClass = (typeof HERO_CLASSES)[number];
 
-export const HERO_COLORS = ['blue', 'yellow', 'red', 'black', 'purple'] as const;
+// Kept in sync with server/src/types.ts — the state manager assigns round-robin
+// across the full palette. The 5 original entries map 1:1 to Tiny Swords sprite
+// variants; the extra entries reuse an existing sprite base and apply a Phaser
+// tint (see HERO_COLOR_SPRITE_BASE / HERO_COLOR_TINT below).
+export const HERO_COLORS = [
+  'blue', 'yellow', 'red', 'black', 'purple',
+  'teal', 'orange', 'green',
+] as const;
 export type HeroColor = (typeof HERO_COLORS)[number];
 
 export const AGENT_SOURCES = ['claude', 'codex'] as const;
@@ -20,8 +27,8 @@ export const SOURCE_BADGE_COLOR: Record<AgentSource, string> = {
 
 /**
  * Hero color tinted for text labels on dark backgrounds (Phaser name tag,
- * Party Bar, feed rows). Bright enough to read against #1a1a2e. Keep in sync
- * with the Minimap palette if you ever want the two to visually match.
+ * Party Bar, Detail Panel, Activity Feed rows). Bright enough to read
+ * against #1a1a2e.
  */
 export const HERO_LABEL_COLOR: Record<HeroColor, string> = {
   blue:   '#88BBFF',
@@ -29,6 +36,41 @@ export const HERO_LABEL_COLOR: Record<HeroColor, string> = {
   red:    '#FF8866',
   black:  '#B8B8D0',
   purple: '#C48BE8',
+  teal:   '#7ED9CF',
+  orange: '#FF9F4A',
+  green:  '#88E08A',
+};
+
+/**
+ * Sprite variant to actually render for each HeroColor. The extra palette
+ * entries (teal/orange/green) don't have their own sprite sheets — they
+ * piggy-back on an existing one and rely on `HERO_COLOR_TINT` for distinction.
+ */
+export const HERO_COLOR_SPRITE_BASE: Record<HeroColor, 'blue' | 'yellow' | 'red' | 'black' | 'purple'> = {
+  blue:   'blue',
+  yellow: 'yellow',
+  red:    'red',
+  black:  'black',
+  purple: 'purple',
+  teal:   'blue',
+  orange: 'yellow',
+  green:  'yellow',
+};
+
+/**
+ * Phaser multiplicative tint (0xRRGGBB) applied on top of the base sprite to
+ * differentiate the piggy-backed colors. `null` means no extra tint — the
+ * sprite renders untouched (the theme may still apply its own tint).
+ */
+export const HERO_COLOR_TINT: Record<HeroColor, number | null> = {
+  blue:   null,
+  yellow: null,
+  red:    null,
+  black:  null,
+  purple: null,
+  teal:   0x9EEFDD,
+  orange: 0xFFB878,
+  green:  0xB6E89B,
 };
 
 export type AgentActivity =
