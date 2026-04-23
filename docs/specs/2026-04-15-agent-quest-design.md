@@ -249,3 +249,18 @@ bun run dev:server     # Solo server su localhost:3333
 
 - Musica ambient fantasy di sottofondo (loop)
 - Effetti sonori: incudine (edit), page turn (read), esplosione (test fail), fanfara (completamento)
+
+---
+
+## Appendice — 2026-04-23: supporto Codex
+
+Lo spec originale descrive il supporto esclusivo per Claude Code. Nella
+branch `feat/codex-provider` è stato aggiunto `CodexProvider`, che affianca
+`ClaudeProvider` leggendo i rollout log da `~/.codex/sessions/`. Entrambi i
+provider girano in parallelo e condividono lo stesso `AgentStateManager`;
+il campo `source` di `AgentState` (`'claude' | 'codex'`) discrimina la
+provenienza.
+
+Per il dettaglio delle modifiche UX e di copy (banner empty-state, Tutorial,
+README, commenti interni, rename cosmetici), vedi
+`docs/specs/2026-04-23-dual-provider-copy-design.md`.
