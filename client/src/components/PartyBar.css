@@ -44,14 +44,6 @@
   border-left: 3px solid #C4A35A;
 }
 
-.partybar-agent-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  image-rendering: pixelated;
-}
-
 .partybar-agent-name { font-size: 10px; color: #F5E6C8; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
 
 .partybar-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
