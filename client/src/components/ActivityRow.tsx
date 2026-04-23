@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useState } from 'react';
-import type { ActivityLogEntry, AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
-import { isError, isPath, resolvePath } from './activityFeedUtils';
+import { isError, isPath, resolvePath, categorizeEntry } from './activityFeedUtils';
+import type { ActionFilter } from './activityFeedUtils';
 
 interface ActivityRowProps {
   entry: ActivityLogEntry;
@@ -9,6 +10,8 @@ interface ActivityRowProps {
   agentName: string;
   /** When true, hides the avatar+name (used inside AgentGroup). */
   inGroup?: boolean;
+  highlighted: boolean;
+  isSelected: boolean;
   onSelectAgent: (id: string) => void;
   onFilterAgent: (id: string) => void;
 }
@@ -18,11 +21,17 @@ interface MenuState {
   y: number;
 }
 
-function ActivityRowImpl({ entry, agent, agentName, inGroup, onSelectAgent, onFilterAgent }: ActivityRowProps) {
+function ActivityRowImpl({
+  entry, agent, agentName, inGroup, highlighted, isSelected,
+  onSelectAgent, onFilterAgent,
+}: ActivityRowProps) {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const error = isError(entry.action, entry.detail);
-  const detailIsPath = isPath(entry.detail);
+  const isMessage = entry.action === 'Reply' || entry.action === 'Prompt';
+  const detailIsPath = !isMessage && isPath(entry.detail);
   const absolute = detailIsPath ? resolvePath(entry.detail, agent?.cwd) : null;
+  const pillVariant = entry.action === 'Reply' ? 'is-reply' : entry.action === 'Prompt' ? 'is-prompt' : '';
+  const category: ActionFilter = categorizeEntry(entry.action, entry.detail);
   const time = new Date(entry.timestamp).toLocaleTimeString('en-US', {
     hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
@@ -39,8 +48,16 @@ function ActivityRowImpl({ entry, agent, agentName, inGroup, onSelectAgent, onFi
     closeMenu();
   }, [closeMenu]);
 
+  const rowClasses = [
+    'feed-entry',
+    error ? 'is-error' : '',
+    isMessage ? 'is-message' : '',
+    highlighted ? `is-highlighted hl-${category}` : '',
+    isSelected ? 'is-selected' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className={`feed-entry ${error ? 'is-error' : ''}`} onContextMenu={onContextMenu} role="listitem">
+    <div className={rowClasses} onContextMenu={onContextMenu} role="listitem">
       {!inGroup && agent !== undefined && (
         <button
           type="button"
@@ -61,12 +78,15 @@ function ActivityRowImpl({ entry, agent, agentName, inGroup, onSelectAgent, onFi
               aria-label={`Filter feed to ${agentName}`}
               onClick={() => onFilterAgent(agent.id)}
               title={agentName}
+              style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}
             >{agentName}</button>
           )}
-          <span className={`feed-action-pill ${error ? 'is-error' : ''}`}>{entry.action}</span>
+          <span className={`feed-action-pill ${error ? 'is-error' : ''} ${pillVariant}`}>{entry.action}</span>
           <span className="feed-time">{time}</span>
         </div>
-        {detailIsPath && absolute !== null ? (
+        {isMessage ? (
+          <span className={`feed-detail is-message ${pillVariant}`}>{entry.detail}</span>
+        ) : detailIsPath && absolute !== null ? (
           <a
             href={`vscode://file${encodeURI(absolute)}`}
             className="feed-detail is-path"
@@ -138,5 +158,7 @@ export const ActivityRow = memo(ActivityRowImpl, (prev, next) =>
   prev.agent?.cwd     === next.agent?.cwd     &&
   prev.agent?.heroClass === next.agent?.heroClass &&
   prev.agent?.heroColor === next.agent?.heroColor &&
-  prev.inGroup        === next.inGroup
+  prev.inGroup        === next.inGroup        &&
+  prev.highlighted    === next.highlighted    &&
+  prev.isSelected     === next.isSelected
 );
