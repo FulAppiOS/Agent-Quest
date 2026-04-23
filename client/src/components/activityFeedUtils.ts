@@ -57,23 +57,48 @@ export function resolvePath(detail: string, cwd: string | undefined): string | n
   return `${base}/${detail}`;
 }
 
-export type ActionFilter = 'errors' | 'edits' | 'bash' | 'reads';
+export type ActionFilter = 'errors' | 'edits' | 'bash' | 'reads' | 'messages' | 'agent' | 'other';
 
 const READ_ACTIONS = new Set(['Read', 'Grep', 'Glob']);
 const EDIT_ACTIONS = new Set(['Edit', 'Write', 'NotebookEdit']);
+const MESSAGE_ACTIONS = new Set(['Reply', 'Prompt']);
+
+export function categorizeEntry(action: string, detail: string): ActionFilter {
+  if (isError(action, detail)) return 'errors';
+  if (EDIT_ACTIONS.has(action)) return 'edits';
+  if (action === 'Bash') return 'bash';
+  if (READ_ACTIONS.has(action)) return 'reads';
+  if (MESSAGE_ACTIONS.has(action)) return 'messages';
+  if (action === 'Agent') return 'agent';
+  return 'other';
+}
 
 function entryMatchesFilter(entry: ActivityLogEntry, filter: ActionFilter): boolean {
-  switch (filter) {
-    case 'errors': return isError(entry.action, entry.detail);
-    case 'edits':  return EDIT_ACTIONS.has(entry.action);
-    case 'bash':   return entry.action === 'Bash';
-    case 'reads':  return READ_ACTIONS.has(entry.action);
-  }
+  return categorizeEntry(entry.action, entry.detail) === filter;
 }
 
 export function filterByAction(log: ActivityLogEntry[], filters: ActionFilter[]): ActivityLogEntry[] {
   if (filters.length === 0) return log;
   return log.filter((e) => filters.some((f) => entryMatchesFilter(e, f)));
+}
+
+export interface DetectedCategories {
+  categories: Set<ActionFilter>;
+  counts: Record<ActionFilter, number>;
+}
+
+export function detectCategories(log: ActivityLogEntry[]): DetectedCategories {
+  const counts: Record<ActionFilter, number> = {
+    errors: 0, edits: 0, bash: 0, reads: 0, messages: 0, agent: 0, other: 0,
+  };
+  for (const entry of log) {
+    counts[categorizeEntry(entry.action, entry.detail)]++;
+  }
+  const categories = new Set<ActionFilter>();
+  for (const key of Object.keys(counts) as ActionFilter[]) {
+    if (counts[key] > 0) categories.add(key);
+  }
+  return { categories, counts };
 }
 
 export function filterByAgent(log: ActivityLogEntry[], agentId: string | null): ActivityLogEntry[] {

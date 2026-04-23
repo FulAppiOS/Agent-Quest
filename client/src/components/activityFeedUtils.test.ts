@@ -119,9 +119,10 @@ describe('filterByAction', () => {
     expect(result.map((e) => e.action)).toEqual(['Edit', 'Write']);
   });
 
-  it('filters to bash', () => {
+  it('filters to bash (error-Bash goes to errors only)', () => {
     const result = filterByAction(log, ['bash']);
-    expect(result.map((e) => e.action)).toEqual(['Bash', 'Bash']);
+    expect(result.map((e) => e.action)).toEqual(['Bash']);
+    expect(result[0]!.detail).toBe('git status');
   });
 
   it('filters to reads', () => {
@@ -177,5 +178,90 @@ describe('groupByAgent', () => {
 
   it('returns empty array for empty log', () => {
     expect(groupByAgent([])).toEqual([]);
+  });
+});
+
+import { categorizeEntry } from './activityFeedUtils';
+
+describe('categorizeEntry', () => {
+  it('classifies Bash error as errors', () => {
+    expect(categorizeEntry('Bash', 'npm run build → exit 1')).toBe('errors');
+  });
+
+  it('classifies Edit/Write/NotebookEdit as edits', () => {
+    expect(categorizeEntry('Edit', 'src/foo.ts')).toBe('edits');
+    expect(categorizeEntry('Write', 'src/bar.ts')).toBe('edits');
+    expect(categorizeEntry('NotebookEdit', 'foo.ipynb')).toBe('edits');
+  });
+
+  it('classifies plain Bash as bash', () => {
+    expect(categorizeEntry('Bash', 'git status')).toBe('bash');
+  });
+
+  it('classifies Read/Grep/Glob as reads', () => {
+    expect(categorizeEntry('Read', 'src/foo.ts')).toBe('reads');
+    expect(categorizeEntry('Grep', '"AgentState"')).toBe('reads');
+    expect(categorizeEntry('Glob', '**/*.ts')).toBe('reads');
+  });
+
+  it('classifies Reply/Prompt as messages', () => {
+    expect(categorizeEntry('Reply', 'Hello')).toBe('messages');
+    expect(categorizeEntry('Prompt', 'Please do X')).toBe('messages');
+  });
+
+  it('classifies Agent as agent', () => {
+    expect(categorizeEntry('Agent', 'subagent-general')).toBe('agent');
+  });
+
+  it('classifies anything else as other', () => {
+    expect(categorizeEntry('TodoWrite', '')).toBe('other');
+    expect(categorizeEntry('Thinking', '...')).toBe('other');
+    expect(categorizeEntry('WebFetch', 'https://example.com')).toBe('other');
+  });
+});
+
+import { detectCategories } from './activityFeedUtils';
+import type { ActionFilter } from './activityFeedUtils';
+
+describe('detectCategories', () => {
+  it('returns empty set and zero counts for empty log', () => {
+    const { categories, counts } = detectCategories([]);
+    expect(categories.size).toBe(0);
+    expect(counts.errors).toBe(0);
+    expect(counts.edits).toBe(0);
+    expect(counts.bash).toBe(0);
+    expect(counts.reads).toBe(0);
+    expect(counts.messages).toBe(0);
+    expect(counts.agent).toBe(0);
+    expect(counts.other).toBe(0);
+  });
+
+  it('includes only categories actually present, with counts', () => {
+    const log = [
+      { agentId: 'a', action: 'Read',   detail: 'foo.ts',           timestamp: 1 },
+      { agentId: 'a', action: 'Read',   detail: 'bar.ts',           timestamp: 2 },
+      { agentId: 'a', action: 'Agent',  detail: 'sub',              timestamp: 3 },
+      { agentId: 'a', action: 'Bash',   detail: 'npm → exit 1',     timestamp: 4 },
+      { agentId: 'a', action: 'Reply',  detail: 'Done',             timestamp: 5 },
+    ];
+    const { categories, counts } = detectCategories(log);
+    const sortedCats = [...categories].sort();
+    expect(sortedCats).toEqual(['agent', 'errors', 'messages', 'reads'] as ActionFilter[]);
+    expect(counts.reads).toBe(2);
+    expect(counts.agent).toBe(1);
+    expect(counts.errors).toBe(1);
+    expect(counts.messages).toBe(1);
+    expect(counts.bash).toBe(0);
+    expect(counts.edits).toBe(0);
+    expect(counts.other).toBe(0);
+  });
+
+  it('puts unknown actions into other', () => {
+    const { categories, counts } = detectCategories([
+      { agentId: 'a', action: 'TodoWrite', detail: '', timestamp: 1 },
+      { agentId: 'a', action: 'Thinking',  detail: '', timestamp: 2 },
+    ]);
+    expect([...categories]).toEqual(['other']);
+    expect(counts.other).toBe(2);
   });
 });
