@@ -80,6 +80,31 @@
 
 .feed-spacer { flex: 1; }
 
+.feed-tabs {
+  display: flex;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  padding: 2px;
+}
+.feed-tab {
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--feed-pergamena);
+  opacity: 0.6;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.feed-tab.active {
+  background: rgba(196, 163, 90, 0.3);
+  color: #fff;
+  opacity: 1;
+  font-weight: bold;
+}
+
 .feed-fold-buttons { display: flex; gap: 4px; }
 .feed-fold-btn {
   width: 26px; height: 24px;

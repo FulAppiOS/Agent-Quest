@@ -6,10 +6,11 @@ import { isError, isPath, resolvePath, categorizeEntry } from './activityFeedUti
 import type { ActionFilter } from './activityFeedUtils';
 
 // Message cells render detail as markdown (bold, italic, code, links). The
-// custom `p` renderer emits a fragment so multiple paragraphs flow inline —
-// no extra vertical space, no visible paragraph breaks.
+// custom `p` renderer emits the children followed by a trailing space so
+// multiple paragraphs flow inline with a visible word-break between them —
+// no extra vertical space, no paragraphs glued together ("fooBar").
 const MD_COMPONENTS = {
-  p: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  p: ({ children }: { children?: ReactNode }) => <>{children}{' '}</>,
 };
 
 interface ActivityRowProps {
