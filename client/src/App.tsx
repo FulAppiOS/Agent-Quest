@@ -111,7 +111,6 @@ export default function App() {
           <ActivityFeed
             log={activityLog}
             agents={agents}
-            selectedAgentId={selectedAgentId}
             onSelectAgent={handleSelectAgent}
           />
         </div>

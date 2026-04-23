@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivityLogEntry, AgentState } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
-import { useFeedPrefs } from '../hooks/useFeedPrefs';
+import { useFeedPrefs, type FoldState, type ViewMode } from '../hooks/useFeedPrefs';
 import { ActivityFeedHeader } from './ActivityFeedHeader';
 import { ActivityRow } from './ActivityRow';
 import { AgentGroup } from './AgentGroup';
 import {
   filterByAction, filterByAgent, groupByAgent, getAgentNameFallback,
+  type ActionFilter,
 } from './activityFeedUtils';
 import './ActivityFeed.css';
 
 interface ActivityFeedProps {
   log: ActivityLogEntry[];
   agents: AgentState[];
-  selectedAgentId: string | null;
   onSelectAgent: (id: string) => void;
 }
 
@@ -43,21 +43,33 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
     [agentLookup],
   );
 
-  // --- Auto-scroll lock ---
+  // --- Auto-scroll lock + closed-state counter ---
   const listRef = useRef<HTMLDivElement | null>(null);
   const [pinned, setPinned] = useState(true);
   const [newSinceUnpin, setNewSinceUnpin] = useState(0);
+  const [newWhileClosed, setNewWhileClosed] = useState(0);
   const prevLogLength = useRef(log.length);
+  const isFirstRun = useRef(true);
 
   useEffect(() => {
-    if (log.length > prevLogLength.current && !pinned) {
-      setNewSinceUnpin((n) => n + (log.length - prevLogLength.current));
+    const delta = log.length - prevLogLength.current;
+    // Skip first render so initial snapshot doesn't flash a fake "N new" badge.
+    if (!isFirstRun.current && delta > 0) {
+      if (!pinned) setNewSinceUnpin((n) => n + delta);
+      if (foldState === 'closed') setNewWhileClosed((n) => n + delta);
     }
     prevLogLength.current = log.length;
+    isFirstRun.current = false;
+
     if (pinned && listRef.current !== null) {
       listRef.current.scrollTop = 0;
     }
-  }, [log, pinned]);
+  }, [log, pinned, foldState]);
+
+  // Clear the closed-state counter as soon as the user reopens the panel.
+  useEffect(() => {
+    if (foldState !== 'closed') setNewWhileClosed(0);
+  }, [foldState]);
 
   const onScroll = useCallback(() => {
     const el = listRef.current;
@@ -74,16 +86,6 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
     setNewSinceUnpin(0);
   }, []);
 
-  // --- New badge counter (when closed) ---
-  const [newWhileClosed, setNewWhileClosed] = useState(0);
-  useEffect(() => {
-    if (foldState === 'closed' && log.length > prevLogLength.current) {
-      setNewWhileClosed((n) => n + (log.length - prevLogLength.current));
-    } else if (foldState !== 'closed') {
-      setNewWhileClosed(0);
-    }
-  }, [log, foldState]);
-
   // --- Click handlers ---
   const handleSelectAgent = useCallback((id: string) => {
     onSelectAgent(id);
@@ -96,6 +98,21 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
 
   const clearAgentFilter = useCallback(() => updatePrefs({ agentFilter: null }), [updatePrefs]);
 
+  // Header callbacks memoized for future ActivityFeedHeader memoization and to
+  // stay consistent with the other handlers.
+  const onFoldChange = useCallback(
+    (s: FoldState) => updatePrefs({ foldState: s }),
+    [updatePrefs],
+  );
+  const onViewModeChange = useCallback(
+    (m: ViewMode) => updatePrefs({ viewMode: m }),
+    [updatePrefs],
+  );
+  const onFiltersChange = useCallback(
+    (f: ActionFilter[]) => updatePrefs({ activeFilters: f }),
+    [updatePrefs],
+  );
+
   return (
     <div className={`activity-feed fold-${foldState}`} role="log" aria-live="polite" aria-relevant="additions">
       <ActivityFeedHeader
@@ -105,9 +122,9 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
         agentFilter={agentFilter}
         agents={agents}
         newCount={newWhileClosed}
-        onFoldChange={(s) => updatePrefs({ foldState: s })}
-        onViewModeChange={(m) => updatePrefs({ viewMode: m })}
-        onFiltersChange={(f) => updatePrefs({ activeFilters: f })}
+        onFoldChange={onFoldChange}
+        onViewModeChange={onViewModeChange}
+        onFiltersChange={onFiltersChange}
         onClearAgentFilter={clearAgentFilter}
       />
 
