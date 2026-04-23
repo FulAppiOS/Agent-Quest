@@ -8,6 +8,7 @@ import type { WsClient } from './ws/websocket-server';
 import { MapStorage } from './map/storage';
 import { registerMapRoutes } from './map/routes';
 import { ClaudeProvider } from './providers/claude-provider';
+import { CodexProvider } from './providers/codex-provider';
 import type { ProviderHandlers, SessionStartPayload, SessionEventsPayload } from './providers/types';
 import type { ParsedEvent } from './parsers/session-parser';
 
@@ -143,6 +144,11 @@ const providerHandlers: ProviderHandlers = {
 };
 
 const claudeProvider = new ClaudeProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
+const codexProvider = new CodexProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
+
+function allConfigDirs(): string[] {
+  return [...claudeProvider.getConfigDirs(), ...codexProvider.getConfigDirs()];
+}
 
 // --- Lifecycle: active → idle (5m) → completed (30m) → removed (2h, keep min 5) ---
 setInterval(() => {
@@ -180,10 +186,12 @@ setInterval(() => {
 // of racing the async auto-discovery and incorrectly reporting "no Claude
 // install").
 await claudeProvider.start(providerHandlers);
+await codexProvider.start(providerHandlers);
 
 // Seed the liveness registry with the same config dirs the watcher just
 // auto-discovered, then prime it synchronously so the first WS snapshot can
-// already filter out phantom sessions.
+// already filter out phantom sessions. Registry stays Claude-only — the
+// pidfile oracle is a Claude-specific signal.
 sessionRegistry.setConfigDirs(claudeProvider.getConfigDirs());
 await sessionRegistry.start(10_000);
 console.log(`[SessionRegistry] live session ids: ${sessionRegistry.snapshot().length}`);
@@ -217,7 +225,7 @@ const server = Bun.serve({
   websocket: {
     open(ws: WsClient) {
       wsServer.handleOpen(ws);
-      wsServer.sendSnapshot(ws, stateManager.getAll(), claudeProvider.getConfigDirs());
+      wsServer.sendSnapshot(ws, stateManager.getAll(), allConfigDirs());
     },
     close(ws: WsClient) {
       wsServer.handleClose(ws);
