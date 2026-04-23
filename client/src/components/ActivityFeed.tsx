@@ -6,7 +6,7 @@ import { ActivityFeedHeader } from './ActivityFeedHeader';
 import { ActivityRow } from './ActivityRow';
 import { AgentGroup } from './AgentGroup';
 import {
-  filterByAction, filterByAgent, groupByAgent, getAgentNameFallback,
+  filterByAgent, groupByAgent, getAgentNameFallback, categorizeEntry, detectCategories,
   type ActionFilter,
 } from './activityFeedUtils';
 import './ActivityFeed.css';
@@ -14,19 +14,28 @@ import './ActivityFeed.css';
 interface ActivityFeedProps {
   log: ActivityLogEntry[];
   agents: AgentState[];
+  selectedAgentId: string | null;
   onSelectAgent: (id: string) => void;
 }
 
 const SCROLL_PIN_THRESHOLD_PX = 8;
 
-export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) {
+export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: ActivityFeedProps) {
   const [prefs, updatePrefs] = useFeedPrefs();
-  const { foldState, viewMode, activeFilters, agentFilter } = prefs;
+  const { foldState, viewMode, activeHighlights, agentFilter } = prefs;
 
+  // The agent-filter chip still hides rows (explicit user filter on one agent).
+  // The action highlights do NOT hide anything; they only tint matching rows.
   const filtered = useMemo(
-    () => filterByAgent(filterByAction(log, activeFilters), agentFilter),
-    [log, activeFilters, agentFilter],
+    () => filterByAgent(log, agentFilter),
+    [log, agentFilter],
   );
+
+  const { categories: availableCategories, counts: categoryCounts } = useMemo(
+    () => detectCategories(filtered),
+    [filtered],
+  );
+
   const groups = useMemo(
     () => viewMode === 'byAgent' ? groupByAgent(filtered) : null,
     [filtered, viewMode],
@@ -53,7 +62,6 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
 
   useEffect(() => {
     const delta = log.length - prevLogLength.current;
-    // Skip first render so initial snapshot doesn't flash a fake "N new" badge.
     if (!isFirstRun.current && delta > 0) {
       if (!pinned) setNewSinceUnpin((n) => n + delta);
       if (foldState === 'closed') setNewWhileClosed((n) => n + delta);
@@ -66,7 +74,6 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
     }
   }, [log, pinned, foldState]);
 
-  // Clear the closed-state counter as soon as the user reopens the panel.
   useEffect(() => {
     if (foldState !== 'closed') setNewWhileClosed(0);
   }, [foldState]);
@@ -86,7 +93,6 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
     setNewSinceUnpin(0);
   }, []);
 
-  // --- Click handlers ---
   const handleSelectAgent = useCallback((id: string) => {
     onSelectAgent(id);
     eventBridge.emit('camera:follow', id);
@@ -98,8 +104,6 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
 
   const clearAgentFilter = useCallback(() => updatePrefs({ agentFilter: null }), [updatePrefs]);
 
-  // Header callbacks memoized for future ActivityFeedHeader memoization and to
-  // stay consistent with the other handlers.
   const onFoldChange = useCallback(
     (s: FoldState) => updatePrefs({ foldState: s }),
     [updatePrefs],
@@ -108,23 +112,30 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
     (m: ViewMode) => updatePrefs({ viewMode: m }),
     [updatePrefs],
   );
-  const onFiltersChange = useCallback(
-    (f: ActionFilter[]) => updatePrefs({ activeFilters: f }),
+  const onHighlightsChange = useCallback(
+    (h: ActionFilter[]) => updatePrefs({ activeHighlights: h }),
     [updatePrefs],
   );
+
+  const shouldHighlight = (entry: ActivityLogEntry): boolean => {
+    if (activeHighlights.length === 0) return false;
+    return activeHighlights.includes(categorizeEntry(entry.action, entry.detail));
+  };
 
   return (
     <div className={`activity-feed fold-${foldState}`} role="log" aria-live="polite" aria-relevant="additions">
       <ActivityFeedHeader
         foldState={foldState}
         viewMode={viewMode}
-        activeFilters={activeFilters}
+        activeHighlights={activeHighlights}
+        availableCategories={availableCategories}
+        categoryCounts={categoryCounts}
         agentFilter={agentFilter}
         agents={agents}
         newCount={newWhileClosed}
         onFoldChange={onFoldChange}
         onViewModeChange={onViewModeChange}
-        onFiltersChange={onFiltersChange}
+        onHighlightsChange={onHighlightsChange}
         onClearAgentFilter={clearAgentFilter}
       />
 
@@ -150,6 +161,8 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
                   agent={agentLookup.get(g.agentId)}
                   agentName={resolveName(g.agentId)}
                   entries={g.entries}
+                  activeHighlights={activeHighlights}
+                  selectedAgentId={selectedAgentId}
                   onSelectAgent={handleSelectAgent}
                   onFilterAgent={handleFilterAgent}
                 />
@@ -161,6 +174,8 @@ export function ActivityFeed({ log, agents, onSelectAgent }: ActivityFeedProps) 
                   entry={entry}
                   agent={agentLookup.get(entry.agentId)}
                   agentName={resolveName(entry.agentId)}
+                  highlighted={shouldHighlight(entry)}
+                  isSelected={entry.agentId === selectedAgentId}
                   onSelectAgent={handleSelectAgent}
                   onFilterAgent={handleFilterAgent}
                 />
