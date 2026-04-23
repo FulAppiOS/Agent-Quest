@@ -2,72 +2,198 @@
   position: absolute;
   top: 76px;
   left: 8px;
-  width: 180px;
   max-height: calc(100% - 208px);
   background: rgba(26, 26, 46, 0.85);
   border: 1px solid rgba(196, 163, 90, 0.4);
   border-radius: 4px;
-  overflow-y: auto;
+  overflow: hidden;
   z-index: 25;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.18s ease;
 }
+.partybar.mode-full  { width: 220px; }
+.partybar.mode-icons { width: 60px;  }
 
-.partybar::-webkit-scrollbar { width: 6px; }
-.partybar::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
-.partybar::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
-
+/* === Header === */
+.partybar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 4px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.2);
+  flex-shrink: 0;
+}
 .partybar-title {
   font-family: 'Cinzel', serif;
   color: #C4A35A;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 6px 8px 4px;
-  border-bottom: 1px solid rgba(196, 163, 90, 0.2);
-}
-
-.partybar-agent {
-  padding: 3px 8px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.15s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.partybar-agent:hover { background: rgba(196, 163, 90, 0.1); }
-
-.partybar-agent.selected {
-  background: rgba(196, 163, 90, 0.2);
-  border-left: 3px solid #C4A35A;
-}
-
-.partybar-agent-name { font-size: 10px; color: #F5E6C8; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
-
-.partybar-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-.partybar-dot.active { background: #2E8B57; }
-.partybar-dot.idle { background: #C4A35A; }
-.partybar-dot.completed { background: #555; }
-.partybar-dot.error { background: #8B2500; }
-
-.partybar-activity { font-size: 9px; color: #aaa; margin-left: auto; flex-shrink: 0; }
-
-.partybar-agent-message {
-  font-size: 8px;
-  color: #7B9EC4;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  width: 100%;
-  margin-top: 1px;
-  opacity: 0.8;
+}
+.partybar-title-compact {
+  color: #C4A35A;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  flex: 1;
+  background: rgba(196, 163, 90, 0.2);
+  border-radius: 10px;
+  padding: 0 6px;
+}
+.partybar-fold-btn {
+  width: 22px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(196, 163, 90, 0.12);
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  border-radius: 3px;
+  color: #F5E6C8;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.partybar-fold-btn:hover { background: rgba(196, 163, 90, 0.25); }
+.partybar-fold-btn:focus-visible {
+  outline: 2px solid #C4A35A;
+  outline-offset: 1px;
 }
 
-.partybar-more {
-  padding: 3px 8px;
-  font-size: 9px;
-  color: #888;
-  font-style: italic;
+/* === List === */
+.partybar-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 163, 90, 0.4) transparent;
+}
+.partybar-list::-webkit-scrollbar { width: 6px; }
+.partybar-list::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
+.partybar-list::-webkit-scrollbar-track { background: transparent; }
+
+/* === Row === */
+.partybar-agent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.partybar-agent:hover { background: rgba(196, 163, 90, 0.1); }
+.partybar-agent.selected {
+  background: rgba(196, 163, 90, 0.3);
+  border-left: 3px solid #C4A35A;
+  padding-left: 7px;
+  box-shadow: 0 0 12px rgba(196, 163, 90, 0.4);
+}
+.partybar-agent.flashing {
+  animation: party-select-flash 0.4s ease-out;
+}
+@keyframes party-select-flash {
+  0%   { box-shadow: 0 0 20px rgba(196, 163, 90, 0.9); background: rgba(196, 163, 90, 0.5); }
+  100% { box-shadow: 0 0 12px rgba(196, 163, 90, 0.4); background: rgba(196, 163, 90, 0.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .partybar-agent.flashing { animation: none; }
+}
+
+.partybar.mode-icons .partybar-agent {
+  justify-content: center;
+  padding: 6px 0;
+}
+
+/* === Avatar + status overlay === */
+.partybar-avatar-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.partybar-status-overlay {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #1a1a2e;
+  box-sizing: content-box;
+}
+.partybar-status-overlay.active    { background: #2E8B57; }
+.partybar-status-overlay.idle      { background: #C4A35A; }
+.partybar-status-overlay.completed { background: #555;    }
+.partybar-status-overlay.error     { background: #8B2500; }
+.partybar-status-overlay.waiting   { background: #FFD700; }
+
+/* === Row body (Full only) === */
+.partybar-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.partybar-row-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.partybar-agent-name {
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #F5E6C8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+  flex: 1;
+}
+.partybar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.partybar-dot.active    { background: #2E8B57; }
+.partybar-dot.idle      { background: #C4A35A; }
+.partybar-dot.completed { background: #555;    }
+.partybar-dot.error     { background: #8B2500; }
+.partybar-dot.waiting   { background: #FFD700; }
+.partybar-activity {
+  font-size: 12px;
+  color: #F5E6C8;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === Responsive === */
+@media (max-width: 600px) {
+  .partybar.mode-full { width: 180px; }
+  .partybar-agent-name { max-width: 90px; font-size: 13px; }
+  .partybar-activity { font-size: 11px; }
+}
+
+@media (max-width: 400px) {
+  .partybar.mode-full { width: 60px; }
+  .partybar.mode-full .partybar-row-body,
+  .partybar.mode-full .partybar-title { display: none; }
 }
