@@ -221,7 +221,7 @@ Open the UI URL on the other device. The client auto-detects the host so API and
 
 > **Security note.** LAN mode exposes your agents' tool calls, file paths and command output to anyone on the same network. Fine at home; think twice on office / café / conference Wi-Fi.
 
-### Platform matrix
+## Platform matrix
 
 |             | macOS | Windows              | Linux |
 |-------------|-------|----------------------|-------|
