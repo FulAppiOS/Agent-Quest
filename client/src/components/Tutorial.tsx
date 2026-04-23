@@ -132,8 +132,12 @@ export function Tutorial({ onClose }: TutorialProps) {
         <div className="tutorial-section-label">Platform</div>
         <p className="tutorial-text">
           <strong>Claude Code:</strong> tested on macOS and Windows (via <strong>WSL2</strong> — see the README).
-          Linux supported.<br />
+        </p>
+        <p className="tutorial-text">
           <strong>Codex:</strong> macOS tested. Windows not yet verified.
+        </p>
+        <p className="tutorial-text">
+          <strong>Linux:</strong> should work for both, but not routinely tested.
         </p>
 
         <div className="tutorial-section-label">About</div>
