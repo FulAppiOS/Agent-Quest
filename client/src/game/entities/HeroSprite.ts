@@ -226,13 +226,13 @@ export class HeroSprite {
       this.selectionHalo = null;
     }
     if (selected) {
-      const radius = Math.max(this.sprite.displayWidth, this.sprite.displayHeight) * 0.55;
-      this.selectionHalo = this.scene.add.circle(this._x, this._y, radius, 0x5ba3f5, 0.25);
+      const radius = Math.max(this.sprite.displayWidth, this.sprite.displayHeight) * 0.32;
+      this.selectionHalo = this.scene.add.circle(this._x, this._y, radius, 0xffffff, 0.25);
       this.selectionHalo.setDepth(this.sprite.depth - 0.1);
       this.selectionTween = this.scene.tweens.add({
         targets: this.selectionHalo,
         alpha: 0.55,
-        scale: 1.4,
+        scale: 1.3,
         duration: 500,
         yoyo: true,
         repeat: -1,
