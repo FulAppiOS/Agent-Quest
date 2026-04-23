@@ -2,14 +2,14 @@ import { networkInterfaces } from 'node:os';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { AgentStateManager } from './state/agent-state-manager';
-import { FileWatcher } from './watchers/file-watcher';
-import { parseJsonlLine, parseSessionFile } from './parsers/session-parser';
-import { resolveSubagentLabel } from './parsers/subagent-label';
 import { SessionRegistry } from './session-registry';
 import { WebSocketServer } from './ws/websocket-server';
 import type { WsClient } from './ws/websocket-server';
 import { MapStorage } from './map/storage';
 import { registerMapRoutes } from './map/routes';
+import { ClaudeProvider } from './providers/claude-provider';
+import type { ProviderHandlers, SessionStartPayload, SessionEventsPayload } from './providers/types';
+import type { ParsedEvent } from './parsers/session-parser';
 
 /** Return IPv4 addresses bound to non-internal, non-link-local interfaces. */
 function listLanAddresses(): string[] {
@@ -76,51 +76,59 @@ app.get('/api/agents', (c) => c.json(stateManager.getAll()));
 
 registerMapRoutes(app, mapStorage);
 
-// --- File watcher callbacks ---
-const watcher = new FileWatcher({
-  maxAgeMs: SESSION_MAX_AGE_MS,
-  onNewSession: async (sessionId, filePath, configDir) => {
-    console.log(`[Server] new session: ${sessionId} (${configDir})`);
-    // Parse the full file to build initial state
-    const file = Bun.file(filePath);
-    const contents = await file.text();
-    const events = parseSessionFile(contents);
+// --- Provider handlers: shared logic that every SessionProvider feeds into ---
+function broadcastAgentEventSideEffects(event: ParsedEvent): void {
+  // Broadcast activity log for tool calls
+  for (const tc of event.toolCalls) {
+    const detail = event.file ?? event.command ?? '';
+    wsServer.broadcastActivityLog(event.sessionId, tc.name, detail, tc.timestamp);
+  }
 
-    // Subagent files live under `.../<parentSessionId>/subagents/agent-*.jsonl`.
-    // Resolve a readable label (the parent's Agent tool `description`/`subagent_type`
-    // or a first-sentence fallback) before creating the agent, so the initial
-    // broadcast carries the human-friendly name instead of the hex sigla.
-    const nameOverride = sessionId.startsWith('agent-')
-      ? await resolveSubagentLabel(filePath).catch(() => undefined)
-      : undefined;
+  // User prompts: feed shows the message that kicked off the turn.
+  // Skip resume hints (historical last-prompt dumps) and subagents (their
+  // "prompt" is the parent's tool_use input, already visible as a Task row).
+  if (
+    event.kind === 'task' &&
+    event.currentTask !== undefined &&
+    event.isResumeHint !== true &&
+    !event.sessionId.startsWith('agent-')
+  ) {
+    const detail = event.currentTask.length > 500
+      ? `${event.currentTask.slice(0, 500)}…`
+      : event.currentTask;
+    wsServer.broadcastActivityLog(event.sessionId, 'Prompt', detail, event.timestamp);
+  }
 
-    for (const event of events) {
+  // Claude's text reply at turn-end — lastMessage is already capped at 300
+  // chars by the parser.
+  if (event.isTurnEnd === true && event.lastMessage !== undefined) {
+    wsServer.broadcastActivityLog(event.sessionId, 'Reply', event.lastMessage, event.timestamp);
+  }
+}
+
+const providerHandlers: ProviderHandlers = {
+  onSessionStart: async (payload: SessionStartPayload) => {
+    console.log(`[Server] new session: ${payload.sessionId} (${payload.source}, ${payload.configDir})`);
+    for (const event of payload.events) {
       // Subagent JSONL lines carry the PARENT's sessionId — rekey on the
       // filename-derived id so each subagent becomes its own hero instead
       // of being folded into the parent agent.
-      event.sessionId = sessionId;
-      const result = stateManager.processEvent(event, configDir, nameOverride);
+      event.sessionId = payload.sessionId;
+      const result = stateManager.processEvent(event, payload.configDir, payload.source, payload.nameOverride);
       if (result !== null && result.isNew) {
         wsServer.broadcastNewAgent(result.agent);
       }
     }
-
     // Broadcast final state after processing all events
-    const agent = stateManager.getAgent(sessionId);
-    if (agent !== undefined) {
-      wsServer.broadcastAgentUpdate(agent);
-    }
+    const agent = stateManager.getAgent(payload.sessionId);
+    if (agent !== undefined) wsServer.broadcastAgentUpdate(agent);
   },
 
-  onSessionUpdate: (sessionId, _filePath, newContent, configDir) => {
-    for (const line of newContent.split('\n')) {
-      if (line.trim() === '') continue;
-      const event = parseJsonlLine(line);
-      if (event === null) continue;
-
-      // See note in onNewSession: rekey to filename-derived id for subagents.
-      event.sessionId = sessionId;
-      const result = stateManager.processEvent(event, configDir);
+  onSessionEvents: (payload: SessionEventsPayload) => {
+    for (const event of payload.events) {
+      // See note in onSessionStart: rekey to filename-derived id for subagents.
+      event.sessionId = payload.sessionId;
+      const result = stateManager.processEvent(event, payload.configDir, payload.source);
       if (result === null) continue; // resume-hint dump, no state change
 
       if (result.isNew) {
@@ -129,35 +137,12 @@ const watcher = new FileWatcher({
         wsServer.broadcastAgentUpdate(result.agent);
       }
 
-      // Broadcast activity log for tool calls
-      for (const tc of event.toolCalls) {
-        const detail = event.file ?? event.command ?? '';
-        wsServer.broadcastActivityLog(event.sessionId, tc.name, detail, tc.timestamp);
-      }
-
-      // User prompts: feed shows the message that kicked off the turn.
-      // Skip resume hints (historical last-prompt dumps) and subagents (their
-      // "prompt" is the parent's tool_use input, already visible as a Task row).
-      if (
-        event.kind === 'task' &&
-        event.currentTask !== undefined &&
-        event.isResumeHint !== true &&
-        !event.sessionId.startsWith('agent-')
-      ) {
-        const detail = event.currentTask.length > 500
-          ? `${event.currentTask.slice(0, 500)}…`
-          : event.currentTask;
-        wsServer.broadcastActivityLog(event.sessionId, 'Prompt', detail, event.timestamp);
-      }
-
-      // Claude's text reply at turn-end — lastMessage is already capped at 300
-      // chars by the parser.
-      if (event.isTurnEnd === true && event.lastMessage !== undefined) {
-        wsServer.broadcastActivityLog(event.sessionId, 'Reply', event.lastMessage, event.timestamp);
-      }
+      broadcastAgentEventSideEffects(event);
     }
   },
-});
+};
+
+const claudeProvider = new ClaudeProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
 
 // --- Lifecycle: active → idle (5m) → completed (30m) → removed (2h, keep min 5) ---
 setInterval(() => {
@@ -194,12 +179,12 @@ setInterval(() => {
 // connection's snapshot already carries the discovered configDirs (instead
 // of racing the async auto-discovery and incorrectly reporting "no Claude
 // install").
-await watcher.start(2000);
+await claudeProvider.start(providerHandlers);
 
 // Seed the liveness registry with the same config dirs the watcher just
 // auto-discovered, then prime it synchronously so the first WS snapshot can
 // already filter out phantom sessions.
-sessionRegistry.setConfigDirs(watcher.getConfigDirs());
+sessionRegistry.setConfigDirs(claudeProvider.getConfigDirs());
 await sessionRegistry.start(10_000);
 console.log(`[SessionRegistry] live session ids: ${sessionRegistry.snapshot().length}`);
 
@@ -232,7 +217,7 @@ const server = Bun.serve({
   websocket: {
     open(ws: WsClient) {
       wsServer.handleOpen(ws);
-      wsServer.sendSnapshot(ws, stateManager.getAll(), watcher.getConfigDirs());
+      wsServer.sendSnapshot(ws, stateManager.getAll(), claudeProvider.getConfigDirs());
     },
     close(ws: WsClient) {
       wsServer.handleClose(ws);
