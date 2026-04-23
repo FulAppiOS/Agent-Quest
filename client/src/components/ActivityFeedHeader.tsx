@@ -50,16 +50,16 @@ export function ActivityFeedHeader({
         </span>
 
         {foldState !== 'closed' && (
-          <div className="feed-tabs" role="tablist" aria-label="Feed view mode">
+          <div className="feed-tabs" role="group" aria-label="Feed view mode">
             <button
-              role="tab"
-              aria-selected={viewMode === 'all'}
+              type="button"
+              aria-pressed={viewMode === 'all'}
               className={`feed-tab ${viewMode === 'all' ? 'active' : ''}`}
               onClick={() => onViewModeChange('all')}
             >All</button>
             <button
-              role="tab"
-              aria-selected={viewMode === 'byAgent'}
+              type="button"
+              aria-pressed={viewMode === 'byAgent'}
               className={`feed-tab ${viewMode === 'byAgent' ? 'active' : ''}`}
               onClick={() => onViewModeChange('byAgent')}
             >By Agent</button>
