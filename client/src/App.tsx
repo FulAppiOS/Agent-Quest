@@ -9,7 +9,7 @@ import { ActivityFeed } from './components/ActivityFeed';
 import { DetailPanel } from './components/DetailPanel';
 import { BuildingInfoPanel } from './components/BuildingInfoPanel';
 import { Tutorial } from './components/Tutorial';
-import { NoClaudeBanner } from './components/NoClaudeBanner';
+import { NoInstallBanner } from './components/NoInstallBanner';
 import './App.css';
 
 export default function App() {
@@ -124,7 +124,7 @@ export default function App() {
       {villageReady && (
         <div className="overlay">
           <TopBar agents={agents} connected={connected} />
-          <NoClaudeBanner configDirs={configDirs} connected={connected} />
+          <NoInstallBanner configDirs={configDirs} connected={connected} />
           <PartyBar
             agents={agents}
             selectedAgentId={selectedAgentId}

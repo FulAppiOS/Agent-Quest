@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import './NoClaudeBanner.css';
-
-const DISMISS_KEY = 'agent-quest:no-claude-dismissed';
+import './NoInstallBanner.css';
+import { isDismissed, setDismissed, resetDismissal } from './noInstallBannerStorage';
 
 interface Props {
   /** null until the first snapshot arrives; empty array means nothing was discovered. */
@@ -11,22 +10,21 @@ interface Props {
 
 /**
  * Full-width banner shown when the WebSocket is connected AND the server
- * reported zero `~/.claude*` config dirs. This disambiguates two states
- * that are otherwise indistinguishable in the empty village:
- *   - "Claude Code not installed at all"   → this banner
- *   - "Claude installed but no sessions"   → no banner, empty village is fine
- * Dismiss is persisted so returning users don't see it every load.
+ * reported zero config dirs across both providers. Disambiguates the two
+ * empty-village states:
+ *   - "Neither Claude Code nor Codex is installed"  → this banner
+ *   - "At least one provider is installed but idle" → no banner
+ * Dismiss is persisted (with one-time migration from the old Claude-only key)
+ * so returning users don't see it every load.
  */
-export function NoClaudeBanner({ configDirs, connected }: Props) {
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch { return false; }
-  });
+export function NoInstallBanner({ configDirs, connected }: Props) {
+  const [dismissed, setDismissedState] = useState<boolean>(() => isDismissed());
 
   // Reset dismissal if a config dir appears later (user installed Claude Code
-  // while the dashboard was open) — don't bury a helpful banner forever.
+  // or Codex while the dashboard was open) — don't bury a helpful banner forever.
   useEffect(() => {
     if (configDirs !== null && configDirs.length > 0 && dismissed) {
-      try { localStorage.removeItem(DISMISS_KEY); } catch {}
+      resetDismissal();
     }
   }, [configDirs, dismissed]);
 
@@ -36,31 +34,22 @@ export function NoClaudeBanner({ configDirs, connected }: Props) {
   if (dismissed) return null;
 
   const onDismiss = () => {
-    setDismissed(true);
-    try { localStorage.setItem(DISMISS_KEY, '1'); } catch {}
+    setDismissedState(true);
+    setDismissed();
   };
 
   return (
-    <div className="no-claude-banner" role="alert">
-      <span className="no-claude-icon" aria-hidden>⚠</span>
-      <div className="no-claude-body">
-        <div className="no-claude-title">No Claude Code installation detected</div>
-        <div className="no-claude-text">
-          The server found no <code>~/.claude*</code> directory with session logs.
-          {' '}
-          <a
-            href="https://claude.ai/code"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="no-claude-link"
-          >
-            Install Claude Code
-          </a>
-          {' '}and start a session — heroes will appear here automatically.
+    <div className="no-install-banner" role="alert">
+      <span className="no-install-icon" aria-hidden>⚠</span>
+      <div className="no-install-body">
+        <div className="no-install-title">No Claude Code or Codex installation detected</div>
+        <div className="no-install-text">
+          The server found no <code>~/.claude*</code> or <code>~/.codex</code> directory with session logs.
+          {' '}Start a Claude Code or Codex session to see heroes appear here.
         </div>
       </div>
       <button
-        className="no-claude-dismiss"
+        className="no-install-dismiss"
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss"
