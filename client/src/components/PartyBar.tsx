@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
 import { usePartyPrefs } from '../hooks/usePartyPrefs';
-import type { AgentState } from '../types/agent';
+import { SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
 import './PartyBar.css';
 
 interface PartyBarProps {
   agents: AgentState[];
   selectedAgentId: string | null;
   onSelectAgent: (id: string | null) => void;
+  showSourceBadge: boolean;
 }
 
 const AVATAR_SIZE = 66;
@@ -26,9 +27,10 @@ interface PartyRowProps {
   mode: 'full' | 'icons';
   isSelected: boolean;
   onClick: () => void;
+  showSourceBadge: boolean;
 }
 
-function PartyRow({ agent, mode, isSelected, onClick }: PartyRowProps) {
+function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRowProps) {
   const [flashing, setFlashing] = useState(false);
   const prevSelected = useRef(isSelected);
 
@@ -70,12 +72,20 @@ function PartyRow({ agent, mode, isSelected, onClick }: PartyRowProps) {
         <span className="partybar-row-body">
           <span className="partybar-row-top">
             <span className="partybar-agent-name">{agent.name}</span>
-            {agent.source !== 'claude' && (
-              <span className="partybar-source-badge" aria-label={`source ${agent.source}`}>
+            <span className={`partybar-dot ${agent.status}`} aria-hidden="true" />
+            {showSourceBadge && (
+              <span
+                className="partybar-source-badge"
+                style={{
+                  color: SOURCE_BADGE_COLOR[agent.source],
+                  borderColor: `${SOURCE_BADGE_COLOR[agent.source]}80`,
+                  background: `${SOURCE_BADGE_COLOR[agent.source]}14`,
+                }}
+                aria-label={`source ${agent.source}`}
+              >
                 {agent.source.toUpperCase()}
               </span>
             )}
-            <span className={`partybar-dot ${agent.status}`} aria-hidden="true" />
           </span>
           <span className="partybar-activity">{agent.currentActivity}</span>
         </span>
@@ -84,7 +94,7 @@ function PartyRow({ agent, mode, isSelected, onClick }: PartyRowProps) {
   );
 }
 
-export function PartyBar({ agents, selectedAgentId, onSelectAgent }: PartyBarProps) {
+export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBadge }: PartyBarProps) {
   const [prefs, updatePrefs] = usePartyPrefs();
   const mode: 'full' | 'icons' = prefs.foldState;
 
@@ -126,6 +136,7 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent }: PartyBarPro
             mode={mode}
             isSelected={agent.id === selectedAgentId}
             onClick={() => handleClick(agent.id)}
+            showSourceBadge={showSourceBadge}
           />
         ))}
       </div>

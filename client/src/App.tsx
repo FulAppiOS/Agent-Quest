@@ -28,6 +28,11 @@ export default function App() {
     ? agents.find((a) => a.id === selectedAgentId) ?? null
     : null;
 
+  // Only show source badges when both providers are actually active. With a
+  // single-provider install the tag is just noise.
+  const showSourceBadge = agents.some((a) => a.source === 'claude')
+    && agents.some((a) => a.source === 'codex');
+
   // When selecting agent, clear building
   const handleSelectAgent = useCallback((id: string | null) => {
     selectAgent(id);
@@ -114,9 +119,10 @@ export default function App() {
             agents={agents}
             selectedAgentId={selectedAgentId}
             onSelectAgent={handleSelectAgent}
+            showSourceBadge={showSourceBadge}
           />
           {selectedAgent !== null && (
-            <DetailPanel agent={selectedAgent} onClose={() => handleSelectAgent(null)} />
+            <DetailPanel agent={selectedAgent} onClose={() => handleSelectAgent(null)} showSourceBadge={showSourceBadge} />
           )}
           {selectedBuildingId !== null && (
             <BuildingInfoPanel

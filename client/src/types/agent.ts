@@ -7,6 +7,12 @@ export type HeroColor = (typeof HERO_COLORS)[number];
 export const AGENT_SOURCES = ['claude', 'codex'] as const;
 export type AgentSource = (typeof AGENT_SOURCES)[number];
 
+/** Badge color used wherever we render a source pill (Phaser label, Party Bar, Detail Panel). */
+export const SOURCE_BADGE_COLOR: Record<AgentSource, string> = {
+  claude: '#FF9F4A', // orange
+  codex:  '#7ED9CF', // teal
+};
+
 /**
  * Hero color tinted for text labels on dark backgrounds (Phaser name tag,
  * Party Bar, feed rows). Bright enough to read against #1a1a2e. Keep in sync

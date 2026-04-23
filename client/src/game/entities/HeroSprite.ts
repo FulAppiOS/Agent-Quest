@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { HERO_LABEL_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
@@ -66,6 +66,9 @@ export class HeroSprite {
   private nameText: Phaser.GameObjects.Text;
   private subagentText: Phaser.GameObjects.Text | null = null;
   private sourceText: Phaser.GameObjects.Text | null = null;
+  private source: AgentSource;
+  private isSubagent: boolean;
+  private sourceBadgeVisible = false;
   private activityText: Phaser.GameObjects.Text;
   private detailText: Phaser.GameObjects.Text;
   private taskText: Phaser.GameObjects.Text;
@@ -79,7 +82,6 @@ export class HeroSprite {
   private facesLeft: boolean;
   private nameOffsetY: number;
   private subagentOffsetY: number;
-  private sourceOffsetY: number;
   private activityOffsetY: number;
   private detailOffsetY: number;
   private taskOffsetY: number;
@@ -108,6 +110,8 @@ export class HeroSprite {
     this.scene = scene;
     this.id = id;
     this.heroClass = heroClass;
+    this.source = source;
+    this.isSubagent = isSubagent;
     this._x = x;
     this._y = y;
 
@@ -134,9 +138,6 @@ export class HeroSprite {
     // Subagent marker sits ~11px below the name (standard "subtitle" placement,
     // so the name stays the primary anchor for the eye).
     this.subagentOffsetY = this.nameOffsetY + 11;
-    // Source badge sits ~10px ABOVE the name so it never collides with the
-    // subagent marker (which lives just below the name).
-    this.sourceOffsetY = this.nameOffsetY - 10;
     this.activityOffsetY = halfH - 2;
     this.detailOffsetY = halfH + 12;
     this.taskOffsetY = halfH + 26;
@@ -195,17 +196,8 @@ export class HeroSprite {
       }).setOrigin(0.5);
     }
 
-    // Source badge: only non-default providers get a marker so the default
-    // Claude case stays visually silent (most heroes).
-    if (source !== 'claude') {
-      this.sourceText = addCrispText(scene, x, y + this.sourceOffsetY, source.toUpperCase(), {
-        fontSize: '9px',
-        color: '#7ED9CF',
-        fontFamily: 'monospace',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setOrigin(0.5);
-    }
+    // Source badge is created lazily by setSourceBadgeVisible(true) — shown
+    // only when the UI is in mixed-provider mode.
 
     // Activity label below hero
     this.activityText = addCrispText(scene, x, y + this.activityOffsetY, 'idle', {
@@ -401,6 +393,60 @@ export class HeroSprite {
     if (this.selectionHalo !== null) this.selectionHalo.setDepth(footY + 0.4);
   }
 
+  /**
+   * Show or hide the source badge (`CODEX` / `CLAUDE`). Called by the scene
+   * whenever the fleet's provider makeup changes. Lazily creates the Text
+   * object on first reveal. When a subagent marker is already present, the
+   * two labels sit side-by-side on the subagent row; otherwise the badge sits
+   * alone on that row.
+   */
+  setSourceBadgeVisible(visible: boolean): void {
+    this.sourceBadgeVisible = visible;
+    if (visible && this.sourceText === null) {
+      this.sourceText = addCrispText(
+        this.scene,
+        this._x,
+        this._y + this.subagentOffsetY,
+        this.source.toUpperCase(),
+        {
+          fontSize: '9px',
+          color: SOURCE_BADGE_COLOR[this.source],
+          fontFamily: 'monospace',
+          stroke: '#000000',
+          strokeThickness: 2,
+        },
+      );
+    }
+    if (this.sourceText !== null) {
+      this.sourceText.setVisible(visible);
+    }
+    this.layoutSubagentAndSource();
+  }
+
+  /**
+   * Position the subagent marker and source badge on the shared subagent row.
+   * When both are visible they sit side-by-side (centered as a pair); when
+   * only one is visible it sits centered on its own.
+   */
+  private layoutSubagentAndSource(): void {
+    const y = this._y + this.subagentOffsetY;
+    if (this.sourceBadgeVisible && this.isSubagent && this.subagentText !== null && this.sourceText !== null) {
+      this.subagentText.setOrigin(1, 0.5);
+      this.subagentText.setPosition(this._x - 3, y);
+      this.sourceText.setOrigin(0, 0.5);
+      this.sourceText.setPosition(this._x + 3, y);
+      return;
+    }
+    if (this.subagentText !== null) {
+      this.subagentText.setOrigin(0.5);
+      this.subagentText.setPosition(this._x, y);
+    }
+    if (this.sourceText !== null) {
+      this.sourceText.setOrigin(0.5);
+      this.sourceText.setPosition(this._x, y);
+    }
+  }
+
   /** Update the truncated task line shown below the detail. */
   updateTask(task?: string): void {
     if (task === undefined || task.length === 0) {
@@ -493,12 +539,7 @@ export class HeroSprite {
         this._y = target.y;
         this.sprite.setPosition(this._x, this._y);
         this.nameText.setPosition(this._x, this._y + this.nameOffsetY);
-        if (this.subagentText !== null) {
-          this.subagentText.setPosition(this._x, this._y + this.subagentOffsetY);
-        }
-        if (this.sourceText !== null) {
-          this.sourceText.setPosition(this._x, this._y + this.sourceOffsetY);
-        }
+        this.layoutSubagentAndSource();
         this.activityText.setPosition(this._x, this._y + this.activityOffsetY);
         this.detailText.setPosition(this._x, this._y + this.detailOffsetY);
         this.taskText.setPosition(this._x, this._y + this.taskOffsetY);

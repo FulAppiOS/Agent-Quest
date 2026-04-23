@@ -638,6 +638,12 @@ export class VillageScene extends Phaser.Scene {
       return true;
     });
 
+    // Mixed-provider mode: show source badges only when both Claude and Codex
+    // heroes coexist. In a single-provider install the label is pure noise.
+    const hasClaude = agents.some((a) => a.source === 'claude');
+    const hasCodex = agents.some((a) => a.source === 'codex');
+    const showSourceBadge = hasClaude && hasCodex;
+
     // Remove heroes no longer visible
     for (const [id, hero] of this.heroes) {
       if (!visible.some((a) => a.id === id)) {
@@ -706,6 +712,12 @@ export class VillageScene extends Phaser.Scene {
           existing.setActivity(agent.currentActivity);
         }
       }
+    }
+
+    // Propagate mixed-mode state to every hero (including ones not touched by
+    // this update), so the badge flips on/off as the fleet composition changes.
+    for (const hero of this.heroes.values()) {
+      hero.setSourceBadgeVisible(showSourceBadge);
     }
 
     for (const buildingId of buildingsToReposition) {

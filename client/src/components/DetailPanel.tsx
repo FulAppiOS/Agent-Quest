@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { HERO_LABEL_COLOR, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { isPath, resolvePath } from './activityFeedUtils';
 import './DetailPanel.css';
@@ -8,6 +8,7 @@ import './DetailPanel.css';
 interface DetailPanelProps {
   agent: AgentState;
   onClose: () => void;
+  showSourceBadge: boolean;
 }
 
 function formatDuration(startMs: number): string {
@@ -41,7 +42,7 @@ function PathValue({ path, cwd, className }: { path: string; cwd: string; classN
   );
 }
 
-export function DetailPanel({ agent, onClose }: DetailPanelProps) {
+export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProps) {
   // Tick every second so duration-derived values refresh between server pushes.
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -64,8 +65,16 @@ export function DetailPanel({ agent, onClose }: DetailPanelProps) {
         <div className="detail-topbar-body">
           <div className="detail-name-row">
             <span className="detail-name" style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}>{agent.name}</span>
-            {agent.source !== 'claude' && (
-              <span className="detail-source-badge" aria-label={`source ${agent.source}`}>
+            {showSourceBadge && (
+              <span
+                className="detail-source-badge"
+                style={{
+                  color: SOURCE_BADGE_COLOR[agent.source],
+                  borderColor: `${SOURCE_BADGE_COLOR[agent.source]}80`,
+                  background: `${SOURCE_BADGE_COLOR[agent.source]}14`,
+                }}
+                aria-label={`source ${agent.source}`}
+              >
                 {agent.source.toUpperCase()}
               </span>
             )}
