@@ -23,6 +23,19 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
   const [prefs, updatePrefs] = useFeedPrefs();
   const { foldState, viewMode, activeHighlights, agentFilter } = prefs;
 
+  // Identifies the single log row the user touched in the feed. Unlike
+  // `selectedAgentId`, this is feed-local — it pulses exactly ONE row, not
+  // every row of the same agent. Cleared when selection moves elsewhere
+  // (party bar, hero sprite, deselect): we detect that by checking the key's
+  // embedded agentId prefix no longer matches `selectedAgentId`.
+  const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (selectedEntryKey === null) return;
+    if (selectedAgentId === null || !selectedEntryKey.startsWith(`${selectedAgentId}-`)) {
+      setSelectedEntryKey(null);
+    }
+  }, [selectedAgentId, selectedEntryKey]);
+
   // The agent-filter chip still hides rows (explicit user filter on one agent).
   // The action highlights do NOT hide anything; they only tint matching rows.
   const filtered = useMemo(
@@ -176,24 +189,31 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
                   agentName={resolveName(g.agentId)}
                   entries={g.entries}
                   activeHighlights={activeHighlights}
-                  selectedAgentId={selectedAgentId}
+                  selectedEntryKey={selectedEntryKey}
                   onSelectAgent={handleSelectAgent}
+                  onSelectEntry={setSelectedEntryKey}
                   onFilterAgent={handleFilterAgent}
                 />
               ))
             ) : (
-              filtered.map((entry) => (
-                <ActivityRow
-                  key={`${entry.agentId}-${entry.timestamp}-${entry.action}-${entry.detail}`}
-                  entry={entry}
-                  agent={agentLookup.get(entry.agentId)}
-                  agentName={resolveName(entry.agentId)}
-                  highlighted={shouldHighlight(entry)}
-                  isSelected={entry.agentId === selectedAgentId}
-                  onSelectAgent={handleSelectAgent}
-                  onFilterAgent={handleFilterAgent}
-                />
-              ))
+              filtered.map((entry) => {
+                const entryKey = `${entry.agentId}-${entry.timestamp}-${entry.action}-${entry.detail}`;
+                return (
+                  <ActivityRow
+                    key={entryKey}
+                    entry={entry}
+                    agent={agentLookup.get(entry.agentId)}
+                    agentName={resolveName(entry.agentId)}
+                    highlighted={shouldHighlight(entry)}
+                    isSelected={entryKey === selectedEntryKey}
+                    onSelectAgent={(id) => {
+                      setSelectedEntryKey(entryKey);
+                      handleSelectAgent(id);
+                    }}
+                    onFilterAgent={handleFilterAgent}
+                  />
+                );
+              })
             )}
           </div>
         </div>

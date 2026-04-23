@@ -38,6 +38,7 @@ export class VillageScene extends Phaser.Scene {
   private onAgentsUpdated: ((agents: unknown) => void) | null = null;
   private onCameraFollow: ((agentId: unknown) => void) | null = null;
   private onSelectionChanged: ((agentId: unknown) => void) | null = null;
+  private onBackgroundPointerDown: ((pointer: Phaser.Input.Pointer, hits: Phaser.GameObjects.GameObject[]) => void) | null = null;
 
   /** Tracks which hero IDs are at each building, in arrival order. */
   private buildingSlots = new Map<string, string[]>();
@@ -332,6 +333,16 @@ export class VillageScene extends Phaser.Scene {
     };
     eventBridge.on('selection:changed', this.onSelectionChanged);
 
+    // Click on empty map (no interactive hero hit) → deselect. Heroes are
+    // tagged with data `isHero=true` in setInteractiveForSelection; any
+    // other hit (building, NPC) also counts as "not a hero" and deselects.
+    this.onBackgroundPointerDown = (_p, hits) => {
+      if (!hits.some((obj) => obj.getData('isHero') === true)) {
+        eventBridge.emit('hero:clicked', null);
+      }
+    };
+    this.input.on('pointerdown', this.onBackgroundPointerDown);
+
     const cleanup = () => {
       if (this.onAgentsUpdated !== null) {
         eventBridge.off('agents:updated', this.onAgentsUpdated);
@@ -352,6 +363,10 @@ export class VillageScene extends Phaser.Scene {
       if (this.onSelectionChanged !== null) {
         eventBridge.off('selection:changed', this.onSelectionChanged);
         this.onSelectionChanged = null;
+      }
+      if (this.onBackgroundPointerDown !== null) {
+        this.input.off('pointerdown', this.onBackgroundPointerDown);
+        this.onBackgroundPointerDown = null;
       }
       this.lightningTimer?.remove();
       this.lightningTimer = null;

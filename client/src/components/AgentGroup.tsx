@@ -10,8 +10,9 @@ interface AgentGroupProps {
   agentName: string;
   entries: ActivityLogEntry[];
   activeHighlights: ActionFilter[];
-  selectedAgentId: string | null;
+  selectedEntryKey: string | null;
   onSelectAgent: (id: string) => void;
+  onSelectEntry: (entryKey: string) => void;
   onFilterAgent: (id: string) => void;
 }
 
@@ -19,13 +20,12 @@ const COLLAPSED_VISIBLE = 3;
 
 export function AgentGroup({
   agentId, agent, agentName, entries,
-  activeHighlights, selectedAgentId,
-  onSelectAgent, onFilterAgent,
+  activeHighlights, selectedEntryKey,
+  onSelectAgent, onSelectEntry, onFilterAgent,
 }: AgentGroupProps) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? entries : entries.slice(0, COLLAPSED_VISIBLE);
   const hidden = entries.length - visible.length;
-  const isSelected = agentId === selectedAgentId;
 
   const shouldHighlight = (entry: ActivityLogEntry): boolean => {
     if (activeHighlights.length === 0) return false;
@@ -33,7 +33,7 @@ export function AgentGroup({
   };
 
   return (
-    <section className={`feed-group ${isSelected ? 'is-selected' : ''}`} aria-label={`Activity for ${agentName}`}>
+    <section className="feed-group" aria-label={`Activity for ${agentName}`}>
       <header className="feed-group-header">
         {agent !== undefined ? (
           <button
@@ -55,19 +55,25 @@ export function AgentGroup({
       </header>
 
       <div className="feed-group-body">
-        {visible.map((entry) => (
-          <ActivityRow
-            key={`${entry.agentId}-${entry.timestamp}-${entry.action}-${entry.detail}`}
-            entry={entry}
-            agent={agent}
-            agentName={agentName}
-            inGroup
-            highlighted={shouldHighlight(entry)}
-            isSelected={isSelected}
-            onSelectAgent={onSelectAgent}
-            onFilterAgent={onFilterAgent}
-          />
-        ))}
+        {visible.map((entry) => {
+          const entryKey = `${entry.agentId}-${entry.timestamp}-${entry.action}-${entry.detail}`;
+          return (
+            <ActivityRow
+              key={entryKey}
+              entry={entry}
+              agent={agent}
+              agentName={agentName}
+              inGroup
+              highlighted={shouldHighlight(entry)}
+              isSelected={entryKey === selectedEntryKey}
+              onSelectAgent={(id) => {
+                onSelectEntry(entryKey);
+                onSelectAgent(id);
+              }}
+              onFilterAgent={onFilterAgent}
+            />
+          );
+        })}
         {hidden > 0 && (
           <button type="button" className="feed-group-more" onClick={() => setExpanded(true)}>
             + {hidden} more

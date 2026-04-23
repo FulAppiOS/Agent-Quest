@@ -51,11 +51,12 @@ export default function App() {
     };
   }, [handleSelectBuilding]);
 
-  // Listen for hero clicks from Phaser
+  // Listen for hero clicks from Phaser. String = select that agent;
+  // null = user clicked the map background with no hero hit → deselect.
   useEffect(() => {
     const onHeroClicked = (id: unknown) => {
-      if (typeof id !== 'string') return;
-      handleSelectAgent(id);
+      if (id === null) handleSelectAgent(null);
+      else if (typeof id === 'string') handleSelectAgent(id);
     };
     eventBridge.on('hero:clicked', onHeroClicked);
     return () => {

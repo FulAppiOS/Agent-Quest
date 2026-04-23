@@ -203,27 +203,33 @@ export class HeroSprite {
     if (!this.sprite.input || !this.sprite.input.enabled) {
       this.sprite.setInteractive({ useHandCursor: true });
     }
+    // Tag unconditionally so the scene-level background click detector can
+    // recognize a hero hit regardless of the setInteractive branch above.
+    this.sprite.setData('isHero', true);
     this.sprite.on('pointerdown', onClick);
   }
 
   /**
-   * Apply or clear a selection visual: blue tint + scale pulse matching the
-   * CSS `party-select-pulse` cadence (~1.5s full cycle via 750ms yoyo).
+   * Apply or clear a selection visual: punchy pulse (scale 1→1.3 + alpha
+   * 1→0.55 yoyo 400ms, ~800ms cycle) with blue tint, so the selected hero
+   * is unmistakable against the rest of the scene.
    */
   setSelected(selected: boolean): void {
     if (this.selectionTween !== null) {
       this.selectionTween.stop();
       this.selectionTween = null;
       this.sprite.setScale(this.selectionBaseScale);
+      this.sprite.setAlpha(1);
     }
     if (selected) {
       this.selectionBaseScale = this.sprite.scaleX;
       this.sprite.setTint(0x5ba3f5);
       this.selectionTween = this.scene.tweens.add({
         targets: this.sprite,
-        scaleX: this.selectionBaseScale * 1.1,
-        scaleY: this.selectionBaseScale * 1.1,
-        duration: 750,
+        scaleX: this.selectionBaseScale * 1.3,
+        scaleY: this.selectionBaseScale * 1.3,
+        alpha: 0.55,
+        duration: 400,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',

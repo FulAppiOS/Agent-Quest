@@ -474,21 +474,12 @@
   text-shadow: 0 0 6px rgba(91, 163, 245, 0.9);
 }
 
-.feed-group.is-selected > .feed-group-header {
-  background: rgba(91, 163, 245, 0.18);
-  animation: feed-select-pulse 1.5s ease-in-out infinite;
-}
-.feed-group.is-selected > .feed-group-header .feed-group-name {
-  color: #FFFFFF !important;
-  text-shadow: 0 0 6px rgba(91, 163, 245, 0.9);
-}
 @keyframes feed-select-pulse {
   0%, 100% { box-shadow: inset 4px 0 0 #5BA3F5, 0 0 6px rgba(91, 163, 245, 0.3); }
   50%      { box-shadow: inset 4px 0 0 #5BA3F5, 0 0 14px rgba(91, 163, 245, 0.7); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .feed-entry.is-selected,
-  .feed-group.is-selected > .feed-group-header {
+  .feed-entry.is-selected {
     animation: none;
     box-shadow: inset 4px 0 0 #5BA3F5, 0 0 10px rgba(91, 163, 245, 0.5);
   }
