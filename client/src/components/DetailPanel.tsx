@@ -55,15 +55,16 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
   const currentCommand = isLive ? agent.currentCommand : undefined;
   const lastMessage = isLive ? agent.lastMessage : undefined;
 
-  // Last-message collapse/expand: measure whether the rendered markdown
-  // exceeds the collapsed CSS height. The toggle button only appears when
-  // content is actually truncated.
+  // Last-message overflow detection: the panel itself never grows — when the
+  // rendered markdown exceeds the collapsed CSS height we reveal a button
+  // that opens a full-size modal with the complete text.
   const lastMessageRef = useRef<HTMLDivElement | null>(null);
-  const [messageExpanded, setMessageExpanded] = useState(false);
   const [messageOverflows, setMessageOverflows] = useState(false);
-  // Reset expansion + re-measure whenever the message text or the agent changes.
+  const [modalOpen, setModalOpen] = useState(false);
+  // Re-measure whenever the message or the agent changes; also close any stale
+  // modal if the user selects a different hero.
   useEffect(() => {
-    setMessageExpanded(false);
+    setModalOpen(false);
   }, [agent.id, lastMessage]);
   useLayoutEffect(() => {
     const el = lastMessageRef.current;
@@ -71,14 +72,11 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
       setMessageOverflows(false);
       return;
     }
-    // Compare scrollHeight against clientHeight. Match only when the collapsed
-    // class is applied (expanded view intentionally has no max-height).
-    if (!messageExpanded) {
-      setMessageOverflows(el.scrollHeight > el.clientHeight + 1);
-    }
-  }, [lastMessage, messageExpanded, agent.id]);
+    setMessageOverflows(el.scrollHeight > el.clientHeight + 1);
+  }, [lastMessage, agent.id]);
 
   return (
+    <>
     <div className="detail-panel">
       <div className="detail-topbar">
         <span className="detail-avatar-wrap">
@@ -150,20 +148,16 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
         {lastMessage !== undefined && (
           <div className="detail-section">
             <div className="detail-section-title">Last Message</div>
-            <div
-              ref={lastMessageRef}
-              className={`detail-last-message ${messageExpanded ? 'expanded' : 'collapsed'}`}
-            >
+            <div ref={lastMessageRef} className="detail-last-message collapsed">
               <ReactMarkdown>{lastMessage}</ReactMarkdown>
             </div>
-            {(messageOverflows || messageExpanded) && (
+            {messageOverflows && (
               <button
                 type="button"
                 className="detail-last-message-toggle"
-                onClick={() => setMessageExpanded((v) => !v)}
-                aria-expanded={messageExpanded}
+                onClick={() => setModalOpen(true)}
               >
-                {messageExpanded ? 'Show less' : 'Show more'}
+                Show full message
               </button>
             )}
           </div>
@@ -190,6 +184,48 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
             ))}
           </div>
         )}
+      </div>
+    </div>
+    {modalOpen && lastMessage !== undefined && (
+      <LastMessageModal
+        agentName={agent.name}
+        message={lastMessage}
+        onClose={() => setModalOpen(false)}
+      />
+    )}
+    </>
+  );
+}
+
+interface LastMessageModalProps {
+  agentName: string;
+  message: string;
+  onClose: () => void;
+}
+
+function LastMessageModal({ agentName, message, onClose }: LastMessageModalProps) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="lastmsg-backdrop" onClick={onClose}>
+      <div
+        className="lastmsg-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={`Last message from ${agentName}`}
+      >
+        <button className="lastmsg-close" onClick={onClose} title="Close (Esc)" aria-label="Close">×</button>
+        <div className="lastmsg-header">
+          <span className="lastmsg-header-label">Last message from</span>
+          <span className="lastmsg-header-name">{agentName}</span>
+        </div>
+        <div className="lastmsg-body">
+          <ReactMarkdown>{message}</ReactMarkdown>
+        </div>
       </div>
     </div>
   );

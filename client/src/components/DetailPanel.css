@@ -208,12 +208,9 @@
   max-height: 200px;
   overflow: hidden;
   /* Fade the bottom edge so the user sees the message is truncated even
-   * before they notice the "Show more" button below. */
+   * before they notice the "Show full message" button below. */
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 80%, transparent 100%);
           mask-image: linear-gradient(to bottom, #000 0%, #000 80%, transparent 100%);
-}
-.detail-last-message.expanded {
-  max-height: none;
 }
 .detail-last-message-toggle {
   margin-top: 6px;
@@ -236,6 +233,125 @@
   outline: 2px solid #C4A35A;
   outline-offset: 1px;
 }
+
+/* === Last Message modal === */
+.lastmsg-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  font-family: 'Fira Code', ui-monospace, monospace;
+}
+.lastmsg-modal {
+  position: relative;
+  width: min(760px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(26, 26, 46, 0.96);
+  border: 1px solid rgba(196, 163, 90, 0.45);
+  border-radius: 6px;
+  color: #F5E6C8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.lastmsg-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  font-size: 18px;
+  background: none;
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  color: #C4A35A;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+.lastmsg-close:hover {
+  color: #E2C77A;
+  border-color: rgba(196, 163, 90, 0.6);
+}
+.lastmsg-header {
+  padding: 14px 48px 10px 20px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lastmsg-header-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #C4A35A;
+  opacity: 0.8;
+}
+.lastmsg-header-name {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lastmsg-body {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #F5E6C8;
+  word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 163, 90, 0.4) transparent;
+}
+.lastmsg-body::-webkit-scrollbar { width: 6px; }
+.lastmsg-body::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
+.lastmsg-body::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
+.lastmsg-body p { margin: 0 0 10px; }
+.lastmsg-body p:last-child { margin-bottom: 0; }
+.lastmsg-body h1, .lastmsg-body h2, .lastmsg-body h3 {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 15px;
+  margin: 10px 0 6px;
+}
+.lastmsg-body code {
+  background: rgba(91, 163, 245, 0.12);
+  color: #9ec4f5;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 12.5px;
+}
+.lastmsg-body pre {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  border-radius: 4px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.lastmsg-body pre code {
+  background: transparent;
+  padding: 0;
+}
+.lastmsg-body strong { color: #F5E6C8; font-weight: 700; }
+.lastmsg-body em { color: #C4A35A; font-style: italic; }
+.lastmsg-body ul, .lastmsg-body ol {
+  margin: 6px 0 10px;
+  padding-left: 22px;
+}
+.lastmsg-body li { margin-bottom: 4px; }
+.lastmsg-body a { color: #9ec4f5; text-decoration: none; }
+.lastmsg-body a:hover { text-decoration: underline; }
 .detail-last-message p { margin: 0 0 8px; }
 .detail-last-message p:last-child { margin-bottom: 0; }
 .detail-last-message h1, .detail-last-message h2, .detail-last-message h3 {
