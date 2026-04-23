@@ -19,13 +19,13 @@ describe('parsePrefs', () => {
     const raw = JSON.stringify({
       foldState: 'compact',
       viewMode: 'byAgent',
-      activeFilters: ['errors', 'edits'],
+      activeHighlights: ['errors', 'edits'],
       agentFilter: 'a1',
     });
     expect(parsePrefs(raw)).toEqual({
       foldState: 'compact',
       viewMode: 'byAgent',
-      activeFilters: ['errors', 'edits'],
+      activeHighlights: ['errors', 'edits'],
       agentFilter: 'a1',
     });
   });
@@ -34,13 +34,24 @@ describe('parsePrefs', () => {
     const raw = JSON.stringify({
       foldState: 'gigantic',
       viewMode: 'byPlanet',
-      activeFilters: ['nonsense', 'edits'],
+      activeHighlights: ['nonsense', 'edits'],
       agentFilter: null,
     });
     const result = parsePrefs(raw);
     expect(result.foldState).toBe('full');
     expect(result.viewMode).toBe('all');
-    expect(result.activeFilters).toEqual(['edits']);
+    expect(result.activeHighlights).toEqual(['edits']);
+  });
+
+  it('reads legacy activeFilters key as activeHighlights', () => {
+    const raw = JSON.stringify({
+      foldState: 'full',
+      viewMode: 'all',
+      activeFilters: ['errors', 'bash'],
+      agentFilter: null,
+    });
+    const result = parsePrefs(raw);
+    expect(result.activeHighlights).toEqual(['errors', 'bash']);
   });
 
   it('rejects non-string agentFilter', () => {
@@ -60,8 +71,8 @@ describe('mergePrefs', () => {
   });
 
   it('replaces arrays wholesale', () => {
-    const base = { ...DEFAULT_PREFS, activeFilters: ['edits' as const] };
-    const merged = mergePrefs(base, { activeFilters: ['bash'] });
-    expect(merged.activeFilters).toEqual(['bash']);
+    const base = { ...DEFAULT_PREFS, activeHighlights: ['edits' as const] };
+    const merged = mergePrefs(base, { activeHighlights: ['bash'] });
+    expect(merged.activeHighlights).toEqual(['bash']);
   });
 });

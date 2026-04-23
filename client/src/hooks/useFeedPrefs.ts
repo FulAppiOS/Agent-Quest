@@ -7,14 +7,14 @@ export type ViewMode = 'all' | 'byAgent';
 export interface FeedPrefs {
   foldState: FoldState;
   viewMode: ViewMode;
-  activeFilters: ActionFilter[];
+  activeHighlights: ActionFilter[];
   agentFilter: string | null;
 }
 
 export const DEFAULT_PREFS: FeedPrefs = {
   foldState: 'full',
   viewMode: 'all',
-  activeFilters: [],
+  activeHighlights: [],
   agentFilter: null,
 };
 
@@ -23,7 +23,7 @@ const WRITE_DEBOUNCE_MS = 200;
 
 const FOLD_STATES: FoldState[] = ['full', 'compact', 'closed'];
 const VIEW_MODES: ViewMode[] = ['all', 'byAgent'];
-const FILTERS: ActionFilter[] = ['errors', 'edits', 'bash', 'reads'];
+const FILTERS: ActionFilter[] = ['errors', 'edits', 'bash', 'reads', 'messages', 'agent', 'other'];
 
 function isFoldState(v: unknown): v is FoldState {
   return typeof v === 'string' && (FOLD_STATES as string[]).includes(v);
@@ -41,12 +41,17 @@ export function parsePrefs(raw: string | null): FeedPrefs {
   try { obj = JSON.parse(raw); } catch { return DEFAULT_PREFS; }
   if (obj === null || typeof obj !== 'object') return DEFAULT_PREFS;
   const o = obj as Record<string, unknown>;
+  const highlightsRaw = Array.isArray(o.activeHighlights)
+    ? o.activeHighlights
+    : Array.isArray(o.activeFilters)
+      ? o.activeFilters
+      : null;
   return {
     foldState: isFoldState(o.foldState) ? o.foldState : DEFAULT_PREFS.foldState,
     viewMode: isViewMode(o.viewMode) ? o.viewMode : DEFAULT_PREFS.viewMode,
-    activeFilters: Array.isArray(o.activeFilters)
-      ? o.activeFilters.filter(isFilter)
-      : DEFAULT_PREFS.activeFilters,
+    activeHighlights: highlightsRaw !== null
+      ? highlightsRaw.filter(isFilter)
+      : DEFAULT_PREFS.activeHighlights,
     agentFilter: typeof o.agentFilter === 'string' && o.agentFilter.length > 0
       ? o.agentFilter
       : null,
