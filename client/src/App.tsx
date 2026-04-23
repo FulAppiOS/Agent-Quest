@@ -28,10 +28,12 @@ export default function App() {
     ? agents.find((a) => a.id === selectedAgentId) ?? null
     : null;
 
-  // Only show source badges when both providers are actually active. With a
-  // single-provider install the tag is just noise.
-  const showSourceBadge = agents.some((a) => a.source === 'claude')
-    && agents.some((a) => a.source === 'codex');
+  // Only show source badges when both providers have a LIVE agent — completed
+  // / error sessions don't count, otherwise the badge would linger after the
+  // last Codex hero finishes just because it's still in state.
+  const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
+  const showSourceBadge = liveAgents.some((a) => a.source === 'claude')
+    && liveAgents.some((a) => a.source === 'codex');
 
   // When selecting agent, clear building
   const handleSelectAgent = useCallback((id: string | null) => {

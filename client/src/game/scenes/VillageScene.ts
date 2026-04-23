@@ -639,9 +639,12 @@ export class VillageScene extends Phaser.Scene {
     });
 
     // Mixed-provider mode: show source badges only when both Claude and Codex
-    // heroes coexist. In a single-provider install the label is pure noise.
-    const hasClaude = agents.some((a) => a.source === 'claude');
-    const hasCodex = agents.some((a) => a.source === 'codex');
+    // have a LIVE hero. Completed/error sessions don't count, so the badge
+    // disappears the moment the last non-dormant Codex hero finishes. Mirrors
+    // the flag computed in App.tsx — keep these two in sync.
+    const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
+    const hasClaude = liveAgents.some((a) => a.source === 'claude');
+    const hasCodex = liveAgents.some((a) => a.source === 'codex');
     const showSourceBadge = hasClaude && hasCodex;
 
     // Remove heroes no longer visible

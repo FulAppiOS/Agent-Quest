@@ -60,7 +60,7 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
       type="button"
       className={classes}
       onClick={onClick}
-      aria-label={`Select ${agent.name}, ${agent.currentActivity}`}
+      aria-label={`Select ${agent.name}${showSourceBadge ? ` (${agent.source})` : ''}, ${agent.currentActivity}`}
       aria-current={isSelected ? 'true' : undefined}
       title={title}
     >

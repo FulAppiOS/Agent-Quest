@@ -135,9 +135,9 @@ export class HeroSprite {
     // Label offsets derived from actual sprite height — scale with theme.
     const halfH = this.sprite.displayHeight / 2;
     this.nameOffsetY = -(halfH + 2);
-    // Subagent marker sits ~11px below the name (standard "subtitle" placement,
+    // Subagent marker sits ~16px below the name (standard "subtitle" placement,
     // so the name stays the primary anchor for the eye).
-    this.subagentOffsetY = this.nameOffsetY + 11;
+    this.subagentOffsetY = this.nameOffsetY + 16;
     this.activityOffsetY = halfH - 2;
     this.detailOffsetY = halfH + 12;
     this.taskOffsetY = halfH + 26;
