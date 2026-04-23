@@ -130,6 +130,21 @@ test('parseCodexLine returns null for malformed JSON', () => {
   expect(parseCodexLine('{not json', 'sess-1', '/cwd')).toBeNull();
 });
 
+test('parseCodexLine returns null when timestamp is missing or malformed', () => {
+  const missing = JSON.stringify({
+    type: 'event_msg',
+    payload: { type: 'user_message', message: 'hi' },
+  });
+  expect(parseCodexLine(missing, 'sess-1', '/cwd')).toBeNull();
+
+  const garbage = JSON.stringify({
+    timestamp: 'not a date',
+    type: 'event_msg',
+    payload: { type: 'user_message', message: 'hi' },
+  });
+  expect(parseCodexLine(garbage, 'sess-1', '/cwd')).toBeNull();
+});
+
 test('parseCodexFile processes every fixture line without throwing', () => {
   const events = parseCodexFile(FIXTURE, 'sess-1', '/cwd');
   // At least one event should be emitted from the 30-event fixture.

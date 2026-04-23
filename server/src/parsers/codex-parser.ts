@@ -35,6 +35,9 @@ export function parseCodexLine(raw: string, sessionId: string, sessionCwd: strin
   if (payload === undefined) return null;
 
   const tsMs = new Date(line.timestamp).getTime();
+  // Malformed/missing timestamp would poison lastEvent arithmetic and freeze
+  // the hero in 'active' forever — drop the event instead.
+  if (!Number.isFinite(tsMs)) return null;
 
   switch (payload.type) {
     case 'user_message': {
