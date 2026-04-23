@@ -169,8 +169,10 @@ describe('groupByAgent', () => {
     ];
     const groups = groupByAgent(log);
     expect(groups.map((g) => g.agentId)).toEqual(['a1', 'a2']);
-    expect(groups[0]!.entries.map((e) => e.detail)).toEqual(['r1', 'b1']);
-    expect(groups[1]!.entries.map((e) => e.detail)).toEqual(['e1', 'r2']);
+    // Entries inside a group are sorted newest-first for a stable feed order
+    // regardless of input order.
+    expect(groups[0]!.entries.map((e) => e.detail)).toEqual(['b1', 'r1']);
+    expect(groups[1]!.entries.map((e) => e.detail)).toEqual(['r2', 'e1']);
   });
 
   it('returns empty array for empty log', () => {

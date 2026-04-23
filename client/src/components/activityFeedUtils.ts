@@ -100,10 +100,11 @@ export function groupByAgent(log: ActivityLogEntry[]): AgentGroup[] {
   }
   const groups: AgentGroup[] = [];
   for (const [agentId, entries] of map) {
+    entries.sort((a, b) => b.timestamp - a.timestamp);
     groups.push({
       agentId,
       entries,
-      latestTimestamp: Math.max(...entries.map((e) => e.timestamp)),
+      latestTimestamp: entries[0]!.timestamp,
     });
   }
   groups.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
