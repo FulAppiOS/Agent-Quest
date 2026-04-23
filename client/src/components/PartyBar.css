@@ -173,6 +173,19 @@
   max-width: 130px;
   flex: 1;
 }
+.partybar-source-badge {
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #7ED9CF;
+  border: 1px solid rgba(126, 217, 207, 0.5);
+  background: rgba(126, 217, 207, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
 .partybar-dot {
   width: 6px;
   height: 6px;

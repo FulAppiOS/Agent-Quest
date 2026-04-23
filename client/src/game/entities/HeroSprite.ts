@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { HERO_LABEL_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentState } from '../../types/agent';
+import { HERO_LABEL_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
@@ -65,6 +65,7 @@ export class HeroSprite {
   private sprite: Phaser.GameObjects.Sprite;
   private nameText: Phaser.GameObjects.Text;
   private subagentText: Phaser.GameObjects.Text | null = null;
+  private sourceText: Phaser.GameObjects.Text | null = null;
   private activityText: Phaser.GameObjects.Text;
   private detailText: Phaser.GameObjects.Text;
   private taskText: Phaser.GameObjects.Text;
@@ -78,6 +79,7 @@ export class HeroSprite {
   private facesLeft: boolean;
   private nameOffsetY: number;
   private subagentOffsetY: number;
+  private sourceOffsetY: number;
   private activityOffsetY: number;
   private detailOffsetY: number;
   private taskOffsetY: number;
@@ -101,6 +103,7 @@ export class HeroSprite {
     x: number,
     y: number,
     isSubagent = false,
+    source: AgentSource = 'claude',
   ) {
     this.scene = scene;
     this.id = id;
@@ -131,6 +134,9 @@ export class HeroSprite {
     // Subagent marker sits ~11px below the name (standard "subtitle" placement,
     // so the name stays the primary anchor for the eye).
     this.subagentOffsetY = this.nameOffsetY + 11;
+    // Source badge sits ~10px ABOVE the name so it never collides with the
+    // subagent marker (which lives just below the name).
+    this.sourceOffsetY = this.nameOffsetY - 10;
     this.activityOffsetY = halfH - 2;
     this.detailOffsetY = halfH + 12;
     this.taskOffsetY = halfH + 26;
@@ -184,6 +190,18 @@ export class HeroSprite {
         color: '#9AA4B0',
         fontFamily: 'monospace',
         fontStyle: 'italic',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0.5);
+    }
+
+    // Source badge: only non-default providers get a marker so the default
+    // Claude case stays visually silent (most heroes).
+    if (source !== 'claude') {
+      this.sourceText = addCrispText(scene, x, y + this.sourceOffsetY, source.toUpperCase(), {
+        fontSize: '9px',
+        color: '#7ED9CF',
+        fontFamily: 'monospace',
         stroke: '#000000',
         strokeThickness: 2,
       }).setOrigin(0.5);
@@ -376,6 +394,7 @@ export class HeroSprite {
     this.sprite.setDepth(footY + 0.5);
     this.nameText.setDepth(footY + 0.6);
     if (this.subagentText !== null) this.subagentText.setDepth(footY + 0.6);
+    if (this.sourceText !== null) this.sourceText.setDepth(footY + 0.6);
     this.activityText.setDepth(footY + 0.6);
     this.detailText.setDepth(footY + 0.6);
     this.taskText.setDepth(footY + 0.6);
@@ -477,6 +496,9 @@ export class HeroSprite {
         if (this.subagentText !== null) {
           this.subagentText.setPosition(this._x, this._y + this.subagentOffsetY);
         }
+        if (this.sourceText !== null) {
+          this.sourceText.setPosition(this._x, this._y + this.sourceOffsetY);
+        }
         this.activityText.setPosition(this._x, this._y + this.activityOffsetY);
         this.detailText.setPosition(this._x, this._y + this.detailOffsetY);
         this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
@@ -518,6 +540,7 @@ export class HeroSprite {
     this.sprite.destroy();
     this.nameText.destroy();
     if (this.subagentText !== null) this.subagentText.destroy();
+    if (this.sourceText !== null) this.sourceText.destroy();
     this.activityText.destroy();
     this.detailText.destroy();
     this.taskText.destroy();

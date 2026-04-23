@@ -4,6 +4,9 @@ export type HeroClass = (typeof HERO_CLASSES)[number];
 export const HERO_COLORS = ['blue', 'yellow', 'red', 'black', 'purple'] as const;
 export type HeroColor = (typeof HERO_COLORS)[number];
 
+export const AGENT_SOURCES = ['claude', 'codex'] as const;
+export type AgentSource = (typeof AGENT_SOURCES)[number];
+
 /**
  * Hero color tinted for text labels on dark backgrounds (Phaser name tag,
  * Party Bar, feed rows). Bright enough to read against #1a1a2e. Keep in sync
@@ -56,6 +59,7 @@ export interface AgentState {
   currentTask?: string;
   cwd: string;
   configDir: string;
+  source: AgentSource;
 }
 
 export interface ActivityLogEntry {

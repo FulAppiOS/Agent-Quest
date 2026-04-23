@@ -65,6 +65,13 @@
   gap: 4px;
 }
 
+.detail-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .detail-name {
   font-family: 'Cinzel', serif;
   color: #C4A35A;
@@ -74,6 +81,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.detail-source-badge {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #7ED9CF;
+  border: 1px solid rgba(126, 217, 207, 0.5);
+  background: rgba(126, 217, 207, 0.08);
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1.2;
+  flex-shrink: 0;
 }
 
 .detail-class {

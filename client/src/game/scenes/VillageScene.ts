@@ -668,6 +668,7 @@ export class VillageScene extends Phaser.Scene {
           this.heroSpawn.x,
           this.heroSpawn.y,
           agent.id.startsWith('agent-'),
+          agent.source,
         );
         hero.setHeroScale(this.heroScale);
         hero.setActivity(agent.currentActivity);

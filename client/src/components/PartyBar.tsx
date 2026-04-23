@@ -70,6 +70,11 @@ function PartyRow({ agent, mode, isSelected, onClick }: PartyRowProps) {
         <span className="partybar-row-body">
           <span className="partybar-row-top">
             <span className="partybar-agent-name">{agent.name}</span>
+            {agent.source !== 'claude' && (
+              <span className="partybar-source-badge" aria-label={`source ${agent.source}`}>
+                {agent.source.toUpperCase()}
+              </span>
+            )}
             <span className={`partybar-dot ${agent.status}`} aria-hidden="true" />
           </span>
           <span className="partybar-activity">{agent.currentActivity}</span>

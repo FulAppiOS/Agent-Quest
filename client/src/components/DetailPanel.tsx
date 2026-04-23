@@ -62,7 +62,14 @@ export function DetailPanel({ agent, onClose }: DetailPanelProps) {
           <span className={`detail-status-overlay ${agent.status}`} aria-hidden="true" />
         </span>
         <div className="detail-topbar-body">
-          <div className="detail-name" style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}>{agent.name}</div>
+          <div className="detail-name-row">
+            <span className="detail-name" style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}>{agent.name}</span>
+            {agent.source !== 'claude' && (
+              <span className="detail-source-badge" aria-label={`source ${agent.source}`}>
+                {agent.source.toUpperCase()}
+              </span>
+            )}
+          </div>
           <div className="detail-class">{agent.heroClass}</div>
         </div>
         <button className="detail-close" onClick={onClose} aria-label="Close panel">✕</button>
