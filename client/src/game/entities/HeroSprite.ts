@@ -35,9 +35,10 @@ const HALO_TEXTURE_KEY = 'hero-selection-halo';
 
 /**
  * Lazily build a soft radial-gradient texture we can reuse as the selection
- * halo. Generated once per scene; subsequent callers hit the texture cache.
- * The gradient fades white → transparent so the glow blends with the scene
- * instead of looking like a flat disc.
+ * halo. Cached in Phaser's global TextureManager for the lifetime of the
+ * game — scenes share it via the same key. The gradient fades white →
+ * transparent so the glow blends with the scene instead of looking like a
+ * flat disc.
  */
 function ensureHaloTexture(scene: Phaser.Scene): void {
   if (scene.textures.exists(HALO_TEXTURE_KEY)) return;
@@ -119,6 +120,10 @@ export class HeroSprite {
     // Flip sprites that natively face left so they face right by default
     this.sprite.setFlipX(this.facesLeft);
     if (cfg.tint !== null) this.sprite.setTint(cfg.tint);
+    // Tag at construction time so the scene-level background-click
+    // detector (VillageScene) can classify pointerdown hits correctly
+    // regardless of which code path later wires up interactivity.
+    this.sprite.setData('isHero', true);
 
     // Label offsets derived from actual sprite height — scale with theme.
     const halfH = this.sprite.displayHeight / 2;
@@ -229,9 +234,8 @@ export class HeroSprite {
     if (!this.sprite.input || !this.sprite.input.enabled) {
       this.sprite.setInteractive({ useHandCursor: true });
     }
-    // Tag unconditionally so the scene-level background click detector can
-    // recognize a hero hit regardless of the setInteractive branch above.
-    this.sprite.setData('isHero', true);
+    // The `isHero` tag is set in the constructor so it's present even for
+    // spawn paths that never call this method.
     this.sprite.on('pointerdown', onClick);
   }
 
@@ -259,11 +263,16 @@ export class HeroSprite {
       halo.setAlpha(0.35);
       halo.setDepth(this.sprite.depth - 0.1);
       this.selectionHalo = halo;
+      // Capture the baseline scale AFTER setDisplaySize so the tween
+      // yoyos between this fixed baseline and baseline × peak factor.
+      // Using halo.scaleX directly in the tween target would be the
+      // same math but reads as if the scale were self-referential.
+      const baseScale = halo.scaleX;
       this.selectionTween = this.scene.tweens.add({
         targets: halo,
         alpha: 0.75,
-        scaleX: halo.scaleX * 1.25,
-        scaleY: halo.scaleY * 1.25,
+        scaleX: baseScale * 1.25,
+        scaleY: baseScale * 1.25,
         duration: 650,
         yoyo: true,
         repeat: -1,

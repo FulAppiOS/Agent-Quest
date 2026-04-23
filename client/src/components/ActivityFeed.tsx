@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivityLogEntry, AgentState } from '../types/agent';
-import { useFeedPrefs, type FoldState, type ViewMode } from '../hooks/useFeedPrefs';
+import { useFeedPrefs, type FoldState } from '../hooks/useFeedPrefs';
 import { ActivityFeedHeader } from './ActivityFeedHeader';
 import { ActivityRow } from './ActivityRow';
-import { AgentGroup } from './AgentGroup';
 import {
-  filterByAgent, groupByAgent, getAgentNameFallback, categorizeEntry, detectCategories,
+  filterByAgent, getAgentNameFallback, categorizeEntry, detectCategories,
   type ActionFilter,
 } from './activityFeedUtils';
 import './ActivityFeed.css';
@@ -21,20 +20,23 @@ const SCROLL_PIN_THRESHOLD_PX = 8;
 
 export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: ActivityFeedProps) {
   const [prefs, updatePrefs] = useFeedPrefs();
-  const { foldState, viewMode, activeHighlights, agentFilter } = prefs;
+  const { foldState, activeHighlights, agentFilter } = prefs;
 
   // Identifies the single log row the user touched in the feed. Unlike
-  // `selectedAgentId`, this is feed-local — it pulses exactly ONE row, not
-  // every row of the same agent. Cleared when selection moves elsewhere
-  // (party bar, hero sprite, deselect): we detect that by checking the key's
-  // embedded agentId prefix no longer matches `selectedAgentId`.
-  const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
+  // `selectedAgentId`, this is feed-local — a feedback indicator for which
+  // row was clicked, not which agent is globally selected. Stored as a
+  // tuple so we can match on exact agent id (safer than prefix-matching
+  // the key string, which would be vulnerable to id-prefix collisions).
+  // Cleared when selection moves elsewhere (party bar, hero sprite,
+  // deselect).
+  const [selectedEntry, setSelectedEntry] = useState<{ agentId: string; entryKey: string } | null>(null);
+  const selectedEntryKey = selectedEntry?.entryKey ?? null;
   useEffect(() => {
-    if (selectedEntryKey === null) return;
-    if (selectedAgentId === null || !selectedEntryKey.startsWith(`${selectedAgentId}-`)) {
-      setSelectedEntryKey(null);
+    if (selectedEntry === null) return;
+    if (selectedAgentId !== selectedEntry.agentId) {
+      setSelectedEntry(null);
     }
-  }, [selectedAgentId, selectedEntryKey]);
+  }, [selectedAgentId, selectedEntry]);
 
   // The agent-filter chip still hides rows (explicit user filter on one agent).
   // The action highlights do NOT hide anything; they only tint matching rows.
@@ -46,11 +48,6 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
   const { categories: availableCategories, counts: categoryCounts } = useMemo(
     () => detectCategories(filtered),
     [filtered],
-  );
-
-  const groups = useMemo(
-    () => viewMode === 'byAgent' ? groupByAgent(filtered) : null,
-    [filtered, viewMode],
   );
 
   const agentLookup = useMemo(() => {
@@ -135,10 +132,6 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
     },
     [foldState, updatePrefs],
   );
-  const onViewModeChange = useCallback(
-    (m: ViewMode) => updatePrefs({ viewMode: m }),
-    [updatePrefs],
-  );
   const onHighlightsChange = useCallback(
     (h: ActionFilter[]) => updatePrefs({ activeHighlights: h }),
     [updatePrefs],
@@ -153,7 +146,6 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
     <div className={`activity-feed fold-${foldState}`} role="log" aria-live="polite" aria-relevant="additions">
       <ActivityFeedHeader
         foldState={foldState}
-        viewMode={viewMode}
         activeHighlights={activeHighlights}
         availableCategories={availableCategories}
         categoryCounts={categoryCounts}
@@ -161,7 +153,6 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
         agents={agents}
         newCount={newWhileClosed}
         onFoldChange={onFoldChange}
-        onViewModeChange={onViewModeChange}
         onHighlightsChange={onHighlightsChange}
         onClearAgentFilter={clearAgentFilter}
       />
@@ -180,21 +171,6 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
                 <div>Waiting for agent activity...</div>
                 <div className="feed-empty-hint">Launch Claude Code in any project — it'll appear here.</div>
               </div>
-            ) : viewMode === 'byAgent' && groups !== null ? (
-              groups.map((g) => (
-                <AgentGroup
-                  key={g.agentId}
-                  agentId={g.agentId}
-                  agent={agentLookup.get(g.agentId)}
-                  agentName={resolveName(g.agentId)}
-                  entries={g.entries}
-                  activeHighlights={activeHighlights}
-                  selectedEntryKey={selectedEntryKey}
-                  onSelectAgent={handleSelectAgent}
-                  onSelectEntry={setSelectedEntryKey}
-                  onFilterAgent={handleFilterAgent}
-                />
-              ))
             ) : (
               filtered.map((entry) => {
                 const entryKey = `${entry.agentId}-${entry.timestamp}-${entry.action}-${entry.detail}`;
@@ -207,7 +183,7 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent }: Ac
                     highlighted={shouldHighlight(entry)}
                     isSelected={entryKey === selectedEntryKey}
                     onSelectAgent={(id) => {
-                      setSelectedEntryKey(entryKey);
+                      setSelectedEntry({ agentId: id, entryKey });
                       handleSelectAgent(id);
                     }}
                     onFilterAgent={handleFilterAgent}

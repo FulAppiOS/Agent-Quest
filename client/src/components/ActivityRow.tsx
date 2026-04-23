@@ -157,8 +157,11 @@ function ContextMenu({ x, y, onClose, actions }: ContextMenuProps) {
 }
 
 // Callbacks (onSelectAgent, onFilterAgent) intentionally omitted from the
-// comparator — the parent must memoize them (useCallback) so their identity
-// stays stable across renders, otherwise stale closures can fire.
+// comparator. They are passed as fresh inline closures per render by the
+// parent (ActivityFeed / AgentGroup) — each closure captures only
+// row-deterministic data (`entryKey`, `agentId`), so a skipped re-render
+// keeps a closure that still targets the correct row. The comparator
+// trades closure identity for predictable, stable row behavior.
 export const ActivityRow = memo(ActivityRowImpl, (prev, next) =>
   prev.entry.timestamp === next.entry.timestamp &&
   prev.entry.agentId  === next.entry.agentId  &&
