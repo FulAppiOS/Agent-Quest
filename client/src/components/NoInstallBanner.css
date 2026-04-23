@@ -51,15 +51,6 @@
   color: #C4A35A;
 }
 
-.no-install-link {
-  color: #FFD6B0;
-  text-decoration: underline;
-}
-
-.no-install-link:hover {
-  color: #FFFFFF;
-}
-
 .no-install-dismiss {
   background: transparent;
   border: none;

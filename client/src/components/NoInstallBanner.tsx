@@ -25,6 +25,7 @@ export function NoInstallBanner({ configDirs, connected }: Props) {
   useEffect(() => {
     if (configDirs !== null && configDirs.length > 0 && dismissed) {
       resetDismissal();
+      setDismissedState(false);
     }
   }, [configDirs, dismissed]);
 
@@ -39,7 +40,7 @@ export function NoInstallBanner({ configDirs, connected }: Props) {
   };
 
   return (
-    <div className="no-install-banner" role="alert">
+    <div className="no-install-banner" role="status">
       <span className="no-install-icon" aria-hidden>⚠</span>
       <div className="no-install-body">
         <div className="no-install-title">No Claude Code or Codex installation detected</div>
