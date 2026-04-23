@@ -1,4 +1,4 @@
-import { getActiveTheme } from '../game/themes/registry';
+import { HeroAvatar } from './HeroAvatar';
 import type { AgentState } from '../types/agent';
 import './PartyBar.css';
 
@@ -9,7 +9,6 @@ interface PartyBarProps {
 }
 
 const MAX_VISIBLE = 15;
-const ICON_SIZE = 24;
 
 export function PartyBar({ agents, selectedAgentId, onSelectAgent }: PartyBarProps) {
   const visible = agents.filter((a) => a.status === 'active' || a.status === 'idle');
@@ -27,37 +26,21 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent }: PartyBarPro
   return (
     <div className="partybar">
       <div className="partybar-title">Party ({activeCount} active, {idleCount} idle)</div>
-      {displayed.map((agent) => {
-        const preview = getActiveTheme().getHeroPreview(agent.heroColor, agent.heroClass);
-        const spriteFile = preview.url;
-        const bgWidth = preview.sheetColumns * ICON_SIZE;
-
-        return (
-          <div
-            key={agent.id}
-            className={`partybar-agent ${agent.id === selectedAgentId ? 'selected' : ''}`}
-            onClick={() => onSelectAgent(agent.id)}
-          >
-            <div
-              className="partybar-hero-icon"
-              title={agent.heroClass}
-              style={{
-                backgroundImage: `url('${spriteFile}')`,
-                backgroundSize: `${bgWidth}px ${ICON_SIZE}px`,
-                backgroundPosition: '0 0',
-                width: ICON_SIZE,
-                height: ICON_SIZE,
-              }}
-            />
-            <span className={`partybar-dot ${agent.status}`} />
-            <span className="partybar-agent-name">{agent.name}</span>
-            <span className="partybar-activity">{agent.currentActivity}</span>
-            {agent.lastMessage && (
-              <div className="partybar-agent-message">{agent.lastMessage.slice(0, 60)}...</div>
-            )}
-          </div>
-        );
-      })}
+      {displayed.map((agent) => (
+        <div
+          key={agent.id}
+          className={`partybar-agent ${agent.id === selectedAgentId ? 'selected' : ''}`}
+          onClick={() => onSelectAgent(agent.id)}
+        >
+          <HeroAvatar agent={agent} className="partybar-hero-icon" />
+          <span className={`partybar-dot ${agent.status}`} />
+          <span className="partybar-agent-name">{agent.name}</span>
+          <span className="partybar-activity">{agent.currentActivity}</span>
+          {agent.lastMessage && (
+            <div className="partybar-agent-message">{agent.lastMessage.slice(0, 60)}...</div>
+          )}
+        </div>
+      ))}
       {remaining > 0 && (
         <div className="partybar-more">and {remaining} more...</div>
       )}
