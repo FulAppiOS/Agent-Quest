@@ -31,7 +31,7 @@ export function AgentGroup({ agentId, agent, agentName, entries, onSelectAgent, 
           >
             <HeroAvatar agent={agent} />
           </button>
-        ) : <span className="feed-group-avatar-placeholder" />}
+        ) : <span className="feed-group-avatar-placeholder" aria-hidden="true" />}
         <span className="feed-group-name">{agentName}</span>
         {agent !== undefined && (
           <span className="feed-group-activity">· {agent.currentActivity}</span>
@@ -39,9 +39,9 @@ export function AgentGroup({ agentId, agent, agentName, entries, onSelectAgent, 
       </header>
 
       <div className="feed-group-body">
-        {visible.map((entry, i) => (
+        {visible.map((entry) => (
           <ActivityRow
-            key={`${entry.timestamp}-${i}`}
+            key={`${entry.agentId}-${entry.timestamp}-${entry.action}-${entry.detail}`}
             entry={entry}
             agent={agent}
             agentName={agentName}
@@ -53,6 +53,11 @@ export function AgentGroup({ agentId, agent, agentName, entries, onSelectAgent, 
         {hidden > 0 && (
           <button type="button" className="feed-group-more" onClick={() => setExpanded(true)}>
             + {hidden} more
+          </button>
+        )}
+        {expanded && entries.length > COLLAPSED_VISIBLE && (
+          <button type="button" className="feed-group-less" onClick={() => setExpanded(false)}>
+            Show less
           </button>
         )}
       </div>
