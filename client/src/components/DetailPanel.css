@@ -2,97 +2,226 @@
   position: absolute;
   top: 48px;
   right: 8px;
-  width: 320px;
+  width: 360px;
   max-height: calc(100% - 180px);
-  background: rgba(26, 26, 46, 0.9);
+  background: rgba(26, 26, 46, 0.92);
   border: 1px solid rgba(196, 163, 90, 0.4);
   border-radius: 4px;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   z-index: 25;
   font-family: 'Fira Code', monospace;
 }
 
-.detail-panel::-webkit-scrollbar { width: 6px; }
-.detail-panel::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
-.detail-panel::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
+.detail-body {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px 0;
+}
 
-.detail-header { padding: 10px 12px; border-bottom: 1px solid rgba(196, 163, 90, 0.3); }
-.detail-name { font-family: 'Cinzel', serif; color: #C4A35A; font-size: 16px; font-weight: 700; }
-.detail-class { font-size: 11px; color: #888; text-transform: capitalize; margin-top: 2px; }
+.detail-body::-webkit-scrollbar { width: 6px; }
+.detail-body::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
+.detail-body::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
 
-.detail-section { padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-.detail-section-title { font-size: 10px; color: #C4A35A; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+/* --- Topbar (header) --- */
+.detail-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.3);
+  flex-shrink: 0;
+}
 
-.detail-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
-.detail-label { color: #888; }
-.detail-value { color: #F5E6C8; }
+.detail-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+}
 
-.detail-file-list { list-style: none; padding: 0; margin: 0; }
-.detail-file-list li { font-size: 10px; color: #7B9EC4; padding: 1px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-status-overlay {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #1a1a2e;
+  box-sizing: content-box;
+}
+.detail-status-overlay.active    { background: #2E8B57; }
+.detail-status-overlay.idle      { background: #C4A35A; }
+.detail-status-overlay.completed { background: #555;    }
+.detail-status-overlay.error     { background: #8B2500; }
+.detail-status-overlay.waiting   { background: #FFD700; }
+
+.detail-topbar-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-name {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-class {
+  color: #aaa;
+  text-transform: capitalize;
+  font-size: 13px;
+}
 
 .detail-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   background: none;
   border: 1px solid rgba(196, 163, 90, 0.3);
   color: #C4A35A;
   cursor: pointer;
   font-size: 14px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 3px;
+  flex-shrink: 0;
+  padding: 0;
 }
-
 .detail-close:hover { background: rgba(196, 163, 90, 0.2); }
 
+/* --- Sections --- */
+.detail-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.detail-section:last-child { border-bottom: none; }
+
+.detail-section-title {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: #C4A35A;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.detail-row:last-child { margin-bottom: 0; }
+
+.detail-label { color: #9a9a9a; }
+.detail-value { color: #F5E6C8; }
+.detail-value--num { font-variant-numeric: tabular-nums; }
+.detail-value-suffix {
+  color: #9a9a9a;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.detail-value--path {
+  display: block;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #F5E6C8;
+  word-break: break-all;
+}
+
+.detail-path-link {
+  color: #9ec4f5;
+  text-decoration: none;
+}
+.detail-path-link:hover { text-decoration: underline; }
+
+/* --- File list --- */
+.detail-file-list { list-style: none; padding: 0; margin: 0; }
+.detail-file-list li {
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 2px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-file-list li .detail-path-link { display: inline; }
+.detail-file-list li > span { color: #7B9EC4; }
+
+/* --- Errors --- */
+.detail-section--errors {
+  background: rgba(139, 37, 0, 0.12);
+  border-left: 3px solid #8B2500;
+}
+.detail-value--error {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #ffaaaa;
+  word-break: break-word;
+  margin-bottom: 6px;
+}
+.detail-value--error:last-child { margin-bottom: 0; }
+
+/* --- Last message markdown --- */
 .detail-last-message {
-  font-size: 11px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.65;
   color: #F5E6C8;
   word-break: break-word;
 }
-.detail-last-message p { margin: 0 0 6px; }
+.detail-last-message p { margin: 0 0 8px; }
 .detail-last-message p:last-child { margin-bottom: 0; }
 .detail-last-message h1, .detail-last-message h2, .detail-last-message h3 {
   font-family: 'Cinzel', serif;
   color: #C4A35A;
-  font-size: 12px;
-  margin: 6px 0 3px;
+  font-size: 13px;
+  margin: 8px 0 4px;
 }
 .detail-last-message code {
   background: rgba(196, 163, 90, 0.15);
   border: 1px solid rgba(196, 163, 90, 0.25);
   border-radius: 3px;
-  padding: 1px 4px;
+  padding: 1px 5px;
   font-family: 'Fira Code', monospace;
-  font-size: 10px;
+  font-size: 12px;
   color: #7BD4C5;
 }
 .detail-last-message pre {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(196, 163, 90, 0.2);
   border-radius: 3px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   overflow-x: auto;
-  margin: 4px 0;
+  margin: 6px 0;
 }
 .detail-last-message pre code {
   background: none;
   border: none;
   padding: 0;
-  font-size: 10px;
+  font-size: 12px;
   color: #7BD4C5;
 }
 .detail-last-message strong { color: #F5E6C8; font-weight: 700; }
 .detail-last-message em { color: #C4A35A; font-style: italic; }
 .detail-last-message ul, .detail-last-message ol {
-  padding-left: 16px;
-  margin: 4px 0;
+  padding-left: 18px;
+  margin: 6px 0;
 }
-.detail-last-message li { margin-bottom: 2px; }
-.detail-last-message a { color: #7B9EC4; text-decoration: none; }
+.detail-last-message li { margin-bottom: 3px; }
+.detail-last-message a { color: #9ec4f5; text-decoration: none; }
 .detail-last-message a:hover { text-decoration: underline; }

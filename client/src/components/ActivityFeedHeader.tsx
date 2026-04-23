@@ -1,11 +1,10 @@
-import type { FoldState, ViewMode } from '../hooks/useFeedPrefs';
+import type { FoldState } from '../hooks/useFeedPrefs';
 import type { ActionFilter } from './activityFeedUtils';
 import type { AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 
 interface ActivityFeedHeaderProps {
   foldState: FoldState;
-  viewMode: ViewMode;
   activeHighlights: ActionFilter[];
   availableCategories: Set<ActionFilter>;
   categoryCounts: Record<ActionFilter, number>;
@@ -13,7 +12,6 @@ interface ActivityFeedHeaderProps {
   agents: AgentState[];
   newCount: number;
   onFoldChange: (state: FoldState) => void;
-  onViewModeChange: (mode: ViewMode) => void;
   onHighlightsChange: (highlights: ActionFilter[]) => void;
   onClearAgentFilter: () => void;
 }
@@ -29,9 +27,9 @@ const PILL_ORDER: { id: ActionFilter; label: string }[] = [
 ];
 
 export function ActivityFeedHeader({
-  foldState, viewMode, activeHighlights, availableCategories, categoryCounts,
+  foldState, activeHighlights, availableCategories, categoryCounts,
   agentFilter, agents, newCount,
-  onFoldChange, onViewModeChange, onHighlightsChange, onClearAgentFilter,
+  onFoldChange, onHighlightsChange, onClearAgentFilter,
 }: ActivityFeedHeaderProps) {
   const filteredAgent = agentFilter !== null ? agents.find((a) => a.id === agentFilter) ?? null : null;
 
@@ -57,23 +55,6 @@ export function ActivityFeedHeader({
             <span className="feed-new-badge" aria-live="polite">{newCount} new</span>
           )}
         </span>
-
-        {foldState !== 'closed' && (
-          <div className="feed-tabs" role="group" aria-label="Feed view mode">
-            <button
-              type="button"
-              aria-pressed={viewMode === 'all'}
-              className={`feed-tab ${viewMode === 'all' ? 'active' : ''}`}
-              onClick={() => onViewModeChange('all')}
-            >All</button>
-            <button
-              type="button"
-              aria-pressed={viewMode === 'byAgent'}
-              className={`feed-tab ${viewMode === 'byAgent' ? 'active' : ''}`}
-              onClick={() => onViewModeChange('byAgent')}
-            >By Agent</button>
-          </div>
-        )}
 
         <span className="feed-spacer" />
 
