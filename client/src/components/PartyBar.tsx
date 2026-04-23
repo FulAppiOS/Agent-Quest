@@ -32,7 +32,7 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent }: PartyBarPro
           className={`partybar-agent ${agent.id === selectedAgentId ? 'selected' : ''}`}
           onClick={() => onSelectAgent(agent.id)}
         >
-          <HeroAvatar agent={agent} className="partybar-hero-icon" />
+          <HeroAvatar agent={agent} />
           <span className={`partybar-dot ${agent.status}`} />
           <span className="partybar-agent-name">{agent.name}</span>
           <span className="partybar-activity">{agent.currentActivity}</span>
