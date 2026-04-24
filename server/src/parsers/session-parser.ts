@@ -58,6 +58,12 @@ export interface ParsedEvent {
    * to historical JSONLs on resume and would otherwise resurrect long-dead sessions.
    */
   isResumeHint?: boolean;
+  /**
+   * Model id from `message.model` on Claude assistant lines (e.g. `claude-opus-4-6`).
+   * Populated only on assistant events; the state manager carries forward the last
+   * seen value so a mid-session model change is reflected.
+   */
+  model?: string;
 }
 
 interface LastPromptLine {
@@ -215,6 +221,10 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
   // Turn end: assistant message has text output but no tool_use → awaiting user input.
   const isTurnEnd = toolCalls.length === 0 && lastMessage !== undefined;
 
+  const model = typeof asst.message.model === 'string' && asst.message.model.length > 0
+    ? asst.message.model
+    : undefined;
+
   return {
     sessionId: asst.sessionId,
     slug: asst.slug,
@@ -227,6 +237,7 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     lastMessage,
     kind: 'tool',
     isTurnEnd,
+    model,
   };
 }
 

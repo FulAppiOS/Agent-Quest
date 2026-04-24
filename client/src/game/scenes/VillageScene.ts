@@ -688,6 +688,7 @@ export class VillageScene extends Phaser.Scene {
         hero.setErrorTimestamp(agent.lastErrorAt);
         hero.updateDetail(agent.currentFile, agent.currentCommand);
         hero.updateTask(agent.currentTask);
+        hero.setModel(agent.model);
         this.heroes.set(agent.id, hero);
         hero.setInteractiveForSelection(() => {
           eventBridge.emit('hero:clicked', agent.id);
@@ -700,6 +701,7 @@ export class VillageScene extends Phaser.Scene {
         existing.updateTask(agent.currentTask);
         existing.setStatus(agent.status);
         existing.setErrorTimestamp(agent.lastErrorAt);
+        existing.setModel(agent.model);
 
         const currentBuildingId = this.heroBuildingMap.get(agent.id);
 

@@ -60,6 +60,12 @@ export interface AgentState {
   configDir: string;      // Config dir of the provider that produced the session (e.g. ~/.claude,
                           // ~/.claude-work, ~/.codex) — identifies which installation
   source: AgentSource;    // 'claude' | 'codex' — which CLI produced this session
+  /**
+   * Model id as emitted by Claude Code in `message.model` of assistant lines
+   * (e.g. `claude-opus-4-6`, `claude-sonnet-4-20250514`). Undefined for Codex
+   * sessions and for Claude sessions whose JSONL predates the field.
+   */
+  model?: string;
 }
 
 // --- Session metadata from ~/.claude/sessions/<pid>.json
@@ -100,6 +106,8 @@ export interface JsonlLine {
   message?: {
     role: 'user' | 'assistant' | 'system';
     content: string | Array<JsonlToolUse | JsonlToolResult | { type: string; text?: string }>;
+    /** Model id — present on `type: 'assistant'` lines produced by Claude Code. */
+    model?: string;
   };
 }
 

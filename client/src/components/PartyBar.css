@@ -174,7 +174,8 @@
   max-width: 130px;
   flex: 1;
 }
-.partybar-source-badge {
+.partybar-source-badge,
+.partybar-model-badge {
   font-family: 'Fira Code', monospace;
   font-size: 9px;
   font-weight: 700;

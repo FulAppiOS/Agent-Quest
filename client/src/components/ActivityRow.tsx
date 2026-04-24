@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type ActivityLogEntry, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { isError, isPath, resolvePath, categorizeEntry } from './activityFeedUtils';
 import type { ActionFilter } from './activityFeedUtils';
@@ -104,6 +104,23 @@ function ActivityRowImpl({
               {agent.source.toUpperCase()}
             </span>
           )}
+          {!inGroup && agent !== undefined && (() => {
+            const badge = modelBadge(agent.model);
+            if (badge === null) return null;
+            return (
+              <span
+                className="feed-model-badge"
+                style={{
+                  color: badge.color,
+                  background: `${badge.color}26`,
+                }}
+                aria-label={`model ${agent.model ?? ''}`}
+                title={agent.model}
+              >
+                {badge.short}
+              </span>
+            );
+          })()}
           <span className="feed-time">{time}</span>
         </div>
         {isMessage ? (
@@ -186,6 +203,7 @@ export const ActivityRow = memo(ActivityRowImpl, (prev, next) =>
   prev.agent?.heroClass === next.agent?.heroClass &&
   prev.agent?.heroColor === next.agent?.heroColor &&
   prev.agent?.source  === next.agent?.source  &&
+  prev.agent?.model   === next.agent?.model   &&
   prev.inGroup        === next.inGroup        &&
   prev.highlighted    === next.highlighted    &&
   prev.isSelected     === next.isSelected     &&

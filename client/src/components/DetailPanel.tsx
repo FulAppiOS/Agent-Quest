@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { configDirLabel } from './configDirLabel';
 import { isPath, resolvePath } from './activityFeedUtils';
@@ -118,6 +118,28 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
             <span className="detail-label">Profile</span>
             <span className="detail-value">{configDirLabel(agent.configDir)}</span>
           </div>
+          {(() => {
+            const badge = modelBadge(agent.model);
+            if (badge === null) return null;
+            return (
+              <div className="detail-row">
+                <span className="detail-label">Model</span>
+                <span className="detail-value detail-model-value">
+                  <span
+                    className="detail-model-badge"
+                    style={{
+                      color: badge.color,
+                      borderColor: `${badge.color}80`,
+                      background: `${badge.color}14`,
+                    }}
+                  >
+                    {badge.short}
+                  </span>
+                  <span className="detail-model-id" title={agent.model}>{agent.model}</span>
+                </span>
+              </div>
+            );
+          })()}
         </div>
 
         {currentFile !== undefined && (

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
 import { usePartyPrefs } from '../hooks/usePartyPrefs';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type AgentState } from '../types/agent';
 import './PartyBar.css';
 
 interface PartyBarProps {
@@ -92,6 +92,24 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
                 {agent.source.toUpperCase()}
               </span>
             )}
+            {(() => {
+              const badge = modelBadge(agent.model);
+              if (badge === null) return null;
+              return (
+                <span
+                  className="partybar-model-badge"
+                  style={{
+                    color: badge.color,
+                    borderColor: `${badge.color}80`,
+                    background: `${badge.color}14`,
+                  }}
+                  aria-label={`model ${agent.model ?? ''}`}
+                  title={agent.model}
+                >
+                  {badge.short}
+                </span>
+              );
+            })()}
           </span>
         </span>
       )}

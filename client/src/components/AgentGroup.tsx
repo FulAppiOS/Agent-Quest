@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HERO_LABEL_COLOR, type ActivityLogEntry, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, modelBadge, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { ActivityRow } from './ActivityRow';
 import { categorizeEntry, type ActionFilter } from './activityFeedUtils';
@@ -52,6 +52,20 @@ export function AgentGroup({
         {agent !== undefined && (
           <span className="feed-group-activity">· {agent.currentActivity}</span>
         )}
+        {agent !== undefined && (() => {
+          const badge = modelBadge(agent.model);
+          if (badge === null) return null;
+          return (
+            <span
+              className="feed-model-badge"
+              style={{ color: badge.color, background: `${badge.color}26` }}
+              aria-label={`model ${agent.model ?? ''}`}
+              title={agent.model}
+            >
+              {badge.short}
+            </span>
+          );
+        })()}
       </header>
 
       <div className="feed-group-body">

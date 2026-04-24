@@ -83,7 +83,8 @@
   white-space: nowrap;
 }
 
-.detail-source-badge {
+.detail-source-badge,
+.detail-model-badge {
   font-family: 'Fira Code', monospace;
   font-size: 10px;
   font-weight: 700;
@@ -93,6 +94,21 @@
   border-radius: 3px;
   line-height: 1.2;
   flex-shrink: 0;
+}
+
+.detail-model-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.detail-model-id {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: #9FB7D4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-class {

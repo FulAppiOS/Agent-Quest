@@ -279,6 +279,43 @@ describe('parseJsonlLine', () => {
     expect(result!.isTurnEnd).toBe(true);
   });
 
+  test('extracts model from assistant message.model', () => {
+    const line = JSON.stringify({
+      type: 'assistant',
+      uuid: 'model-1',
+      parentUuid: null,
+      timestamp: '2026-04-15T17:25:00.000Z',
+      sessionId: 'sess-1',
+      slug: 'bubbly-waddling-cat',
+      message: {
+        role: 'assistant',
+        model: 'claude-opus-4-6',
+        content: [{ type: 'text', text: 'hi' }],
+      },
+    });
+
+    const result = parseJsonlLine(line);
+    expect(result!.model).toBe('claude-opus-4-6');
+  });
+
+  test('leaves model undefined when message.model is missing', () => {
+    const line = JSON.stringify({
+      type: 'assistant',
+      uuid: 'model-2',
+      parentUuid: null,
+      timestamp: '2026-04-15T17:25:00.000Z',
+      sessionId: 'sess-1',
+      slug: 'bubbly-waddling-cat',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'hi' }],
+      },
+    });
+
+    const result = parseJsonlLine(line);
+    expect(result!.model).toBeUndefined();
+  });
+
   test('does NOT mark isTurnEnd when assistant message includes tool_use', () => {
     const line = JSON.stringify({
       type: 'assistant',

@@ -292,7 +292,8 @@
   color: var(--feed-path);
 }
 
-.feed-source-badge {
+.feed-source-badge,
+.feed-model-badge {
   font-family: 'Fira Code', monospace;
   font-size: 10px;
   font-weight: 700;

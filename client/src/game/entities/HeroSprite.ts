@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
+import { HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
@@ -70,6 +70,8 @@ export class HeroSprite {
   private isSubagent: boolean;
   private sourceBadgeVisible = false;
   private activityText: Phaser.GameObjects.Text;
+  /** Lazily created when a model badge applies (Claude sessions only). */
+  private modelText: Phaser.GameObjects.Text | null = null;
   private detailText: Phaser.GameObjects.Text;
   private taskText: Phaser.GameObjects.Text;
   private _x: number;
@@ -350,15 +352,15 @@ export class HeroSprite {
     if (this.isErrorRecent) {
       this.activityText.setText('error');
       this.activityText.setColor(ERROR_COLOR);
-      return;
-    }
-    if (this.isWaiting) {
+    } else if (this.isWaiting) {
       this.activityText.setText('waiting…');
       this.activityText.setColor(WAITING_COLOR);
-      return;
+    } else {
+      this.activityText.setText(this.currentActivity);
+      this.activityText.setColor(ACTIVITY_COLOR[this.currentActivity]);
     }
-    this.activityText.setText(this.currentActivity);
-    this.activityText.setColor(ACTIVITY_COLOR[this.currentActivity]);
+    // Text width changed → re-center the activity/model pair on the hero.
+    this.layoutActivityAndModel();
   }
 
   private startWaitingPulse(): void {
@@ -393,6 +395,7 @@ export class HeroSprite {
     if (this.subagentText !== null) this.subagentText.setDepth(footY + 0.6);
     if (this.sourceText !== null) this.sourceText.setDepth(footY + 0.6);
     this.activityText.setDepth(footY + 0.6);
+    if (this.modelText !== null) this.modelText.setDepth(footY + 0.6);
     this.detailText.setDepth(footY + 0.6);
     this.taskText.setDepth(footY + 0.6);
     if (this.selectionHalo !== null) this.selectionHalo.setDepth(footY + 0.4);
@@ -455,6 +458,68 @@ export class HeroSprite {
       this.sourceText.setOrigin(0.5);
       this.sourceText.setPosition(this._x, y);
     }
+  }
+
+  /**
+   * Show the model badge (e.g. `OPUS`, `SONNET`) next to the activity label on
+   * the row below the hero. Pass `undefined` to hide/destroy it. Called by the
+   * scene whenever the agent's model changes (mid-session switches included).
+   */
+  setModel(modelId: string | undefined): void {
+    const badge = modelBadge(modelId);
+    if (badge === null) {
+      if (this.modelText !== null) {
+        this.modelText.destroy();
+        this.modelText = null;
+        this.layoutActivityAndModel();
+      }
+      return;
+    }
+    if (this.modelText === null) {
+      this.modelText = addCrispText(
+        this.scene,
+        this._x,
+        this._y + this.activityOffsetY,
+        badge.short,
+        {
+          fontSize: '11px',
+          color: badge.color,
+          fontFamily: 'monospace',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2,
+        },
+      );
+      // New text object: give it the hero's current depth so it renders above
+      // buildings even before the next tween tick re-runs updateDepth().
+      this.updateDepth();
+    } else {
+      this.modelText.setText(badge.short);
+      this.modelText.setColor(badge.color);
+    }
+    this.layoutActivityAndModel();
+  }
+
+  /**
+   * Center the activity label — plus the model badge when present — as a
+   * group on the hero's x axis, sharing the activityOffsetY row. A 6 px gap
+   * separates the two so they read as "activity · MODEL" without gluing.
+   */
+  private layoutActivityAndModel(): void {
+    const y = this._y + this.activityOffsetY;
+    if (this.modelText === null) {
+      this.activityText.setOrigin(0.5, 0.5);
+      this.activityText.setPosition(this._x, y);
+      return;
+    }
+    const gap = 6;
+    const widthA = this.activityText.displayWidth;
+    const widthM = this.modelText.displayWidth;
+    const leftEdge = this._x - (widthA + gap + widthM) / 2;
+    this.activityText.setOrigin(0, 0.5);
+    this.activityText.setPosition(leftEdge, y);
+    this.modelText.setOrigin(0, 0.5);
+    this.modelText.setPosition(leftEdge + widthA + gap, y);
   }
 
   /** Update the truncated task line shown below the detail. */
@@ -550,7 +615,7 @@ export class HeroSprite {
         this.sprite.setPosition(this._x, this._y);
         this.nameText.setPosition(this._x, this._y + this.nameOffsetY);
         this.layoutSubagentAndSource();
-        this.activityText.setPosition(this._x, this._y + this.activityOffsetY);
+        this.layoutActivityAndModel();
         this.detailText.setPosition(this._x, this._y + this.detailOffsetY);
         this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
         if (this.selectionHalo !== null) {
@@ -593,6 +658,7 @@ export class HeroSprite {
     if (this.subagentText !== null) this.subagentText.destroy();
     if (this.sourceText !== null) this.sourceText.destroy();
     this.activityText.destroy();
+    if (this.modelText !== null) this.modelText.destroy();
     this.detailText.destroy();
     this.taskText.destroy();
   }

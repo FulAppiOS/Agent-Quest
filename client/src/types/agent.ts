@@ -99,6 +99,31 @@ export interface AgentState {
   cwd: string;
   configDir: string;
   source: AgentSource;
+  /** Raw model id from Claude Code (e.g. `claude-opus-4-6`). Undefined for Codex. */
+  model?: string;
+}
+
+/**
+ * Compact badge for the model id (e.g. `claude-opus-4-6` → `OPUS`). Returns
+ * null for Codex and for Claude sessions whose JSONL predates `message.model`,
+ * so the UI can skip the badge entirely rather than rendering a placeholder.
+ * The color echoes the activity palette used on the Phaser canvas so a reader
+ * builds one mental mapping across views.
+ */
+export interface ModelBadge {
+  /** Short, uppercase label (e.g. `OPUS`). */
+  short: string;
+  /** Hex color, 6-char, suitable for the same `${c}80` / `${c}14` treatment as source badges. */
+  color: string;
+}
+
+export function modelBadge(model: string | undefined): ModelBadge | null {
+  if (model === undefined || model.length === 0) return null;
+  const id = model.toLowerCase();
+  if (id.includes('opus'))   return { short: 'OPUS',   color: '#C48BE8' };
+  if (id.includes('sonnet')) return { short: 'SONNET', color: '#88BBFF' };
+  if (id.includes('haiku'))  return { short: 'HAIKU',  color: '#FFD27A' };
+  return null;
 }
 
 export interface ActivityLogEntry {

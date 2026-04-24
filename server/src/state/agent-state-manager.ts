@@ -443,6 +443,7 @@ export class AgentStateManager {
       cwd: event.cwd ?? '',
       configDir,
       source,
+      model: event.model,
     };
     return agent;
   }
@@ -457,6 +458,9 @@ export class AgentStateManager {
       agent.lastMessage = event.lastMessage;
     }
     agent.toolCalls.push(...event.toolCalls);
+    if (event.model !== undefined) {
+      agent.model = event.model;
+    }
 
     // Subagents keep their filename-derived name — the event's slug is the
     // parent session's slug (copied verbatim) and would be misleading.
