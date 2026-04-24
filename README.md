@@ -8,16 +8,13 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <img src="https://img.shields.io/badge/version-0.0.1-blue" alt="Version 0.0.1" />
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-%E2%89%A51.1-black.svg" alt="Bun ≥ 1.1" /></a>
-  <a href="https://react.dev"><img src="https://img.shields.io/badge/react-19-61dafb?logo=react&logoColor=white" alt="React 19" /></a>
-  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white" alt="TypeScript strict" /></a>
   <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.shields.io/badge/Buy%20me%20a%20beer-%F0%9F%8D%BA-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a beer" /></a>
 </p>
 
 ---
 
-> **Use Claude Code or Codex as usual — each agent session auto-spawns a hero on the dashboard, live.**
+> **Use Claude Code CLI or Codex as usual — each agent session auto-spawns a hero on the dashboard, live.**
 
 Agent Quest is a browser-based monitoring dashboard that visualizes active Claude Code and Codex agent sessions as fantasy heroes in a 2D village. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on.
 
@@ -48,7 +45,7 @@ Claude Code and Codex sessions happen in a terminal — useful, but not very *al
 
 ## Features
 
-- Real-time visualization of active Claude Code sessions
+- Real-time visualization of active Claude Code and Codex sessions
 - Auto-discovery of every `~/.claude*` directory (supports multiple installations like `~/.claude-work`, `~/.claude-personale`) and of `~/.codex` if present
 - Activity feed, party bar, and detail panel alongside the village scene
 - Built-in map editor for customizing the village layout

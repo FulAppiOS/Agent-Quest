@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agentquest — local dashboard for Claude Code agents
+# agentquest — local dashboard for Claude Code and Codex agents
 # macOS-first; relies on bash 3.2+, git, bun >= 1.1.
 set -euo pipefail
 
@@ -87,7 +87,7 @@ check_ports() {
 
 check_claude_dirs() {
   if ! compgen -G "$HOME/.claude*/projects" >/dev/null 2>&1; then
-    warn "No Claude Code installation detected. The village will be empty until a session starts."
+    warn "No Claude Code or Codex installation detected. The village will be empty until a session starts."
   fi
 }
 
@@ -128,7 +128,7 @@ prompt_yn() {
 # ------------------------------------------------------------------ sub-commands
 cmd_help() {
   cat <<USAGE
-agentquest — fantasy village dashboard for Claude Code agents
+agentquest — fantasy village dashboard for Claude Code and Codex agents
 
 USAGE:
   agentquest [start]           Start server + client, open browser

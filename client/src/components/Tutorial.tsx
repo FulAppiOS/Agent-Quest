@@ -33,7 +33,7 @@ export function Tutorial({ onClose }: TutorialProps) {
         <h2 className="tutorial-title">Welcome to Agent Quest</h2>
 
         <div className="tutorial-tagline">
-          Use <strong>Claude Code</strong> or <strong>Codex</strong> as usual — each session auto-spawns a hero on the dashboard, live.
+          Use <strong>Claude Code CLI</strong> or <strong>Codex</strong> as usual — each session auto-spawns a hero on the dashboard, live.
         </div>
 
         <a
@@ -63,7 +63,13 @@ export function Tutorial({ onClose }: TutorialProps) {
           >Claude Code</a>
           {' '}in any form that writes session logs locally — the terminal CLI and
           the official IDE extensions (VS Code, JetBrains). Also works with{' '}
-          <strong>Codex</strong>, reading rollout logs from{' '}
+          <a
+            className="tutorial-link"
+            href="https://github.com/openai/codex"
+            target="_blank"
+            rel="noreferrer"
+          >Codex</a>
+          , reading rollout logs from{' '}
           <code>~/.codex/sessions/</code>. It doesn't work with the Claude desktop
           app or claude.ai in the browser, since those don't expose local session files.
         </p>
