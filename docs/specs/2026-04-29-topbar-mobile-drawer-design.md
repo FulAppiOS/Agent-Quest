@@ -6,7 +6,7 @@
 
 ## Goal
 
-Make the dashboard's top bar usable on narrow viewports (smartphones, narrow desktop windows) by collapsing all secondary controls into a hamburger-triggered dropdown drawer. Desktop behavior at ≥ 900px is unchanged.
+Make the dashboard's top bar usable on narrow viewports (smartphones, narrow desktop windows) by collapsing all secondary controls into a hamburger-triggered dropdown drawer. Desktop behavior at ≥ 640px is unchanged.
 
 ## Why a drawer (option B)
 
@@ -14,18 +14,18 @@ Three options were considered: compact mode with shrunk inline elements (A), dra
 
 ## Breakpoint
 
-`max-width: 900px`. Chosen because the desktop layout (logo ~80px + 5–6 stats with verbose labels + 4 effect buttons + gaps) realistically needs ~700–800px to render on one row without overlapping. 900px gives margin and also catches narrow desktop windows.
+`max-width: 640px`. Targets phones only — narrow desktop windows and tablets in portrait keep the inline desktop layout. The original 900px breakpoint was deemed too aggressive after first round of testing.
 
 ## Behavior
 
-### Compact bar (drawer closed, < 900px)
+### Compact bar (drawer closed, < 640px)
 
 - **Logo**: shrinks from 68px to 40px tall, `position: static` so it flows in the bar instead of overflowing above.
 - **Status dot**: 8×8px circle next to the logo. Green `#2E8B57` when `connected === true`, red `#8B2500` otherwise. Replaces the verbose `Status: Online / Offline` text on mobile. `aria-label` and `title` carry the textual state.
 - **Hamburger button**: 32×32px touch target on the right edge. Three CSS-drawn lines that morph into an `×` when open.
 - Every other element (stats, effect buttons) is hidden from the bar itself and lives only inside the drawer.
 
-### Drawer open (< 900px, `data-menu-open="true"`)
+### Drawer open (< 640px, `data-menu-open="true"`)
 
 - Anchored to the bottom edge of the topbar (`top: 100%; left: 0; right: 0`).
 - Same dark background as the bar (`rgba(26, 26, 46, 0.95)`) with a gold bottom border to match the topbar border.
@@ -36,7 +36,7 @@ Three options were considered: compact mode with shrunk inline elements (A), dra
 - Tapping outside the drawer closes it.
 - Pressing **ESC** closes it and returns focus to the hamburger.
 
-### Desktop (≥ 900px)
+### Desktop (≥ 640px)
 
 Unchanged from current implementation. The `data-menu-open` attribute is ignored by desktop CSS rules. Status dot and hamburger are `display: none`.
 
@@ -47,12 +47,12 @@ Single `TopBar` component, single DOM tree. The same `<div class="topbar-tools">
 ```
 <header class="topbar" data-menu-open={open}>
   <Logo />                    ← always visible
-  <StatusDot />               ← mobile only (display: none ≥ 900px)
+  <StatusDot />               ← mobile only (display: none ≥ 640px)
   <div class="topbar-tools">  ← inline at desktop, dropdown at mobile
     <Stats />
     <Effects />
   </div>
-  <HamburgerButton />         ← mobile only (display: none ≥ 900px)
+  <HamburgerButton />         ← mobile only (display: none ≥ 640px)
 </header>
 ```
 
@@ -67,7 +67,7 @@ The component sets `data-menu-open` on the `<header>` based on `menuOpen`. The h
 ### Effects
 
 - **ESC handler** (`useEffect`): when `menuOpen` is true, listen for `keydown` Escape; on hit, close and refocus hamburger.
-- **Resize handler** (`useEffect` + `matchMedia('(min-width: 900px)')`): if the breakpoint switches from mobile to desktop while the drawer is open, force `menuOpen = false` so the desktop view doesn't carry a parasitic `data-menu-open="true"` attribute.
+- **Resize handler** (`useEffect` + `matchMedia('(min-width: 640px)')`): if the breakpoint switches from mobile to desktop while the drawer is open, force `menuOpen = false` so the desktop view doesn't carry a parasitic `data-menu-open="true"` attribute.
 
 ### Click-outside
 
@@ -75,7 +75,7 @@ Implemented via a transparent overlay element rendered as a sibling of the topba
 
 ## CSS strategy
 
-Single `@media (max-width: 900px)` block in `TopBar.css`. Default rules describe desktop (current behavior, mostly unchanged). The media query overrides for mobile.
+Single `@media (max-width: 640px)` block in `TopBar.css`. Default rules describe desktop (current behavior, mostly unchanged). The media query overrides for mobile.
 
 Key rules (illustrative):
 
@@ -84,7 +84,7 @@ Key rules (illustrative):
 .topbar-status-dot { display: none; }
 .topbar-menu-toggle { display: none; }
 
-@media (max-width: 900px) {
+@media (max-width: 640px) {
   .topbar { justify-content: space-between; padding: 0 8px; }
   .topbar-logo { height: 40px; }
   .topbar-logo-button { position: static; }
@@ -136,7 +136,7 @@ Key rules (illustrative):
 ## Out of scope
 
 - Changes to other panels (PartyBar, ActivityFeed, DetailPanel, Minimap) — they will need their own mobile passes later.
-- Replacing the editor link with a mobile-friendly alternative — for now it's just hidden under 900px.
+- Replacing the editor link with a mobile-friendly alternative — for now it's just hidden under 640px.
 - Restyling stats with icons — kept textual labels for clarity inside the drawer.
 
 ## Files touched

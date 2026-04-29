@@ -50,21 +50,26 @@ export class Building {
 
     // Label above building — image top is at y - displayHeight (since origin is bottom)
     const labelY = def.y - this.image.displayHeight - 8;
+    const labelFont = '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
     this.label = addCrispText(scene, def.x, labelY, def.label, {
       fontSize: '15px',
+      fontStyle: '600',
       color: '#F5E6C8',
-      fontFamily: 'monospace',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5, 1).setDepth(this.doorY + 0.1);
-
-    // Subtitle (description) below the label
-    addCrispText(scene, def.x, labelY + 2, def.activity, {
-      fontSize: '11px',
-      color: '#aaa',
-      fontFamily: 'monospace',
+      fontFamily: labelFont,
       stroke: '#000000',
       strokeThickness: 2,
+      shadow: { offsetX: 0, offsetY: 1, color: '#000', blur: 3, fill: true },
+    }).setOrigin(0.5, 1).setDepth(this.doorY + 0.1);
+
+    // Subtitle (description) below the label — pushed 5px down to clear the
+    // title's descenders and avoid muddiness in the overlap zone.
+    addCrispText(scene, def.x, labelY + 5, def.activity, {
+      fontSize: '11px',
+      color: '#d8d8d8',
+      fontFamily: labelFont,
+      stroke: '#000000',
+      strokeThickness: 1,
+      shadow: { offsetX: 0, offsetY: 1, color: '#000', blur: 2, fill: true },
     }).setOrigin(0.5, 0).setDepth(this.doorY + 0.1);
   }
 }
