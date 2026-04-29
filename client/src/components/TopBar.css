@@ -178,8 +178,8 @@
   z-index: 29;
 }
 
-/* ---------- Mobile (< 900px) ---------- */
-@media (max-width: 900px) {
+/* ---------- Mobile (< 640px) ---------- */
+@media (max-width: 640px) {
   .topbar {
     justify-content: flex-start;
     padding: 0 8px;

@@ -49,7 +49,7 @@ export function TopBar({ agents, connected }: TopBarProps) {
   }, [menuOpen]);
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 900px)');
+    const mq = window.matchMedia('(min-width: 641px)');
     const onChange = (e: MediaQueryListEvent) => {
       if (e.matches) setMenuOpen(false);
     };
