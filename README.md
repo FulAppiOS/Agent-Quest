@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>A fantasy village dashboard for monitoring your Claude Code and Codex agents.</strong>
+  <strong>A fantasy village dashboard for monitoring your Claude Code CLI and Codex agents.</strong>
 </p>
 
 <p align="center">
