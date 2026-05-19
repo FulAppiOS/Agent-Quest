@@ -740,4 +740,121 @@ describe('AgentStateManager', () => {
     expect(res!.agent.source).toBe('codex');
     expect(res!.agent.status).toBe('active');  // NOT completed despite oracle saying "not live"
   });
+
+  test('display-name oracle overrides slug on agent creation', () => {
+    const displayNames = new Map<string, string>([['sess-1', '[#42, 7/13] feat: foo']]);
+    const m = new AgentStateManager({
+      displayNameOracle: { getDisplayName: (sid) => displayNames.get(sid) },
+    });
+
+    const result = m.processEvent(makeEvent());
+
+    expect(result!.agent.name).toBe('[#42, 7/13] feat: foo');
+  });
+
+  test('display-name oracle falls back to slug when no name is set', () => {
+    const m = new AgentStateManager({
+      displayNameOracle: { getDisplayName: () => undefined },
+    });
+
+    const result = m.processEvent(makeEvent());
+
+    expect(result!.agent.name).toBe('bubbly-waddling-cat');
+  });
+
+  test('display-name oracle updates the agent label on subsequent events', () => {
+    const displayNames = new Map<string, string>();
+    const m = new AgentStateManager({
+      displayNameOracle: { getDisplayName: (sid) => displayNames.get(sid) },
+    });
+
+    const initial = m.processEvent(makeEvent());
+    expect(initial!.agent.name).toBe('bubbly-waddling-cat');
+
+    // User retitles the session mid-run (cc_session_step 12) — the next
+    // processEvent must surface the new label without waiting for refreshAll.
+    displayNames.set('sess-1', '[#42, 12/13] feat: foo');
+    const next = m.processEvent(makeEvent({ timestamp: Date.now() + 1 }));
+
+    expect(next!.agent.name).toBe('[#42, 12/13] feat: foo');
+  });
+
+  test('refreshAll picks up display-name changes and reports them as changed', () => {
+    const displayNames = new Map<string, string>();
+    const m = new AgentStateManager({
+      displayNameOracle: { getDisplayName: (sid) => displayNames.get(sid) },
+    });
+    m.processEvent(makeEvent());
+    expect(m.getAgent('sess-1')!.name).toBe('bubbly-waddling-cat');
+
+    // No JSONL event arrived, but the registry's next scan tick discovered a
+    // new state.json. refreshAll must rebroadcast on the strength of the name
+    // change alone — otherwise the dashboard freezes on the stale slug.
+    displayNames.set('sess-1', '[#42, DONE] feat: foo');
+    const changed = m.refreshAll();
+
+    expect(changed).toContain('sess-1');
+    expect(m.getAgent('sess-1')!.name).toBe('[#42, DONE] feat: foo');
+  });
+
+  test('display-name oracle does NOT relabel subagents (they have no jobId)', () => {
+    const m = new AgentStateManager({
+      displayNameOracle: {
+        // Bug-bait: an oracle that returns a value for a subagent id would
+        // wipe the filename-derived label, so the manager must skip the lookup.
+        getDisplayName: () => '[#42, 7/13] feat: foo',
+      },
+    });
+
+    const result = m.processEvent(makeEvent({ sessionId: 'agent-helper-1234567890abcdef' }), '', 'claude', 'helper');
+
+    expect(result!.agent.name).toBe('helper');
+  });
+
+  test('falls back to the derived name when the oracle drops the display name', () => {
+    const displayNames = new Map<string, string>([['sess-1', '[#42, 7/13] feat: foo']]);
+    const m = new AgentStateManager({
+      displayNameOracle: { getDisplayName: (sid) => displayNames.get(sid) },
+    });
+
+    // Oracle has a title — agent should pick it up.
+    m.processEvent(makeEvent());
+    expect(m.getAgent('sess-1')!.name).toBe('[#42, 7/13] feat: foo');
+
+    // User removes the state.json (the registry's next scan would drop the entry).
+    // Without the fallback path, agent.name would freeze on the stale title and
+    // refreshAll() wouldn't even mark the session as changed.
+    displayNames.delete('sess-1');
+    const changed = m.refreshAll();
+
+    expect(changed).toContain('sess-1');
+    expect(m.getAgent('sess-1')!.name).toBe('bubbly-waddling-cat');
+  });
+
+  test('falls back to the derived name on the next processEvent after oracle drops the title', () => {
+    const displayNames = new Map<string, string>([['sess-1', '[#42, 7/13] feat: foo']]);
+    const m = new AgentStateManager({
+      displayNameOracle: { getDisplayName: (sid) => displayNames.get(sid) },
+    });
+
+    m.processEvent(makeEvent());
+    expect(m.getAgent('sess-1')!.name).toBe('[#42, 7/13] feat: foo');
+
+    displayNames.delete('sess-1');
+    const next = m.processEvent(makeEvent({ timestamp: Date.now() + 1 }));
+
+    expect(next!.agent.name).toBe('bubbly-waddling-cat');
+  });
+
+  test('setDisplayNameOracle wires the oracle after construction', () => {
+    const m = new AgentStateManager();
+    m.processEvent(makeEvent());
+    expect(m.getAgent('sess-1')!.name).toBe('bubbly-waddling-cat');
+
+    m.setDisplayNameOracle({ getDisplayName: () => '[#1, 5/13] late wiring' });
+    const changed = m.refreshAll();
+
+    expect(changed).toContain('sess-1');
+    expect(m.getAgent('sess-1')!.name).toBe('[#1, 5/13] late wiring');
+  });
 });

@@ -1,18 +1,38 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { SessionLivenessOracle } from './state/agent-state-manager';
+import type { SessionDisplayNameOracle, SessionLivenessOracle } from './state/agent-state-manager';
 
-/** Reads `sessionId` out of a `<pid>.json` file. Tolerates noise and missing fields. */
-async function readSessionIdFrom(filePath: string): Promise<string | null> {
+/** Reads `sessionId` and `jobId` out of a `<pid>.json` file. Tolerates noise and missing fields. */
+async function readSessionMetaFrom(filePath: string): Promise<{ sessionId: string; jobId: string | null } | null> {
   try {
     const text = await Bun.file(filePath).text();
-    const data = JSON.parse(text) as { sessionId?: unknown };
+    const data = JSON.parse(text) as { sessionId?: unknown; jobId?: unknown };
     if (typeof data.sessionId === 'string' && data.sessionId.length > 0) {
-      return data.sessionId;
+      const jobId = typeof data.jobId === 'string' && data.jobId.length > 0 ? data.jobId : null;
+      return { sessionId: data.sessionId, jobId };
     }
   } catch {
     // unreadable / not JSON / partially-written — just ignore this file
+  }
+  return null;
+}
+
+/**
+ * Reads the human-friendly display name out of `<configDir>/jobs/<jobId>/state.json`.
+ * This is the same `name` field that Claude Code's `claude agents` view renders in
+ * the left column — see `~/.claude/rules/session-display-name.md`. Returns null
+ * when the file is missing, unparseable, or omits the field.
+ */
+async function readDisplayNameFrom(filePath: string): Promise<string | null> {
+  try {
+    const text = await Bun.file(filePath).text();
+    const data = JSON.parse(text) as { name?: unknown };
+    if (typeof data.name === 'string' && data.name.length > 0) {
+      return data.name;
+    }
+  } catch {
+    // missing / unreadable / not JSON — fall back to slug/cwd at the caller.
   }
   return null;
 }
@@ -44,10 +64,11 @@ export interface SessionRegistryOptions {
  * agents whose JSONLs were touched by Claude Code resume/hook machinery but
  * whose real process has long since exited.
  */
-export class SessionRegistry implements SessionLivenessOracle {
+export class SessionRegistry implements SessionLivenessOracle, SessionDisplayNameOracle {
   private configDirs: string[];
   private pidAlive: PidLivenessCheck;
   private liveSessionIds = new Set<string>();
+  private displayNames = new Map<string, string>();
   private scanned = false;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -67,6 +88,15 @@ export class SessionRegistry implements SessionLivenessOracle {
 
   isLive(sessionId: string): boolean {
     return this.liveSessionIds.has(sessionId);
+  }
+
+  /**
+   * Returns the user-set display name for a live Claude session, or undefined
+   * when the session has no jobId, no state.json, or the file omits the field.
+   * Callers fall back to slug/cwd in that case.
+   */
+  getDisplayName(sessionId: string): string | undefined {
+    return this.displayNames.get(sessionId);
   }
 
   /** Current live session IDs (copy, for debugging/snapshots). */
@@ -92,6 +122,7 @@ export class SessionRegistry implements SessionLivenessOracle {
 
   async scan(): Promise<void> {
     const next = new Set<string>();
+    const nextNames = new Map<string, string>();
     for (const configDir of this.configDirs) {
       const sessionsDir = join(configDir, 'sessions');
       let entries: string[];
@@ -106,11 +137,18 @@ export class SessionRegistry implements SessionLivenessOracle {
         const pid = Number.parseInt(pidMatch[1]!, 10);
         if (!Number.isFinite(pid) || pid <= 0) continue;
         if (!this.pidAlive(pid)) continue;
-        const sessionId = await readSessionIdFrom(join(sessionsDir, entry));
-        if (sessionId !== null) next.add(sessionId);
+        const meta = await readSessionMetaFrom(join(sessionsDir, entry));
+        if (meta === null) continue;
+        next.add(meta.sessionId);
+        if (meta.jobId !== null) {
+          const statePath = join(configDir, 'jobs', meta.jobId, 'state.json');
+          const displayName = await readDisplayNameFrom(statePath);
+          if (displayName !== null) nextNames.set(meta.sessionId, displayName);
+        }
       }
     }
     this.liveSessionIds = next;
+    this.displayNames = nextNames;
     this.scanned = true;
   }
 }

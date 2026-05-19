@@ -38,7 +38,20 @@ export interface ToolCall {
 // --- Core agent state ---
 export interface AgentState {
   id: string;          // sessionId
-  name: string;        // slug from JSONL (e.g. "bubbly-waddling-cat")
+  /**
+   * Label rendered above the hero. Starts as the JSONL slug or cwd basename
+   * (see `derivedName`), and is overlaid with the user-set display title
+   * whenever a `SessionDisplayNameOracle` returns one. Falls back to
+   * `derivedName` the moment the oracle drops the title — otherwise a deleted
+   * `state.json` would freeze a stale label on the sprite forever.
+   */
+  name: string;
+  /**
+   * Slug/cwd-derived label that survives oracle gaps. Recomputed on every
+   * non-subagent JSONL event so a renamed cwd or a slug surfacing late still
+   * lands here without waiting for the oracle to come back.
+   */
+  derivedName: string;
   heroClass: HeroClass;
   heroColor: HeroColor;
   status: 'active' | 'waiting' | 'idle' | 'completed' | 'error';

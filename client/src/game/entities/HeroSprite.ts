@@ -3,6 +3,7 @@ import { HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadg
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
+import { truncateLabel } from '../../utils/truncateLabel';
 
 const MOVE_SPEED = 150;
 /** Ground distance covered by one full run-cycle. Keeps legs synced to travel. */
@@ -15,6 +16,13 @@ const RUN_PIXELS_PER_CYCLE = 60;
  * (sprite 96 px → name -50, activity +46, detail +60, task +74).
  */
 const TASK_MAX_CHARS = 28;
+/**
+ * Hero head labels mirror the user's `cc_session_step` output —
+ * `[#1234, 12/13] some long description`. Cap roughly matches Claude Code's
+ * own `agents` view column so the label stays readable above the sprite
+ * without bleeding into adjacent heroes.
+ */
+const NAME_MAX_CHARS = 40;
 
 const ACTIVITY_COLOR: Record<AgentActivity, string> = {
   idle:      '#888888',
@@ -182,7 +190,7 @@ export class HeroSprite {
 
     const nameColor = HERO_LABEL_COLOR[heroColor] ?? '#DDDDDD';
     this.nameBaseColor = nameColor;
-    this.nameText = addCrispText(scene, x, y + this.nameOffsetY, name, {
+    this.nameText = addCrispText(scene, x, y + this.nameOffsetY, truncateLabel(name, NAME_MAX_CHARS), {
       fontSize: '14px',
       color: nameColor,
       fontFamily: 'monospace',
@@ -522,17 +530,26 @@ export class HeroSprite {
     this.modelText.setPosition(leftEdge + widthA + gap, y);
   }
 
+  /**
+   * Update the name label above the hero. Truncates with an ellipsis when the
+   * label exceeds NAME_MAX_CHARS so the rest of the head stack (subagent
+   * marker, activity, detail, task) stays inside the hero's visual footprint.
+   * No-op when `name` matches what's already rendered (avoids touching the
+   * Phaser text object on every WebSocket tick).
+   */
+  updateName(name: string): void {
+    const truncated = truncateLabel(name, NAME_MAX_CHARS);
+    if (this.nameText.text === truncated) return;
+    this.nameText.setText(truncated);
+  }
+
   /** Update the truncated task line shown below the detail. */
   updateTask(task?: string): void {
     if (task === undefined || task.length === 0) {
       this.taskText.setText('');
       return;
     }
-    const single = task.replace(/\s+/g, ' ').trim();
-    const text = single.length > TASK_MAX_CHARS
-      ? single.slice(0, TASK_MAX_CHARS - 1) + '\u2026'
-      : single;
-    this.taskText.setText(text);
+    this.taskText.setText(truncateLabel(task, TASK_MAX_CHARS));
   }
 
   /** Update the detail line shown below the activity label. */
@@ -543,7 +560,7 @@ export class HeroSprite {
       const parts = file.split('/');
       detail = parts[parts.length - 1] ?? file;
     } else if (command) {
-      detail = command.length > 25 ? command.slice(0, 24) + '\u2026' : command;
+      detail = truncateLabel(command, 25);
     }
     this.detailText.setText(detail);
   }

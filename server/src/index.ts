@@ -53,6 +53,7 @@ const stateManager = new AgentStateManager({
   subagentCompletedThresholdMs: SUBAGENT_COMPLETED_THRESHOLD_MS,
   subagentBusyCompletedThresholdMs: SUBAGENT_BUSY_COMPLETED_THRESHOLD_MS,
   livenessOracle: sessionRegistry,
+  displayNameOracle: sessionRegistry,
 });
 const wsServer = new WebSocketServer();
 const mapStorage = new MapStorage();

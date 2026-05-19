@@ -699,6 +699,7 @@ export class VillageScene extends Phaser.Scene {
         buildingsToReposition.add(buildingDef.id);
       } else {
         // Always update detail text (file/command changes even without activity change)
+        existing.updateName(agent.name);
         existing.updateDetail(agent.currentFile, agent.currentCommand);
         existing.updateTask(agent.currentTask);
         existing.setStatus(agent.status);

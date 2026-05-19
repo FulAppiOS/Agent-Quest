@@ -1,6 +1,7 @@
 import { editorBridge } from '../EditorBridge';
 import { editorStore, useEditorStore } from '../state/editor-store';
 import type { SlotInfo } from '../types/map';
+import { truncateLabel } from '../../utils/truncateLabel';
 
 export function EditorTopBar() {
   const dirty = useEditorStore((s) => s.dirty);
@@ -57,7 +58,7 @@ export function EditorTopBar() {
   const getSlotLabel = (info: SlotInfo): string => {
     const star = info.isActive ? ' \u2605' : '';
     if (info.isEmpty) return `${info.slot}${star}`;
-    const name = info.name.length > 10 ? info.name.slice(0, 10) + '...' : info.name;
+    const name = truncateLabel(info.name, 10);
     return `${info.slot} \u2014 ${name}${star}`;
   };
 
