@@ -6,9 +6,16 @@ import './TopBar.css';
 interface TopBarProps {
   agents: AgentState[];
   connected: boolean;
+  showCompletedAgents: boolean;
+  onToggleShowCompletedAgents: () => void;
 }
 
-export function TopBar({ agents, connected }: TopBarProps) {
+export function TopBar({
+  agents,
+  connected,
+  showCompletedAgents,
+  onToggleShowCompletedAgents,
+}: TopBarProps) {
   const active = agents.filter((a) => a.status === 'active').length;
   const idle = agents.filter((a) => a.status === 'idle').length;
   const completed = agents.filter((a) => a.status === 'completed').length;
@@ -116,18 +123,42 @@ export function TopBar({ agents, connected }: TopBarProps) {
 
           <div className="topbar-effects">
             <button
+              type="button"
               className={`topbar-effect-btn ${nightOn ? 'active' : ''}`}
               onClick={toggleNight}
+              aria-pressed={nightOn}
+              aria-label={nightOn ? 'Switch to day mode' : 'Switch to night mode'}
               title={nightOn ? 'Day mode' : 'Night mode'}
             >
               {nightOn ? '\u{1F319}' : '\u{2600}\u{FE0F}'}
             </button>
             <button
+              type="button"
               className={`topbar-effect-btn ${rainOn ? 'active' : ''}`}
               onClick={toggleRain}
+              aria-pressed={rainOn}
+              aria-label={rainOn ? 'Stop rain effect' : 'Start rain effect'}
               title={rainOn ? 'Stop rain' : 'Start rain'}
             >
               {'\u{1F327}\u{FE0F}'}
+            </button>
+            <button
+              type="button"
+              className={`topbar-effect-btn ${showCompletedAgents ? 'active' : ''}`}
+              onClick={onToggleShowCompletedAgents}
+              aria-pressed={showCompletedAgents}
+              aria-label={
+                showCompletedAgents
+                  ? 'Hide completed agents from the village'
+                  : 'Show completed agents in the village'
+              }
+              title={
+                showCompletedAgents
+                  ? 'Hide completed agents'
+                  : 'Show completed agents'
+              }
+            >
+              {showCompletedAgents ? '\u{1F441}\u{FE0F}' : '\u{1F47B}'}
             </button>
             <a
               className="topbar-effect-btn"

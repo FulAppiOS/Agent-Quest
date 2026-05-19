@@ -12,6 +12,7 @@ import type { AgentState } from '../../types/agent';
 import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '../../editor/types/map';
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
+import { computeShowSourceBadge } from '../../presentation/agentPresentation';
 
 /** Set `cam.zoom` to `newZoom` while keeping the world point currently
  * under screen coordinates (sx, sy) pinned to the same screen spot.
@@ -634,21 +635,22 @@ export class VillageScene extends Phaser.Scene {
 
     const now = Date.now();
 
-    // Show active + idle-recent (< 2h), hide completed/error and idle > 2h
+    // App-level presentation projection already excludes `waiting` / `error`,
+    // and gates `completed` behind the TopBar toggle. The scene applies two
+    // additional local policies: hide `error` defensively, and drop heroes
+    // that have been idle for longer than IDLE_HIDE_THRESHOLD_MS so the
+    // village doesn't grow unbounded over a long-lived session.
     const visible = agents.filter((a) => {
-      if (a.status === 'completed' || a.status === 'error') return false;
+      if (a.status === 'error') return false;
       if (a.status === 'idle' && now - a.lastEvent > IDLE_HIDE_THRESHOLD_MS) return false;
       return true;
     });
 
     // Mixed-provider mode: show source badges only when both Claude and Codex
-    // have a LIVE hero. Completed/error sessions don't count, so the badge
-    // disappears the moment the last non-dormant Codex hero finishes. Mirrors
-    // the flag computed in App.tsx — keep these two in sync.
-    const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
-    const hasClaude = liveAgents.some((a) => a.source === 'claude');
-    const hasCodex = liveAgents.some((a) => a.source === 'codex');
-    const showSourceBadge = hasClaude && hasCodex;
+    // have a LIVE hero. Computed by the shared `computeShowSourceBadge` helper
+    // so this stays in lockstep with App.tsx — both call the same function
+    // against the unfiltered `agents` snapshot.
+    const showSourceBadge = computeShowSourceBadge(agents);
 
     // Remove heroes no longer visible
     for (const [id, hero] of this.heroes) {

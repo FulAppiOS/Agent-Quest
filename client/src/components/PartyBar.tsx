@@ -121,10 +121,13 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
   const [prefs, updatePrefs] = usePartyPrefs();
   const mode: 'full' | 'icons' = prefs.foldState;
 
-  const visible = agents.filter((a) => a.status === 'active' || a.status === 'idle');
-  const sorted = [...visible].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
-  const activeCount = visible.filter((a) => a.status === 'active').length;
-  const idleCount = visible.filter((a) => a.status === 'idle').length;
+  // `agents` is the App-level presentation projection — it already excludes
+  // `error` / `waiting`, and only includes `completed` when the TopBar toggle
+  // is on. Sort by status (active first) so completed rows land at the bottom.
+  const sorted = [...agents].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+  const activeCount = agents.filter((a) => a.status === 'active').length;
+  const idleCount = agents.filter((a) => a.status === 'idle').length;
+  const completedCount = agents.filter((a) => a.status === 'completed').length;
 
   const toggleFold = useCallback(() => {
     updatePrefs({ foldState: mode === 'full' ? 'icons' : 'full' });
@@ -138,9 +141,12 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
     <div className={`partybar mode-${mode}`} role="list" aria-label="Party">
       <div className="partybar-header">
         {mode === 'full' ? (
-          <span className="partybar-title">Party ({activeCount} active, {idleCount} idle)</span>
+          <span className="partybar-title">
+            Party ({activeCount} active, {idleCount} idle
+            {completedCount > 0 ? `, ${completedCount} done` : ''})
+          </span>
         ) : (
-          <span className="partybar-title-compact">{activeCount + idleCount}</span>
+          <span className="partybar-title-compact">{sorted.length}</span>
         )}
         <button
           type="button"
