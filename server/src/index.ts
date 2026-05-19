@@ -120,7 +120,13 @@ const providerHandlers: ProviderHandlers = {
       // filename-derived id so each subagent becomes its own hero instead
       // of being folded into the parent agent.
       event.sessionId = payload.sessionId;
-      const result = stateManager.processEvent(event, payload.configDir, payload.source, payload.nameOverride);
+      const result = stateManager.processEvent(
+        event,
+        payload.configDir,
+        payload.source,
+        payload.nameOverride,
+        payload.subagentCtx,
+      );
       if (result !== null && result.isNew) {
         wsServer.broadcastNewAgent(result.agent);
       }
@@ -134,7 +140,13 @@ const providerHandlers: ProviderHandlers = {
     for (const event of payload.events) {
       // See note in onSessionStart: rekey to filename-derived id for subagents.
       event.sessionId = payload.sessionId;
-      const result = stateManager.processEvent(event, payload.configDir, payload.source);
+      const result = stateManager.processEvent(
+        event,
+        payload.configDir,
+        payload.source,
+        undefined,
+        payload.subagentCtx,
+      );
       if (result === null) continue; // resume-hint dump, no state change
 
       if (result.isNew) {

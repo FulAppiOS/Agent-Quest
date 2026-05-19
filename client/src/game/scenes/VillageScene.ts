@@ -13,6 +13,8 @@ import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '.
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
 import { computeShowSourceBadge } from '../../presentation/agentPresentation';
+import { TILE_SIZE } from '../../editor/types/map';
+import { computeChildOffset } from './subagent-layout';
 
 /** Set `cam.zoom` to `newZoom` while keeping the world point currently
  * under screen coordinates (sx, sy) pinned to the same screen spot.
@@ -46,6 +48,17 @@ export class VillageScene extends Phaser.Scene {
 
   /** Tracks which building each hero is currently assigned to. */
   private heroBuildingMap = new Map<string, string>();
+
+  /**
+   * Parent → set of attached sub-agent ids. Attached sub-agents bypass
+   * `buildingSlots` entirely and follow their parent's position frame to
+   * frame. Orphan sub-agents (parent gone or never seen) fall back to
+   * regular slot assignment and are absent from this map.
+   */
+  private parentChildren = new Map<string, Set<string>>();
+
+  /** Reverse lookup: attached child id → parent id. */
+  private subagentParents = new Map<string, string>();
 
   /** Atmospheric effects */
   private nightOverlay: Phaser.GameObjects.Graphics | null = null;
@@ -381,6 +394,8 @@ export class VillageScene extends Phaser.Scene {
       this.buildings = [];
       this.buildingSlots.clear();
       this.heroBuildingMap.clear();
+      this.parentChildren.clear();
+      this.subagentParents.clear();
       for (const npc of this.editorNpcs) npc.destroy();
       this.editorNpcs = [];
     };
@@ -572,6 +587,65 @@ export class VillageScene extends Phaser.Scene {
   // Slot management
   // ---------------------------------------------------------------------------
 
+  /**
+   * Is this agent eligible to render as an attached sub-agent (companion of
+   * a live parent)? Returns true only when a parent hero is currently on
+   * screen — orphan sub-agents fall through to regular slot layout.
+   */
+  private canAttachSubagent(agent: AgentState): boolean {
+    if (!agent.isSubagent) return false;
+    if (agent.parentSessionId === undefined) return false;
+    return this.heroes.has(agent.parentSessionId);
+  }
+
+  private attachSubagent(parentId: string, childId: string): void {
+    this.subagentParents.set(childId, parentId);
+    let siblings = this.parentChildren.get(parentId);
+    if (siblings === undefined) {
+      siblings = new Set();
+      this.parentChildren.set(parentId, siblings);
+    }
+    siblings.add(childId);
+  }
+
+  private detachSubagent(childId: string): void {
+    const parentId = this.subagentParents.get(childId);
+    if (parentId === undefined) return;
+    this.subagentParents.delete(childId);
+    const siblings = this.parentChildren.get(parentId);
+    if (siblings === undefined) return;
+    siblings.delete(childId);
+    if (siblings.size === 0) {
+      this.parentChildren.delete(parentId);
+    }
+  }
+
+  /**
+   * Each frame, anchor every attached sub-agent to its parent's current
+   * position plus a deterministic stagger offset. Sub-agents bypass the
+   * tween-driven road network, so this is what actually makes them follow.
+   */
+  override update(): void {
+    if (this.parentChildren.size === 0) return;
+    for (const [parentId, siblings] of this.parentChildren) {
+      const parentHero = this.heroes.get(parentId);
+      if (parentHero === undefined) continue;
+      const sortedSiblings = [...siblings].sort();
+      for (let i = 0; i < sortedSiblings.length; i++) {
+        const childId = sortedSiblings[i];
+        if (childId === undefined) continue;
+        const child = this.heroes.get(childId);
+        if (child === undefined) continue;
+        const offset = computeChildOffset(
+          { x: parentHero.x, y: parentHero.y },
+          i,
+          TILE_SIZE,
+        );
+        child.teleportTo(offset.x, offset.y);
+      }
+    }
+  }
+
   private addToSlot(buildingId: string, heroId: string): void {
     let slots = this.buildingSlots.get(buildingId);
     if (slots === undefined) {
@@ -652,9 +726,35 @@ export class VillageScene extends Phaser.Scene {
     // against the unfiltered `agents` snapshot.
     const showSourceBadge = computeShowSourceBadge(agents);
 
+    // Track which buildings need repositioning. Declared up here because both
+    // the removal pass (parent leaves → children orphan into slots) and the
+    // visible-iteration pass below need to flag dirty buildings.
+    const buildingsToReposition = new Set<string>();
+
     // Remove heroes no longer visible
     for (const [id, hero] of this.heroes) {
       if (!visible.some((a) => a.id === id)) {
+        // If a parent goes away, promote each attached child to orphan so it
+        // re-enters slot-based layout instead of vanishing along with the parent.
+        const orphanedChildren = this.parentChildren.get(id);
+        if (orphanedChildren !== undefined) {
+          for (const childId of orphanedChildren) {
+            this.subagentParents.delete(childId);
+            const childHero = this.heroes.get(childId);
+            const childAgent = visible.find((a) => a.id === childId);
+            if (childHero !== undefined && childAgent !== undefined) {
+              const childBuildingDef = getBuildingForActivity(childAgent.currentActivity);
+              this.addToSlot(childBuildingDef.id, childId);
+              buildingsToReposition.add(childBuildingDef.id);
+            }
+          }
+          this.parentChildren.delete(id);
+        }
+
+        // If the leaving hero was itself an attached sub-agent, detach cleanly
+        // and re-layout the remaining siblings so the deterministic order tightens.
+        this.detachSubagent(id);
+
         const oldBuilding = this.removeFromSlot(id);
         hero.destroy();
         this.heroes.delete(id);
@@ -664,15 +764,14 @@ export class VillageScene extends Phaser.Scene {
       }
     }
 
-    // Track which buildings need repositioning
-    const buildingsToReposition = new Set<string>();
-
     for (const agent of visible) {
       const existing = this.heroes.get(agent.id);
       const buildingDef = getBuildingForActivity(agent.currentActivity);
+      const attachable = this.canAttachSubagent(agent);
 
       if (existing === undefined) {
-        // New hero: spawn at configured spawn point then assign to building
+        // New hero: spawn at configured spawn point then either follow the
+        // parent (attached sub-agent) or take a regular building slot.
         const hero = new HeroSprite(
           this,
           agent.id,
@@ -681,7 +780,7 @@ export class VillageScene extends Phaser.Scene {
           agent.heroColor,
           this.heroSpawn.x,
           this.heroSpawn.y,
-          agent.id.startsWith('agent-'),
+          agent.isSubagent,
           agent.source,
         );
         hero.setHeroScale(this.heroScale);
@@ -695,8 +794,13 @@ export class VillageScene extends Phaser.Scene {
         hero.setInteractiveForSelection(() => {
           eventBridge.emit('hero:clicked', agent.id);
         });
-        this.addToSlot(buildingDef.id, agent.id);
-        buildingsToReposition.add(buildingDef.id);
+
+        if (attachable) {
+          this.attachSubagent(agent.parentSessionId as string, agent.id);
+        } else {
+          this.addToSlot(buildingDef.id, agent.id);
+          buildingsToReposition.add(buildingDef.id);
+        }
       } else {
         // Always update detail text (file/command changes even without activity change)
         existing.updateName(agent.name);
@@ -706,20 +810,38 @@ export class VillageScene extends Phaser.Scene {
         existing.setErrorTimestamp(agent.lastErrorAt);
         existing.setModel(agent.model);
 
-        const currentBuildingId = this.heroBuildingMap.get(agent.id);
-
-        if (currentBuildingId !== buildingDef.id) {
-          // Hero changed building — update activity before repositioning
+        const wasAttached = this.subagentParents.has(agent.id);
+        if (wasAttached && !attachable) {
+          // Orphaned mid-life — leave the parent group and fall back to slot.
+          this.detachSubagent(agent.id);
           existing.setActivity(agent.currentActivity);
-          const oldBuilding = this.removeFromSlot(agent.id);
           this.addToSlot(buildingDef.id, agent.id);
-
-          if (oldBuilding !== undefined) {
-            buildingsToReposition.add(oldBuilding);
-          }
           buildingsToReposition.add(buildingDef.id);
+        } else if (!wasAttached && attachable && this.heroBuildingMap.has(agent.id)) {
+          // Newly attachable (parent appeared) — vacate slot and follow parent.
+          const oldBuilding = this.removeFromSlot(agent.id);
+          if (oldBuilding !== undefined) buildingsToReposition.add(oldBuilding);
+          this.attachSubagent(agent.parentSessionId as string, agent.id);
+        } else if (!wasAttached) {
+          const currentBuildingId = this.heroBuildingMap.get(agent.id);
+
+          if (currentBuildingId !== buildingDef.id) {
+            // Hero changed building — update activity before repositioning
+            existing.setActivity(agent.currentActivity);
+            const oldBuilding = this.removeFromSlot(agent.id);
+            this.addToSlot(buildingDef.id, agent.id);
+
+            if (oldBuilding !== undefined) {
+              buildingsToReposition.add(oldBuilding);
+            }
+            buildingsToReposition.add(buildingDef.id);
+          } else if (existing.currentActivity !== agent.currentActivity) {
+            // Same building, different activity — update label
+            existing.setActivity(agent.currentActivity);
+          }
         } else if (existing.currentActivity !== agent.currentActivity) {
-          // Same building, different activity — update label
+          // Attached sub-agent — keep activity label up to date; layout is
+          // driven by the parent's position each frame.
           existing.setActivity(agent.currentActivity);
         }
       }

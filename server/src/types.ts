@@ -79,6 +79,32 @@ export interface AgentState {
    * sessions and for Claude sessions whose JSONL predates the field.
    */
   model?: string;
+  /**
+   * True when this session was spawned by another session as a sub-agent
+   * (e.g. Claude Code `Agent` / Task tool). Server computes from file-system
+   * layout (subagents/ directory) — client never inspects sessionId patterns
+   * directly. Defaults to false for main sessions and for Codex sessions
+   * (Codex has no sub-agent concept).
+   */
+  isSubagent: boolean;
+  /**
+   * Parent session id when this session is a sub-agent and the parent is
+   * known. Undefined for main sessions and for orphan sub-agents whose
+   * parent jsonl could not be located.
+   */
+  parentSessionId?: string;
+}
+
+// --- Subagent context (anti-corruption boundary) ---
+/**
+ * Carries server-domain knowledge about whether a JSONL file represents a
+ * sub-agent session, plus the parent session id when discoverable. The
+ * file-watcher computes this from disk layout once; downstream layers
+ * (provider, state manager) never inspect file paths or sessionId patterns.
+ */
+export interface SubagentContext {
+  isSubagent: boolean;
+  parentSessionId?: string;
 }
 
 // --- Session metadata from ~/.claude/sessions/<pid>.json

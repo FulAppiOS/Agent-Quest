@@ -1,4 +1,4 @@
-import type { AgentSource } from '../types';
+import type { AgentSource, SubagentContext } from '../types';
 import type { ParsedEvent } from '../parsers/session-parser';
 
 export interface SessionStartPayload {
@@ -8,6 +8,13 @@ export interface SessionStartPayload {
   events: ParsedEvent[];
   /** Optional name override resolved by the provider (e.g. Claude subagent label). */
   nameOverride?: string;
+  /**
+   * Subagent context resolved by the provider — `isSubagent` is always set;
+   * `parentSessionId` is set only when discoverable from disk layout.
+   * Defaults to `{ isSubagent: false }` for main sessions and for providers
+   * that have no sub-agent concept (e.g. Codex).
+   */
+  subagentCtx?: SubagentContext;
 }
 
 export interface SessionEventsPayload {
@@ -16,6 +23,12 @@ export interface SessionEventsPayload {
   configDir: string;
   /** Incremental events since the last update. */
   events: ParsedEvent[];
+  /**
+   * Subagent context — propagated on updates so that any first-event-on-update
+   * path (extremely rare) sees the same metadata. Existing agents already have
+   * the fields set from `onSessionStart`.
+   */
+  subagentCtx?: SubagentContext;
 }
 
 export interface ProviderHandlers {

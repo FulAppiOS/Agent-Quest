@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { AgentState, WsEvent, ActivityLogEntry } from '../types/agent';
+import { normalizeAgentState } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
 import { WS_URL } from '../config';
 
@@ -27,19 +28,21 @@ export function useAgentState(): AgentStateHook {
   const handleEvent = useCallback((event: WsEvent) => {
     switch (event.type) {
       case 'snapshot':
-        setAgents(event.agents);
+        setAgents(event.agents.map(normalizeAgentState));
         setConfigDirs(event.configDirs);
         break;
 
       case 'agent:new':
-        setAgents((prev) => [...prev, event.agent]);
+        setAgents((prev) => [...prev, normalizeAgentState(event.agent)]);
         break;
 
-      case 'agent:update':
+      case 'agent:update': {
+        const normalized = normalizeAgentState(event.agent);
         setAgents((prev) =>
-          prev.map((a) => (a.id === event.agent.id ? event.agent : a)),
+          prev.map((a) => (a.id === normalized.id ? normalized : a)),
         );
         break;
+      }
 
       case 'agent:complete':
         setAgents((prev) =>

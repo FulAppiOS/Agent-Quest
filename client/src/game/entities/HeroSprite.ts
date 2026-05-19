@@ -4,6 +4,7 @@ import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
 import { truncateLabel } from '../../utils/truncateLabel';
+import { computeSpriteScale } from './hero-scale';
 
 const MOVE_SPEED = 150;
 /** Ground distance covered by one full run-cycle. Keeps legs synced to travel. */
@@ -136,9 +137,11 @@ export class HeroSprite {
     this.runKey = cfg.runKey;
     this.facesLeft = cfg.facesLeft;
 
-    // Create sprite with idle animation
+    // Create sprite with idle animation. Sub-agents render at a
+    // smaller scale so the eye reads them as companions/helpers of the
+    // main hero — see `computeSpriteScale` for the rule.
     this.sprite = scene.add.sprite(x, y, this.idleKey);
-    this.sprite.setScale(theme.heroScale);
+    this.sprite.setScale(computeSpriteScale(theme.heroScale, isSubagent));
     // Flip sprites that natively face left so they face right by default
     this.sprite.setFlipX(this.facesLeft);
     if (cfg.tint !== null) this.sprite.setTint(cfg.tint);
@@ -249,9 +252,39 @@ export class HeroSprite {
   get x(): number { return this._x; }
   get y(): number { return this._y; }
 
-  /** Override the default hero scale (e.g. from MapConfig settings). */
+  /**
+   * Override the default hero scale (e.g. from MapConfig settings).
+   * Sub-agent factor is preserved — passing `1.5` on a sub-agent yields an
+   * effective sprite scale of `1.5 * SUBAGENT_SCALE_FACTOR`.
+   */
   setHeroScale(scale: number): void {
-    this.sprite.setScale(scale);
+    this.sprite.setScale(computeSpriteScale(scale, this.isSubagent));
+  }
+
+  /**
+   * Teleport the hero (sprite + every overlay text) to a new position. Used
+   * by the scene to keep attached sub-agents stuck to their parent — these
+   * sprites bypass the road-network tween path entirely and follow parent
+   * position frame to frame.
+   */
+  teleportTo(x: number, y: number): void {
+    this._x = x;
+    this._y = y;
+    this.sprite.setPosition(x, y);
+    this.nameText.setPosition(x, y + this.nameOffsetY);
+    this.layoutSubagentAndSource();
+    this.layoutActivityAndModel();
+    this.detailText.setPosition(x, y + this.detailOffsetY);
+    this.taskText.setPosition(x, y + this.taskOffsetY);
+    if (this.selectionHalo !== null) {
+      this.selectionHalo.setPosition(x, y);
+    }
+    this.updateDepth();
+  }
+
+  /** Whether this hero represents a sub-agent (visual companion). */
+  getIsSubagent(): boolean {
+    return this.isSubagent;
   }
 
   /** Make the sprite respond to pointerdown with the supplied callback. */

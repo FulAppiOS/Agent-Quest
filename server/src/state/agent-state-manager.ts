@@ -1,4 +1,4 @@
-import type { AgentSource, AgentState, HeroClass, HeroColor } from '../types';
+import type { AgentSource, AgentState, HeroClass, HeroColor, SubagentContext } from '../types';
 import { HERO_CLASSES, HERO_COLORS } from '../types';
 import type { ParsedEvent } from '../parsers/session-parser';
 
@@ -127,6 +127,7 @@ export class AgentStateManager {
     configDir = '',
     source: AgentSource = 'claude',
     nameOverride?: string,
+    subagentCtx?: SubagentContext,
   ): ProcessResult | null {
     const existing = this.agents.get(event.sessionId);
 
@@ -141,7 +142,7 @@ export class AgentStateManager {
     }
 
     if (existing === undefined) {
-      const agent = this.createAgent(event, configDir, source, nameOverride);
+      const agent = this.createAgent(event, configDir, source, nameOverride, subagentCtx);
       this.agents.set(event.sessionId, agent);
       this.applyDerivedStatus(agent);
       this.applyTurnAndError(agent, event);
@@ -459,6 +460,7 @@ export class AgentStateManager {
     configDir: string,
     source: AgentSource,
     nameOverride?: string,
+    subagentCtx?: SubagentContext,
   ): AgentState {
     const derivedName = nameOverride !== undefined && nameOverride.length > 0
       ? nameOverride
@@ -486,6 +488,8 @@ export class AgentStateManager {
       configDir,
       source,
       model: event.model,
+      isSubagent: subagentCtx?.isSubagent ?? false,
+      parentSessionId: subagentCtx?.parentSessionId,
     };
     return agent;
   }

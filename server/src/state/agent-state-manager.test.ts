@@ -857,4 +857,80 @@ describe('AgentStateManager', () => {
     expect(changed).toContain('sess-1');
     expect(m.getAgent('sess-1')!.name).toBe('[#1, 5/13] late wiring');
   });
+
+  describe('subagent context propagation', () => {
+    test('main session has isSubagent=false and parentSessionId undefined when no ctx passed', () => {
+      const mgr = new AgentStateManager();
+      const result = mgr.processEvent(makeEvent({ sessionId: 'main-1' }));
+
+      expect(result).not.toBeNull();
+      expect(result!.agent.isSubagent).toBe(false);
+      expect(result!.agent.parentSessionId).toBeUndefined();
+    });
+
+    test('subagent registered with ctx records both isSubagent and parentSessionId', () => {
+      const mgr = new AgentStateManager();
+      const result = mgr.processEvent(
+        makeEvent({ sessionId: 'agent-aXYZ12345678abcd' }),
+        '/home/x/.claude',
+        'claude',
+        undefined,
+        { isSubagent: true, parentSessionId: 'parent-sess-1' },
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.agent.isSubagent).toBe(true);
+      expect(result!.agent.parentSessionId).toBe('parent-sess-1');
+    });
+
+    test('orphan subagent (ctx has isSubagent but no parentSessionId) keeps isSubagent=true', () => {
+      const mgr = new AgentStateManager();
+      const result = mgr.processEvent(
+        makeEvent({ sessionId: 'agent-bORPHAN1234abcdef' }),
+        '/home/x/.claude',
+        'claude',
+        undefined,
+        { isSubagent: true },
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.agent.isSubagent).toBe(true);
+      expect(result!.agent.parentSessionId).toBeUndefined();
+    });
+
+    test('main session with explicit ctx { isSubagent: false } sets fields correctly', () => {
+      const mgr = new AgentStateManager();
+      const result = mgr.processEvent(
+        makeEvent({ sessionId: 'main-2' }),
+        '/home/x/.claude',
+        'claude',
+        undefined,
+        { isSubagent: false },
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.agent.isSubagent).toBe(false);
+      expect(result!.agent.parentSessionId).toBeUndefined();
+    });
+
+    test('updates to existing subagent preserve isSubagent and parentSessionId', () => {
+      const mgr = new AgentStateManager();
+      mgr.processEvent(
+        makeEvent({ sessionId: 'agent-cUPDATE12345678ab' }),
+        '/home/x/.claude',
+        'claude',
+        undefined,
+        { isSubagent: true, parentSessionId: 'parent-2' },
+      );
+      const result = mgr.processEvent(
+        makeEvent({ sessionId: 'agent-cUPDATE12345678ab', activity: 'editing', file: '/bar.ts' }),
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.isNew).toBe(false);
+      expect(result!.agent.isSubagent).toBe(true);
+      expect(result!.agent.parentSessionId).toBe('parent-2');
+      expect(result!.agent.currentActivity).toBe('editing');
+    });
+  });
 });
