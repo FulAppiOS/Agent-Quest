@@ -50,7 +50,7 @@ export class Building {
 
     // Label above building — image top is at y - displayHeight (since origin is bottom)
     const labelY = def.y - this.image.displayHeight - 8;
-    const labelFont = '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
+    const labelFont = "'Cinzel', serif";
     this.label = addCrispText(scene, def.x, labelY, def.label, {
       fontSize: '15px',
       fontStyle: '600',

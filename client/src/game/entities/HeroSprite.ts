@@ -16,14 +16,6 @@ const RUN_PIXELS_PER_CYCLE = 60;
  * The formulas below reproduce the original Tiny Swords values
  * (sprite 96 px → name -50, activity +46, detail +60, task +74).
  */
-const TASK_MAX_CHARS = 28;
-/**
- * Hero head labels mirror the user's `cc_session_step` output —
- * `[#1234, 12/13] some long description`. Cap roughly matches Claude Code's
- * own `agents` view column so the label stays readable above the sprite
- * without bleeding into adjacent heroes.
- */
-const NAME_MAX_CHARS = 40;
 
 const ACTIVITY_COLOR: Record<AgentActivity, string> = {
   idle:      '#888888',
@@ -72,17 +64,9 @@ export class HeroSprite {
   readonly heroClass: HeroClass;
   private scene: Phaser.Scene;
   private sprite: Phaser.GameObjects.Sprite;
-  private nameText: Phaser.GameObjects.Text;
-  private subagentText: Phaser.GameObjects.Text | null = null;
-  private sourceText: Phaser.GameObjects.Text | null = null;
   private source: AgentSource;
   private isSubagent: boolean;
-  private sourceBadgeVisible = false;
   private activityText: Phaser.GameObjects.Text;
-  /** Lazily created when a model badge applies (Claude sessions only). */
-  private modelText: Phaser.GameObjects.Text | null = null;
-  private detailText: Phaser.GameObjects.Text;
-  private taskText: Phaser.GameObjects.Text;
   private _x: number;
   private _y: number;
   private moveTween: Phaser.Tweens.Tween | null = null;
@@ -91,11 +75,7 @@ export class HeroSprite {
   private idleKey: string;
   private runKey: string;
   private facesLeft: boolean;
-  private nameOffsetY: number;
-  private subagentOffsetY: number;
   private activityOffsetY: number;
-  private detailOffsetY: number;
-  private taskOffsetY: number;
   currentActivity: AgentActivity = 'idle';
   private isWaiting = false;
   private isErrorRecent = false;
@@ -150,15 +130,9 @@ export class HeroSprite {
     // regardless of which code path later wires up interactivity.
     this.sprite.setData('isHero', true);
 
-    // Label offsets derived from actual sprite height — scale with theme.
+    // Activity label offset: just below the sprite's feet.
     const halfH = this.sprite.displayHeight / 2;
-    this.nameOffsetY = -(halfH + 2);
-    // Subagent marker sits ~16px below the name (standard "subtitle" placement,
-    // so the name stays the primary anchor for the eye).
-    this.subagentOffsetY = this.nameOffsetY + 16;
     this.activityOffsetY = halfH - 2;
-    this.detailOffsetY = halfH + 12;
-    this.taskOffsetY = halfH + 26;
 
     // Create idle animation if it doesn't exist yet
     const idleAnimKey = `${this.idleKey}-anim`;
@@ -191,58 +165,15 @@ export class HeroSprite {
 
     this.sprite.play(idleAnimKey);
 
-    const nameColor = HERO_LABEL_COLOR[heroColor] ?? '#DDDDDD';
-    this.nameBaseColor = nameColor;
-    this.nameText = addCrispText(scene, x, y + this.nameOffsetY, truncateLabel(name, NAME_MAX_CHARS), {
-      fontSize: '14px',
-      color: nameColor,
-      fontFamily: 'monospace',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5);
-
-    // Subagent marker: only created for spawned subagents — sits just above
-    // the name to visually distinguish child heroes from parent sessions.
-    if (isSubagent) {
-      this.subagentText = addCrispText(scene, x, y + this.subagentOffsetY, 'subagent', {
-        fontSize: '9px',
-        color: '#9AA4B0',
-        fontFamily: 'monospace',
-        fontStyle: 'italic',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setOrigin(0.5);
-    }
-
-    // Source badge is created lazily by setSourceBadgeVisible(true) — shown
-    // only when the UI is in mixed-provider mode.
-
-    // Activity label below hero
+    // Activity label is the only text rendered on the sprite — one label per
+    // hero keeps the canvas readable when 5–10 characters are visible at once.
+    // Name, model, source, detail and task all live in the Party Bar / Detail Panel.
     this.activityText = addCrispText(scene, x, y + this.activityOffsetY, 'idle', {
-      fontSize: '12px',
-      color: ACTIVITY_COLOR.idle,
-      fontFamily: 'monospace',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
-
-    // Detail label (file/command) below activity
-    this.detailText = addCrispText(scene, x, y + this.detailOffsetY, '', {
       fontSize: '11px',
-      color: '#AABBCC',
-      fontFamily: 'monospace',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
-
-    // Task label (current user prompt) below detail
-    this.taskText = addCrispText(scene, x, y + this.taskOffsetY, '', {
-      fontSize: '10px',
-      color: '#9FB7D4',
-      fontFamily: 'monospace',
-      fontStyle: 'italic',
-      stroke: '#000000',
-      strokeThickness: 2,
+      color: ACTIVITY_COLOR.idle,
+      fontFamily: "'Fira Code', monospace",
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      padding: { x: 4, y: 2 },
     }).setOrigin(0.5);
 
     // Set initial Y-based depth
@@ -461,7 +392,7 @@ export class HeroSprite {
         {
           fontSize: '9px',
           color: SOURCE_BADGE_COLOR[this.source],
-          fontFamily: 'monospace',
+          fontFamily: "'Fira Code', monospace",
           stroke: '#000000',
           strokeThickness: 2,
         },
@@ -525,7 +456,7 @@ export class HeroSprite {
         {
           fontSize: '11px',
           color: badge.color,
-          fontFamily: 'monospace',
+          fontFamily: "'Fira Code', monospace",
           fontStyle: 'bold',
           stroke: '#000000',
           strokeThickness: 2,

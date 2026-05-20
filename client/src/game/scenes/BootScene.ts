@@ -139,7 +139,7 @@ export class BootScene extends Phaser.Scene {
       this.statusText = addCrispText(this, cx, statusY, headline, {
         fontSize: '16px',
         color: '#f0d89a',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'center',
         wordWrap: { width: Math.min(this.scale.width * 0.8, 640) },
       }).setOrigin(0.5);
@@ -153,7 +153,7 @@ export class BootScene extends Phaser.Scene {
       const summary = addCrispText(this, cx, statusY + 28, summaryLines, {
         fontSize: '13px',
         color: '#e8c880',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'left',
       }).setOrigin(0.5, 0);
 
@@ -169,7 +169,7 @@ export class BootScene extends Phaser.Scene {
       const sample = addCrispText(this, cx, summary.y + summary.displayHeight + 16, sampleLines, {
         fontSize: '11px',
         color: '#8ea0b4',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'left',
         wordWrap: { width: Math.min(this.scale.width * 0.9, 780) },
       }).setOrigin(0.5, 0);
@@ -180,7 +180,7 @@ export class BootScene extends Phaser.Scene {
       const hint = addCrispText(this, cx, sample.y + sample.displayHeight + 20, hintText, {
         fontSize: '12px',
         color: '#aabbcc',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'center',
         wordWrap: { width: Math.min(this.scale.width * 0.9, 720) },
       }).setOrigin(0.5, 0);
@@ -188,7 +188,7 @@ export class BootScene extends Phaser.Scene {
       const primary = addCrispText(this, cx, hint.y + hint.displayHeight + 24, '↻  Reload page', {
           fontSize: '16px',
           color: '#1a1a2e',
-          fontFamily: 'monospace',
+          fontFamily: "'Fira Code', monospace",
           backgroundColor: '#c4a35a',
           padding: { x: 18, y: 10 },
         })
@@ -203,7 +203,7 @@ export class BootScene extends Phaser.Scene {
     this.statusText = addCrispText(this, cx, statusY, 'Connecting to server...', {
       fontSize: '18px',
       color: '#888888',
-      fontFamily: 'monospace',
+      fontFamily: "'Fira Code', monospace",
     }).setOrigin(0.5);
 
     this.onConnected = () => {

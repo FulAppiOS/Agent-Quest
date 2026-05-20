@@ -21,16 +21,17 @@ const crispTexts = new Set<Phaser.GameObjects.Text>();
  * Add a Text game object that stays readable under `pixelArt: true`.
  *
  * The game config enables `pixelArt`, which forces NEAREST filtering on
- * every WebGL texture so sprite art stays crisp. Text objects render to
- * an internal canvas and upload it as a texture — with NEAREST that canvas
- * gets visibly aliased whenever the camera zooms or sub-pixel positions
- * the label.
+ * every WebGL texture so sprite art stays crisp. Text textures inherit the
+ * same NEAREST sampling — that's correct for pixel-style fonts (Pixelify
+ * Sans, Cinzel) at scale, because LINEAR sampling would bilinearly smear
+ * the rasterized canvas and read as "blurry" against the painterly tile
+ * background. The wrapped updateText re-applies NEAREST after every
+ * canvasToTexture() re-upload (setText / setColor / setStyle all route
+ * through it and reset the GL min/mag filters).
  *
- * Simply calling `setFilter(LINEAR)` once at construction is not enough:
- * every `setText` / `setColor` / `setStyle` routes through `updateText()`,
- * which calls `canvasToTexture(...)` and resets the GL min/mag filter back
- * to NEAREST. We therefore wrap `updateText` so the LINEAR filter is
- * re-applied after every internal re-upload. Sprite textures are untouched.
+ * Sub-pixel snapping is handled at the game level (`config.ts` enables
+ * `roundPixels: true`), not per-Text — Phaser 4 removed the per-object
+ * `setRoundPixels` method.
  */
 export function addCrispText(
   scene: Phaser.Scene,
@@ -40,7 +41,7 @@ export function addCrispText(
   style: Phaser.Types.GameObjects.Text.TextStyle,
 ): Phaser.GameObjects.Text {
   const t = scene.add.text(x, y, text, { resolution: currentTextRes, ...style });
-  const reapplyFilter = () => t.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+  const reapplyFilter = () => t.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
   reapplyFilter();
   const original = t.updateText.bind(t);
   t.updateText = () => {
