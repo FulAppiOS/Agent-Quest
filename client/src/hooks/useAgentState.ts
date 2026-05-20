@@ -143,8 +143,10 @@ export function useAgentState(): AgentStateHook {
     ws.onerror = (err) => {
       // Browsers do not expose error details for security; only the event type
       // is meaningful. Pair this with the onclose code/reason for diagnosis.
+      // Do NOT call ws.close() here — the WebSocket spec guarantees onclose
+      // fires automatically after onerror, so an explicit close just adds a
+      // teardown race against the freshly-arriving server frame (issue #11).
       console.error(`[WS] error type=${err.type}`);
-      ws.close();
     };
   }, [handleEvent]);
 
