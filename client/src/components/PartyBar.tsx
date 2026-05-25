@@ -24,13 +24,14 @@ const STATUS_ORDER: Record<AgentState['status'], number> = {
 
 interface PartyRowProps {
   agent: AgentState;
+  index: number;
   mode: 'full' | 'icons';
   isSelected: boolean;
   onClick: () => void;
   showSourceBadge: boolean;
 }
 
-function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRowProps) {
+function PartyRow({ agent, index, mode, isSelected, onClick, showSourceBadge }: PartyRowProps) {
   const [flashing, setFlashing] = useState(false);
   const prevSelected = useRef(isSelected);
 
@@ -65,6 +66,7 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
       title={title}
     >
       <span className="partybar-avatar-wrap">
+        <span className="partybar-index" aria-label={`hero ${index}`}>{index}</span>
         <HeroAvatar agent={agent} size={AVATAR_SIZE} />
         <span className={`partybar-status-overlay ${agent.status}`} aria-hidden="true" />
       </span>
@@ -158,10 +160,11 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
       </div>
 
       <div className="partybar-list">
-        {sorted.map((agent) => (
+        {sorted.map((agent, i) => (
           <PartyRow
             key={agent.id}
             agent={agent}
+            index={i + 1}
             mode={mode}
             isSelected={agent.id === selectedAgentId}
             onClick={() => handleClick(agent.id)}

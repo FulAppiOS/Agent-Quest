@@ -57,9 +57,23 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent, show
     return m;
   }, [agents]);
 
+  const STATUS_ORDER: Record<AgentState['status'], number> = {
+    active: 0, waiting: 1, idle: 2, error: 3, completed: 4,
+  };
+  const agentIndexMap = useMemo(() => {
+    const sorted = [...agents].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+    const m = new Map<string, number>();
+    sorted.forEach((a, i) => m.set(a.id, i + 1));
+    return m;
+  }, [agents]);
+
   const resolveName = useCallback(
-    (agentId: string) => agentLookup.get(agentId)?.name ?? getAgentNameFallback(agentId),
-    [agentLookup],
+    (agentId: string) => {
+      const name = agentLookup.get(agentId)?.name ?? getAgentNameFallback(agentId);
+      const idx = agentIndexMap.get(agentId);
+      return idx !== undefined ? `${idx}. ${name}` : name;
+    },
+    [agentLookup, agentIndexMap],
   );
 
   // --- Auto-scroll lock + closed-state counter ---

@@ -13,6 +13,16 @@ import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '.
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
 import { computeShowSourceBadge } from '../../presentation/agentPresentation';
+
+// Mirror of PartyBar's STATUS_ORDER. Both surfaces sort by the same key so the
+// number rendered above each hero in the village matches its row in the panel.
+const STATUS_ORDER: Record<AgentState['status'], number> = {
+  active: 0,
+  waiting: 1,
+  idle: 2,
+  error: 3,
+  completed: 4,
+};
 import { TILE_SIZE } from '../../editor/types/map';
 import { computeChildOffset } from './subagent-layout';
 
@@ -852,6 +862,17 @@ export class VillageScene extends Phaser.Scene {
     for (const hero of this.heroes.values()) {
       hero.setSourceBadgeVisible(showSourceBadge);
     }
+
+    // Assign party index (1-based) using the same status-ordered sort PartyBar
+    // applies — that's what ties the marker above the sprite to the row in the
+    // side panel. Hidden heroes (subagents whose parent isn't here yet) still
+    // get a number but it's safe to skip if `setIndex` is no-op on them.
+    const indexed = [...visible].sort(
+      (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
+    );
+    indexed.forEach((agent, i) => {
+      this.heroes.get(agent.id)?.setIndex(i + 1);
+    });
 
     for (const buildingId of buildingsToReposition) {
       this.repositionBuilding(buildingId);
