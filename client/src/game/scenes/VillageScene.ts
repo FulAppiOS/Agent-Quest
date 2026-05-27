@@ -111,6 +111,16 @@ export class VillageScene extends Phaser.Scene {
     // this colour is only visible past the map edges or during zoom-out.
     this.cameras.main.setBackgroundColor('#000000');
 
+    // Brightness boost — a subtle additive white overlay lifts the dark forest
+    // tones so the village reads clearly as a PiP overlay in YouTube Shorts.
+    const brightnessOverlay = this.add.rectangle(
+      WORLD_WIDTH / 2, WORLD_HEIGHT / 2,
+      WORLD_WIDTH, WORLD_HEIGHT,
+      0xFFFFFF, 0.06,
+    );
+    brightnessOverlay.setBlendMode(Phaser.BlendModes.ADD);
+    brightnessOverlay.setDepth(0.01);
+
     // Signal React that the village is up so it can reveal the HTML overlays
     // (TopBar, PartyBar, etc.) that should stay hidden during the BootScene.
     eventBridge.emit('village:ready');

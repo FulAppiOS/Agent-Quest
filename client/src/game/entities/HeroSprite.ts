@@ -101,6 +101,7 @@ export class HeroSprite {
   private nameBaseColor = '#DDDDDD';
   private selectionTween: Phaser.Tweens.Tween | null = null;
   private selectionHalo: Phaser.GameObjects.Image | null = null;
+  private wanderTimer: Phaser.Time.TimerEvent | null = null;
 
   /** Grid base position — used for slot repositioning. */
   gridBaseX = 0;
@@ -325,8 +326,14 @@ export class HeroSprite {
   }
 
   setActivity(activity: AgentActivity): void {
+    const wasIdle = this.currentActivity === 'idle';
     this.currentActivity = activity;
     this.refreshNameColor();
+    if (activity === 'idle' && !wasIdle) {
+      this.startIdleWander();
+    } else if (activity !== 'idle' && wasIdle) {
+      this.stopIdleWander();
+    }
   }
 
   setStatus(status: AgentState['status']): void {
@@ -338,7 +345,83 @@ export class HeroSprite {
       this.isWaiting = false;
       this.stopWaitingPulse();
     }
+    if (status === 'completed') {
+      this.stopIdleWander();
+      this.playCompletionVFX();
+    }
     this.refreshNameColor();
+  }
+
+  private playCompletionVFX(): void {
+    const emitter = this.scene.add.particles(this._x, this._y - 10, 'px', {
+      speed: { min: 30, max: 80 },
+      scale: { start: 2, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: [0xFFD700, 0xFFA500, 0xFFFF00],
+      lifespan: 800,
+      quantity: 12,
+      emitting: false,
+    });
+    emitter.explode(12);
+    emitter.setDepth(this.sprite.depth + 1);
+    this.scene.time.delayedCall(1000, () => emitter.destroy());
+  }
+
+  private startIdleWander(): void {
+    if (this.wanderTimer !== null) return;
+    this.scheduleNextWander();
+  }
+
+  private stopIdleWander(): void {
+    if (this.wanderTimer !== null) {
+      this.wanderTimer.remove();
+      this.wanderTimer = null;
+    }
+  }
+
+  private scheduleNextWander(): void {
+    const delay = Phaser.Math.Between(3000, 7000);
+    this.wanderTimer = this.scene.time.delayedCall(delay, () => {
+      this.wanderTimer = null;
+      if (this.currentActivity !== 'idle' || this.moveTween !== null) return;
+      const offsetX = Phaser.Math.Between(-12, 12);
+      const offsetY = Phaser.Math.Between(-8, 8);
+      this.wanderTo(this.gridBaseX + offsetX, this.gridBaseY + offsetY);
+    });
+  }
+
+  private wanderTo(targetX: number, targetY: number): void {
+    const dx = targetX - this._x;
+    const dy = targetY - this._y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < 3) { this.scheduleNextWander(); return; }
+    if (Math.abs(dx) > 3) this.sprite.setFlipX((dx < 0) !== this.facesLeft);
+    this.sprite.play(`${this.runKey}-anim`, true);
+    const duration = (distance / 60) * 1000;
+    this.moveTween = this.scene.tweens.add({
+      targets: { x: this._x, y: this._y },
+      x: targetX,
+      y: targetY,
+      duration,
+      ease: 'Linear',
+      onUpdate: (_tween, target: { x: number; y: number }) => {
+        this._x = target.x;
+        this._y = target.y;
+        this.sprite.setPosition(this._x, this._y);
+        this.nameText.setPosition(this._x, this._y + this.nameOffsetY);
+        this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
+        this.activityMsgText.setPosition(this._x, this._y + this.activityMsgOffsetY);
+        this.indexText.setPosition(this._x + this.indexOffsetX, this._y + this.indexOffsetY);
+        this.updateBubble();
+        if (this.selectionHalo !== null) this.selectionHalo.setPosition(this._x, this._y);
+        this.updateDepth();
+      },
+      onComplete: () => {
+        this.moveTween = null;
+        this.sprite.play(`${this.idleKey}-anim`, true);
+        this.scheduleNextWander();
+      },
+    });
   }
 
   setErrorTimestamp(ts: number | undefined): void {
@@ -615,6 +698,7 @@ export class HeroSprite {
       this.waitingTween.stop();
       this.waitingTween = null;
     }
+    this.stopIdleWander();
     if (this.errorTimer !== null) {
       this.errorTimer.remove();
       this.errorTimer = null;
