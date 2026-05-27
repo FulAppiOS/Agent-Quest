@@ -6,7 +6,7 @@ import * as Phaser from 'phaser';
 // at DPR=1; the *2.5 factor leaves headroom for one or two cmd+ steps before
 // we have to re-render. Recomputed on every DPR change (see watchDpr below).
 function computeTextRes(): number {
-  return Math.max(4, Math.ceil(window.devicePixelRatio * 2.5));
+  return Math.max(2, Math.ceil(window.devicePixelRatio));
 }
 
 let currentTextRes = computeTextRes();
