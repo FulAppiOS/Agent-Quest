@@ -38,7 +38,20 @@ export interface ToolCall {
 // --- Core agent state ---
 export interface AgentState {
   id: string;          // sessionId
-  name: string;        // slug from JSONL (e.g. "bubbly-waddling-cat")
+  /**
+   * Label rendered above the hero. Starts as the JSONL slug or cwd basename
+   * (see `derivedName`), and is overlaid with the user-set display title
+   * whenever a `SessionDisplayNameOracle` returns one. Falls back to
+   * `derivedName` the moment the oracle drops the title — otherwise a deleted
+   * `state.json` would freeze a stale label on the sprite forever.
+   */
+  name: string;
+  /**
+   * Slug/cwd-derived label that survives oracle gaps. Recomputed on every
+   * non-subagent JSONL event so a renamed cwd or a slug surfacing late still
+   * lands here without waiting for the oracle to come back.
+   */
+  derivedName: string;
   heroClass: HeroClass;
   heroColor: HeroColor;
   status: 'active' | 'waiting' | 'idle' | 'completed' | 'error';
@@ -66,6 +79,32 @@ export interface AgentState {
    * sessions and for Claude sessions whose JSONL predates the field.
    */
   model?: string;
+  /**
+   * True when this session was spawned by another session as a sub-agent
+   * (e.g. Claude Code `Agent` / Task tool). Server computes from file-system
+   * layout (subagents/ directory) — client never inspects sessionId patterns
+   * directly. Defaults to false for main sessions and for Codex sessions
+   * (Codex has no sub-agent concept).
+   */
+  isSubagent: boolean;
+  /**
+   * Parent session id when this session is a sub-agent and the parent is
+   * known. Undefined for main sessions and for orphan sub-agents whose
+   * parent jsonl could not be located.
+   */
+  parentSessionId?: string;
+}
+
+// --- Subagent context (anti-corruption boundary) ---
+/**
+ * Carries server-domain knowledge about whether a JSONL file represents a
+ * sub-agent session, plus the parent session id when discoverable. The
+ * file-watcher computes this from disk layout once; downstream layers
+ * (provider, state manager) never inspect file paths or sessionId patterns.
+ */
+export interface SubagentContext {
+  isSubagent: boolean;
+  parentSessionId?: string;
 }
 
 // --- Session metadata from ~/.claude/sessions/<pid>.json

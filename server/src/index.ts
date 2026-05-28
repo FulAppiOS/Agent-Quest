@@ -53,6 +53,7 @@ const stateManager = new AgentStateManager({
   subagentCompletedThresholdMs: SUBAGENT_COMPLETED_THRESHOLD_MS,
   subagentBusyCompletedThresholdMs: SUBAGENT_BUSY_COMPLETED_THRESHOLD_MS,
   livenessOracle: sessionRegistry,
+  displayNameOracle: sessionRegistry,
 });
 const wsServer = new WebSocketServer();
 const mapStorage = new MapStorage();
@@ -119,7 +120,13 @@ const providerHandlers: ProviderHandlers = {
       // filename-derived id so each subagent becomes its own hero instead
       // of being folded into the parent agent.
       event.sessionId = payload.sessionId;
-      const result = stateManager.processEvent(event, payload.configDir, payload.source, payload.nameOverride);
+      const result = stateManager.processEvent(
+        event,
+        payload.configDir,
+        payload.source,
+        payload.nameOverride,
+        payload.subagentCtx,
+      );
       if (result !== null && result.isNew) {
         wsServer.broadcastNewAgent(result.agent);
       }
@@ -133,7 +140,13 @@ const providerHandlers: ProviderHandlers = {
     for (const event of payload.events) {
       // See note in onSessionStart: rekey to filename-derived id for subagents.
       event.sessionId = payload.sessionId;
-      const result = stateManager.processEvent(event, payload.configDir, payload.source);
+      const result = stateManager.processEvent(
+        event,
+        payload.configDir,
+        payload.source,
+        undefined,
+        payload.subagentCtx,
+      );
       if (result === null) continue; // resume-hint dump, no state change
 
       if (result.isNew) {
@@ -239,8 +252,8 @@ const server = Bun.serve({
       wsServer.handleOpen(ws);
       wsServer.sendSnapshot(ws, stateManager.getAll(), allConfigDirs());
     },
-    close(ws: WsClient) {
-      wsServer.handleClose(ws);
+    close(ws: WsClient, code: number, reason: string) {
+      wsServer.handleClose(ws, code, reason);
     },
     message() {
       // Client-to-server messages not needed in Phase 1

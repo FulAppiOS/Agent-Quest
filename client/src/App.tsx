@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { PhaserGame } from './game/PhaserGame';
 import { useAgentState } from './hooks/useAgentState';
 import { useSelectedAgent } from './hooks/useSelectedAgent';
+import { useTopBarPrefs } from './hooks/useTopBarPrefs';
+import { computeShowSourceBadge, filterAgentsForPresentation } from './presentation/agentPresentation';
 import { eventBridge } from './game/EventBridge';
 import { TopBar } from './components/TopBar';
 import { PartyBar } from './components/PartyBar';
@@ -15,6 +17,15 @@ import './App.css';
 export default function App() {
   const { agents, activityLog, connected, configDirs } = useAgentState();
   const { selectedAgentId, selectAgent } = useSelectedAgent();
+  const [topBarPrefs, updateTopBarPrefs] = useTopBarPrefs();
+
+  // Presentation projection: agents shown in the Party Bar and the Phaser
+  // village scene. TopBar stats, DetailPanel lookup, ActivityFeed, and
+  // BuildingInfoPanel continue to use the unfiltered `agents` snapshot.
+  const presentationAgents = useMemo(
+    () => filterAgentsForPresentation(agents, topBarPrefs.showCompletedAgents),
+    [agents, topBarPrefs.showCompletedAgents],
+  );
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string;
     anchor: { x: number; y: number };
@@ -33,10 +44,9 @@ export default function App() {
 
   // Only show source badges when both providers have a LIVE agent — completed
   // / error sessions don't count, otherwise the badge would linger after the
-  // last Codex hero finishes just because it's still in state.
-  const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
-  const showSourceBadge = liveAgents.some((a) => a.source === 'claude')
-    && liveAgents.some((a) => a.source === 'codex');
+  // last Codex hero finishes just because it's still in state. Computed by a
+  // shared helper so VillageScene stays in lockstep.
+  const showSourceBadge = useMemo(() => computeShowSourceBadge(agents), [agents]);
 
   // When selecting agent, clear building
   const handleSelectAgent = useCallback((id: string | null) => {
@@ -103,8 +113,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    eventBridge.emit('agents:updated', agents);
-  }, [agents]);
+    eventBridge.emit('agents:updated', presentationAgents);
+  }, [presentationAgents]);
+
+  // Deselect when the selected agent gets hidden by the presentation projection
+  // (e.g. user flips the "Show completed agents" toggle off while a completed
+  // hero is selected). Without this the DetailPanel would linger pointing at a
+  // hero that is no longer on screen.
+  useEffect(() => {
+    if (selectedAgentId === null) return;
+    const stillVisible = presentationAgents.some((a) => a.id === selectedAgentId);
+    if (!stillVisible) selectAgent(null);
+  }, [presentationAgents, selectedAgentId, selectAgent]);
 
   useEffect(() => {
     eventBridge.emit('selection:changed', selectedAgentId);
@@ -123,10 +143,17 @@ export default function App() {
       <PhaserGame />
       {villageReady && (
         <div className="overlay">
-          <TopBar agents={agents} connected={connected} />
+          <TopBar
+            agents={agents}
+            connected={connected}
+            showCompletedAgents={topBarPrefs.showCompletedAgents}
+            onToggleShowCompletedAgents={() =>
+              updateTopBarPrefs({ showCompletedAgents: !topBarPrefs.showCompletedAgents })
+            }
+          />
           <NoInstallBanner configDirs={configDirs} connected={connected} />
           <PartyBar
-            agents={agents}
+            agents={presentationAgents}
             selectedAgentId={selectedAgentId}
             onSelectAgent={handleSelectAgent}
             showSourceBadge={showSourceBadge}
@@ -138,7 +165,7 @@ export default function App() {
             <BuildingInfoPanel
               buildingId={selectedBuilding.id}
               anchor={selectedBuilding.anchor}
-              agents={agents}
+              agents={presentationAgents}
               onClose={() => setSelectedBuilding(null)}
             />
           )}

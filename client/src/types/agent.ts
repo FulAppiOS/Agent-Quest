@@ -101,6 +101,31 @@ export interface AgentState {
   source: AgentSource;
   /** Raw model id from Claude Code (e.g. `claude-opus-4-6`). Undefined for Codex. */
   model?: string;
+  /**
+   * True when this session was spawned by another session as a sub-agent.
+   * Server-computed (file-system layout). Client never inspects sessionId
+   * patterns directly. Older server payloads predating this field are
+   * tolerated by `normalizeAgentState` below.
+   */
+  isSubagent: boolean;
+  /**
+   * Parent session id when this session is a sub-agent and the parent is
+   * known. Undefined for main sessions and for orphan sub-agents.
+   */
+  parentSessionId?: string;
+}
+
+/**
+ * Normalize a partial AgentState received over WebSocket — back-compat shim
+ * for older server payloads (or replays) that do not carry the new sub-agent
+ * fields. Anything missing falls back to "main session" semantics so the
+ * existing rendering path stays correct.
+ */
+export function normalizeAgentState(raw: Omit<AgentState, 'isSubagent'> & { isSubagent?: boolean }): AgentState {
+  return {
+    ...raw,
+    isSubagent: raw.isSubagent ?? false,
+  };
 }
 
 /**

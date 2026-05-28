@@ -44,9 +44,10 @@ export function BuildingInfoPanel({ buildingId, anchor, agents, onClose }: Build
 
   if (building === undefined) return null;
 
-  const agentsHere = agents.filter(
-    (a) => a.currentActivity === building.activity && (a.status === 'active' || a.status === 'idle'),
-  );
+  // `agents` is the App-level presentation projection — it already excludes
+  // `error` / `waiting`, and gates `completed` behind the TopBar toggle.
+  // We only need to match this building's activity here.
+  const agentsHere = agents.filter((a) => a.currentActivity === building.activity);
 
   const style = position === null
     ? { visibility: 'hidden' as const }

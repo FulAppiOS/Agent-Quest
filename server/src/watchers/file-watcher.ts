@@ -2,9 +2,22 @@ import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
+import type { SubagentContext } from '../types';
+
 export interface WatcherCallbacks {
-  onNewSession: (sessionId: string, projectPath: string, configDir: string) => void;
-  onSessionUpdate: (sessionId: string, projectPath: string, newContent: string, configDir: string) => void;
+  onNewSession: (
+    sessionId: string,
+    projectPath: string,
+    configDir: string,
+    subagentCtx: SubagentContext,
+  ) => void;
+  onSessionUpdate: (
+    sessionId: string,
+    projectPath: string,
+    newContent: string,
+    configDir: string,
+    subagentCtx: SubagentContext,
+  ) => void;
 }
 
 export interface WatcherOptions extends WatcherCallbacks {
@@ -115,12 +128,21 @@ export class FileWatcher {
 
       for (const file of files) {
         if (file.endsWith('.jsonl')) {
-          await this.processJsonlFile(join(projectPath, file), file.replace('.jsonl', ''), claudeDir);
+          await this.processJsonlFile(
+            join(projectPath, file),
+            file.replace('.jsonl', ''),
+            claudeDir,
+            { isSubagent: false },
+          );
           continue;
         }
 
-        // Per-session subdirectories may contain subagent JSONLs at <sessionId>/subagents/agent-*.jsonl
-        const subagentsDir = join(projectPath, file, 'subagents');
+        // Per-session subdirectories may contain subagent JSONLs at
+        // <parentSessionId>/subagents/agent-*.jsonl. The directory name *is*
+        // the parent session id — this is the anti-corruption boundary where
+        // disk layout becomes domain metadata (`SubagentContext`).
+        const parentSessionId = file;
+        const subagentsDir = join(projectPath, parentSessionId, 'subagents');
         const subStat = await stat(subagentsDir).catch(() => null);
         if (subStat === null || !subStat.isDirectory()) continue;
 
@@ -129,13 +151,23 @@ export class FileWatcher {
 
         for (const subFile of subFiles) {
           if (!subFile.endsWith('.jsonl')) continue;
-          await this.processJsonlFile(join(subagentsDir, subFile), subFile.replace('.jsonl', ''), claudeDir);
+          await this.processJsonlFile(
+            join(subagentsDir, subFile),
+            subFile.replace('.jsonl', ''),
+            claudeDir,
+            { isSubagent: true, parentSessionId },
+          );
         }
       }
     }
   }
 
-  private async processJsonlFile(filePath: string, sessionId: string, claudeDir: string): Promise<void> {
+  private async processJsonlFile(
+    filePath: string,
+    sessionId: string,
+    claudeDir: string,
+    subagentCtx: SubagentContext,
+  ): Promise<void> {
     const fileStat = await stat(filePath).catch(() => null);
     if (fileStat === null) return;
 
@@ -153,14 +185,14 @@ export class FileWatcher {
       }
       // New session file
       this.fileSizes.set(filePath, currentSize);
-      this.callbacks.onNewSession(sessionId, filePath, claudeDir);
+      this.callbacks.onNewSession(sessionId, filePath, claudeDir, subagentCtx);
     } else if (currentSize > previousSize) {
       // File grew — read only the new bytes
       const fd = Bun.file(filePath);
       const newBytes = fd.slice(previousSize, currentSize);
       const newContent = await newBytes.text();
       this.fileSizes.set(filePath, currentSize);
-      this.callbacks.onSessionUpdate(sessionId, filePath, newContent, claudeDir);
+      this.callbacks.onSessionUpdate(sessionId, filePath, newContent, claudeDir, subagentCtx);
     }
   }
 }

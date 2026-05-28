@@ -1,8 +1,26 @@
-import type { AgentSource, AgentState, HeroClass, HeroColor } from '../types';
+import type { AgentSource, AgentState, HeroClass, HeroColor, SubagentContext } from '../types';
 import { HERO_CLASSES, HERO_COLORS } from '../types';
 import type { ParsedEvent } from '../parsers/session-parser';
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit']);
+
+// AgentState retention policy: each agent exposes a bounded "recent history"
+// of tool calls and modified files to the UI. The Party Bar, Detail Panel,
+// and village scene only need the most recent activity — older entries are
+// dropped FIFO. Transport-level concerns (payload byte budget, broadcast
+// frame size) live in `WebSocketServer`; this cap is the state manager's own
+// input policy and does not depend on which transport happens to ship it.
+const MAX_TOOL_CALLS_PER_AGENT = 50;
+const MAX_FILES_MODIFIED_PER_AGENT = 50;
+
+function trimAgentHistory(agent: AgentState): void {
+  if (agent.toolCalls.length > MAX_TOOL_CALLS_PER_AGENT) {
+    agent.toolCalls.splice(0, agent.toolCalls.length - MAX_TOOL_CALLS_PER_AGENT);
+  }
+  if (agent.filesModified.length > MAX_FILES_MODIFIED_PER_AGENT) {
+    agent.filesModified.splice(0, agent.filesModified.length - MAX_FILES_MODIFIED_PER_AGENT);
+  }
+}
 
 function cwdBasename(cwd: string): string {
   const parts = cwd.split('/').filter((p) => p.length > 0);
@@ -49,6 +67,16 @@ export interface SessionLivenessOracle {
   isLive(sessionId: string): boolean;
 }
 
+/**
+ * Display-name oracle: returns an optional human-readable label for a session.
+ * Returns undefined when no label is available — callers fall back to the
+ * slug/cwd-basename derivation. The concrete storage (file paths, formats) is
+ * the adapter's concern, not part of this contract.
+ */
+export interface SessionDisplayNameOracle {
+  getDisplayName(sessionId: string): string | undefined;
+}
+
 export interface AgentStateManagerOptions {
   /** Age above which an agent transitions from active → idle (ms). Default 5 min. */
   idleThresholdMs?: number;
@@ -72,6 +100,8 @@ export interface AgentStateManagerOptions {
   subagentBusyCompletedThresholdMs?: number;
   /** Optional oracle for cross-referencing sessions against live Claude pids. */
   livenessOracle?: SessionLivenessOracle;
+  /** Optional oracle for surfacing the user-set session display name as the agent label. */
+  displayNameOracle?: SessionDisplayNameOracle;
 }
 
 function isSubagentSessionId(sessionId: string): boolean {
@@ -89,6 +119,7 @@ export class AgentStateManager {
   private subagentCompletedThresholdMs: number;
   private subagentBusyCompletedThresholdMs: number;
   private livenessOracle: SessionLivenessOracle | undefined;
+  private displayNameOracle: SessionDisplayNameOracle | undefined;
 
   constructor(opts: AgentStateManagerOptions = {}) {
     this.idleThresholdMs = opts.idleThresholdMs ?? 5 * 60_000;
@@ -98,10 +129,15 @@ export class AgentStateManager {
     this.subagentCompletedThresholdMs = opts.subagentCompletedThresholdMs ?? 5 * 60_000;
     this.subagentBusyCompletedThresholdMs = opts.subagentBusyCompletedThresholdMs ?? 15 * 60_000;
     this.livenessOracle = opts.livenessOracle;
+    this.displayNameOracle = opts.displayNameOracle;
   }
 
   setLivenessOracle(oracle: SessionLivenessOracle | undefined): void {
     this.livenessOracle = oracle;
+  }
+
+  setDisplayNameOracle(oracle: SessionDisplayNameOracle | undefined): void {
+    this.displayNameOracle = oracle;
   }
 
   processEvent(
@@ -109,6 +145,7 @@ export class AgentStateManager {
     configDir = '',
     source: AgentSource = 'claude',
     nameOverride?: string,
+    subagentCtx?: SubagentContext,
   ): ProcessResult | null {
     const existing = this.agents.get(event.sessionId);
 
@@ -123,12 +160,14 @@ export class AgentStateManager {
     }
 
     if (existing === undefined) {
-      const agent = this.createAgent(event, configDir, source, nameOverride);
+      const agent = this.createAgent(event, configDir, source, nameOverride, subagentCtx);
+      trimAgentHistory(agent);
       this.agents.set(event.sessionId, agent);
       this.applyDerivedStatus(agent);
       this.applyTurnAndError(agent, event);
       // Liveness wins over turn-end: a dead pid can't be mid-turn.
       this.applyLivenessOverride(agent);
+      this.applyDisplayName(agent);
       return { agent, isNew: true };
     }
 
@@ -141,6 +180,7 @@ export class AgentStateManager {
       this.applyTurnAndError(existing, event);
       this.applyLivenessOverride(existing);
     }
+    this.applyDisplayName(existing);
     return { agent: existing, isNew: false };
   }
 
@@ -150,12 +190,33 @@ export class AgentStateManager {
     for (const agent of this.agents.values()) {
       const before = agent.status;
       const beforeActivity = agent.currentActivity;
+      const beforeName = agent.name;
       this.applyDerivedStatus(agent);
-      if (agent.status !== before || agent.currentActivity !== beforeActivity) {
+      this.applyDisplayName(agent);
+      if (
+        agent.status !== before ||
+        agent.currentActivity !== beforeActivity ||
+        agent.name !== beforeName
+      ) {
         changed.push(agent.id);
       }
     }
     return changed;
+  }
+
+  /**
+   * Reconcile `agent.name` against the oracle on every tick. Returning to the
+   * derived (slug/cwd) name is just as important as overlaying the oracle's
+   * label — without the fallback path, a removed/corrupt `state.json` would
+   * leave the previous title frozen on the sprite. Subagents are skipped
+   * (they have no jobId of their own and keep the filename descriptor).
+   */
+  private applyDisplayName(agent: AgentState): void {
+    if (isSubagentSessionId(agent.id)) return;
+    const oracleName = this.displayNameOracle?.getDisplayName(agent.id);
+    agent.name = oracleName !== undefined && oracleName.length > 0
+      ? oracleName
+      : agent.derivedName;
   }
 
   /**
@@ -418,15 +479,17 @@ export class AgentStateManager {
     configDir: string,
     source: AgentSource,
     nameOverride?: string,
+    subagentCtx?: SubagentContext,
   ): AgentState {
-    const name = nameOverride !== undefined && nameOverride.length > 0
+    const derivedName = nameOverride !== undefined && nameOverride.length > 0
       ? nameOverride
       : deriveAgentName(event.slug, event.cwd, event.sessionId);
     const agent: AgentState = {
       id: event.sessionId,
-      name,
+      name: derivedName,
+      derivedName,
       heroClass: this.nextHeroClass(),
-      heroColor: this.pickUnusedColorFor(name),
+      heroColor: this.pickUnusedColorFor(derivedName),
       status: 'active',
       currentActivity: event.activity,
       currentFile: event.file,
@@ -444,6 +507,8 @@ export class AgentStateManager {
       configDir,
       source,
       model: event.model,
+      isSubagent: subagentCtx?.isSubagent ?? false,
+      parentSessionId: subagentCtx?.parentSessionId,
     };
     return agent;
   }
@@ -463,12 +528,14 @@ export class AgentStateManager {
     }
 
     // Subagents keep their filename-derived name — the event's slug is the
-    // parent session's slug (copied verbatim) and would be misleading.
+    // parent session's slug (copied verbatim) and would be misleading. Updates
+    // land on `derivedName` so `applyDisplayName()` can swap back when the
+    // oracle drops the user-set title.
     if (!isSubagentId(agent.id)) {
       if (event.slug !== undefined) {
-        agent.name = event.slug;
-      } else if (looksLikeSessionPrefix(agent.name) && event.cwd !== undefined) {
-        agent.name = cwdBasename(event.cwd);
+        agent.derivedName = event.slug;
+      } else if (looksLikeSessionPrefix(agent.derivedName) && event.cwd !== undefined) {
+        agent.derivedName = cwdBasename(event.cwd);
       }
     }
 
@@ -477,6 +544,7 @@ export class AgentStateManager {
         agent.filesModified.push(f);
       }
     }
+    trimAgentHistory(agent);
   }
 
   private extractModifiedFiles(event: ParsedEvent): string[] {

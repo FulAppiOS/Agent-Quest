@@ -12,6 +12,27 @@ import type { AgentState } from '../../types/agent';
 import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '../../editor/types/map';
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
+import { computeShowSourceBadge } from '../../presentation/agentPresentation';
+
+// Mirror of PartyBar's STATUS_ORDER. Both surfaces sort by the same key so the
+// number rendered above each hero in the village matches its row in the panel.
+const STATUS_ORDER: Record<AgentState['status'], number> = {
+  active: 0,
+  waiting: 1,
+  idle: 2,
+  error: 3,
+  completed: 4,
+};
+import { TILE_SIZE } from '../../editor/types/map';
+import { computeChildOffset } from './subagent-layout';
+import {
+  buildConnectorSegments,
+  CONNECTOR_COLOR,
+  CONNECTOR_ALPHA,
+  CONNECTOR_LINE_WIDTH,
+  CONNECTOR_DASH_LENGTH,
+  CONNECTOR_GAP_LENGTH,
+} from './subagent-connector';
 
 /** Set `cam.zoom` to `newZoom` while keeping the world point currently
  * under screen coordinates (sx, sy) pinned to the same screen spot.
@@ -45,6 +66,24 @@ export class VillageScene extends Phaser.Scene {
 
   /** Tracks which building each hero is currently assigned to. */
   private heroBuildingMap = new Map<string, string>();
+
+  /**
+   * Parent → set of attached sub-agent ids. Attached sub-agents bypass
+   * `buildingSlots` entirely and follow their parent's position frame to
+   * frame. Orphan sub-agents (parent gone or never seen) fall back to
+   * regular slot assignment and are absent from this map.
+   */
+  private parentChildren = new Map<string, Set<string>>();
+
+  /** Reverse lookup: attached child id → parent id. */
+  private subagentParents = new Map<string, string>();
+
+  /**
+   * Reusable Graphics object for drawing the dashed connector lines between
+   * parent heroes and their attached sub-agents. Cleared and redrawn each
+   * frame in `update()` so it always reflects current hero positions.
+   */
+  private subagentConnectorGraphics: Phaser.GameObjects.Graphics | null = null;
 
   /** Atmospheric effects */
   private nightOverlay: Phaser.GameObjects.Graphics | null = null;
@@ -86,6 +125,16 @@ export class VillageScene extends Phaser.Scene {
     // rect with its own ground layer (procedural or MapConfig tileset), so
     // this colour is only visible past the map edges or during zoom-out.
     this.cameras.main.setBackgroundColor('#000000');
+
+    // Brightness boost — a subtle additive white overlay lifts the dark forest
+    // tones so the village reads clearly as a PiP overlay in YouTube Shorts.
+    const brightnessOverlay = this.add.rectangle(
+      WORLD_WIDTH / 2, WORLD_HEIGHT / 2,
+      WORLD_WIDTH, WORLD_HEIGHT,
+      0xFFFFFF, 0.06,
+    );
+    brightnessOverlay.setBlendMode(Phaser.BlendModes.ADD);
+    brightnessOverlay.setDepth(0.01);
 
     // Signal React that the village is up so it can reveal the HTML overlays
     // (TopBar, PartyBar, etc.) that should stay hidden during the BootScene.
@@ -176,6 +225,13 @@ export class VillageScene extends Phaser.Scene {
         pinchStartDist = 0;
       }
     });
+
+    // --- Sub-agent connector lines ---
+    // A single reusable Graphics layer cleared and redrawn each frame in update().
+    // Depth sits just below sprites (footY + 0.3) so connectors appear as
+    // ground-level guides without obscuring hero labels.
+    this.subagentConnectorGraphics = this.add.graphics();
+    this.subagentConnectorGraphics.setDepth(0.3);
 
     // --- Night overlay ---
     this.nightOverlay = this.add.graphics();
@@ -380,6 +436,8 @@ export class VillageScene extends Phaser.Scene {
       this.buildings = [];
       this.buildingSlots.clear();
       this.heroBuildingMap.clear();
+      this.parentChildren.clear();
+      this.subagentParents.clear();
       for (const npc of this.editorNpcs) npc.destroy();
       this.editorNpcs = [];
     };
@@ -571,6 +629,138 @@ export class VillageScene extends Phaser.Scene {
   // Slot management
   // ---------------------------------------------------------------------------
 
+  /**
+   * Is this agent eligible to render as an attached sub-agent (companion of
+   * a live parent)? Returns true only when a parent hero is currently on
+   * screen — orphan sub-agents fall through to regular slot layout.
+   */
+  private canAttachSubagent(agent: AgentState): boolean {
+    if (!agent.isSubagent) return false;
+    if (agent.parentSessionId === undefined) return false;
+    return this.heroes.has(agent.parentSessionId);
+  }
+
+  private attachSubagent(parentId: string, childId: string): void {
+    this.subagentParents.set(childId, parentId);
+    let siblings = this.parentChildren.get(parentId);
+    if (siblings === undefined) {
+      siblings = new Set();
+      this.parentChildren.set(parentId, siblings);
+    }
+    siblings.add(childId);
+  }
+
+  private detachSubagent(childId: string): void {
+    const parentId = this.subagentParents.get(childId);
+    if (parentId === undefined) return;
+    this.subagentParents.delete(childId);
+    const siblings = this.parentChildren.get(parentId);
+    if (siblings === undefined) return;
+    siblings.delete(childId);
+    if (siblings.size === 0) {
+      this.parentChildren.delete(parentId);
+    }
+  }
+
+  /**
+   * Each frame, anchor every attached sub-agent to its parent's current
+   * position plus a deterministic stagger offset. Sub-agents bypass the
+   * tween-driven road network, so this is what actually makes them follow.
+   */
+  override update(): void {
+    // Always clear connectors — even when parentChildren is empty so leftover
+    // lines from a previous frame disappear when the last sub-agent detaches.
+    this.subagentConnectorGraphics?.clear();
+
+    if (this.parentChildren.size === 0) return;
+
+    const connectorPairs: Array<{
+      parentX: number;
+      parentY: number;
+      childX: number;
+      childY: number;
+    }> = [];
+
+    for (const [parentId, siblings] of this.parentChildren) {
+      const parentHero = this.heroes.get(parentId);
+      if (parentHero === undefined) continue;
+      const sortedSiblings = [...siblings].sort();
+      for (let i = 0; i < sortedSiblings.length; i++) {
+        const childId = sortedSiblings[i];
+        if (childId === undefined) continue;
+        const child = this.heroes.get(childId);
+        if (child === undefined) continue;
+        const offset = computeChildOffset(
+          { x: parentHero.x, y: parentHero.y },
+          i,
+          TILE_SIZE,
+        );
+        child.teleportTo(offset.x, offset.y);
+        connectorPairs.push({
+          parentX: parentHero.x,
+          parentY: parentHero.y,
+          childX: offset.x,
+          childY: offset.y,
+        });
+      }
+    }
+
+    this.drawSubagentConnectors(connectorPairs);
+  }
+
+  /**
+   * Draw dashed lines connecting each parent hero to its attached sub-agents.
+   *
+   * Uses `buildConnectorSegments` (pure, testable) for geometry and draws
+   * a dash-gap pattern manually since Phaser's Graphics API does not expose
+   * a native `setLineDash` equivalent. The result is a subtle dotted line
+   * that reads as a "belongs to" relation without overpowering the sprites.
+   */
+  private drawSubagentConnectors(
+    pairs: ReadonlyArray<{
+      parentX: number;
+      parentY: number;
+      childX: number;
+      childY: number;
+    }>,
+  ): void {
+    const graphics = this.subagentConnectorGraphics;
+    if (graphics === null || pairs.length === 0) return;
+
+    const segments = buildConnectorSegments(pairs);
+    graphics.lineStyle(CONNECTOR_LINE_WIDTH, CONNECTOR_COLOR, CONNECTOR_ALPHA);
+
+    for (const segment of segments) {
+      if (segment.length < 1) continue;
+
+      const dx = (segment.x2 - segment.x1) / segment.length;
+      const dy = (segment.y2 - segment.y1) / segment.length;
+      let traveled = 0;
+      let drawing = true;
+
+      while (traveled < segment.length) {
+        const segmentEnd = Math.min(
+          traveled + (drawing ? CONNECTOR_DASH_LENGTH : CONNECTOR_GAP_LENGTH),
+          segment.length,
+        );
+        if (drawing) {
+          graphics.beginPath();
+          graphics.moveTo(
+            segment.x1 + dx * traveled,
+            segment.y1 + dy * traveled,
+          );
+          graphics.lineTo(
+            segment.x1 + dx * segmentEnd,
+            segment.y1 + dy * segmentEnd,
+          );
+          graphics.strokePath();
+        }
+        traveled = segmentEnd;
+        drawing = !drawing;
+      }
+    }
+  }
+
   private addToSlot(buildingId: string, heroId: string): void {
     let slots = this.buildingSlots.get(buildingId);
     if (slots === undefined) {
@@ -634,25 +824,52 @@ export class VillageScene extends Phaser.Scene {
 
     const now = Date.now();
 
-    // Show active + idle-recent (< 2h), hide completed/error and idle > 2h
+    // App-level presentation projection already excludes `waiting` / `error`,
+    // and gates `completed` behind the TopBar toggle. The scene applies two
+    // additional local policies: hide `error` defensively, and drop heroes
+    // that have been idle for longer than IDLE_HIDE_THRESHOLD_MS so the
+    // village doesn't grow unbounded over a long-lived session.
     const visible = agents.filter((a) => {
-      if (a.status === 'completed' || a.status === 'error') return false;
+      if (a.status === 'error') return false;
       if (a.status === 'idle' && now - a.lastEvent > IDLE_HIDE_THRESHOLD_MS) return false;
       return true;
     });
 
     // Mixed-provider mode: show source badges only when both Claude and Codex
-    // have a LIVE hero. Completed/error sessions don't count, so the badge
-    // disappears the moment the last non-dormant Codex hero finishes. Mirrors
-    // the flag computed in App.tsx — keep these two in sync.
-    const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
-    const hasClaude = liveAgents.some((a) => a.source === 'claude');
-    const hasCodex = liveAgents.some((a) => a.source === 'codex');
-    const showSourceBadge = hasClaude && hasCodex;
+    // have a LIVE hero. Computed by the shared `computeShowSourceBadge` helper
+    // so this stays in lockstep with App.tsx — both call the same function
+    // against the unfiltered `agents` snapshot.
+    const showSourceBadge = computeShowSourceBadge(agents);
+
+    // Track which buildings need repositioning. Declared up here because both
+    // the removal pass (parent leaves → children orphan into slots) and the
+    // visible-iteration pass below need to flag dirty buildings.
+    const buildingsToReposition = new Set<string>();
 
     // Remove heroes no longer visible
     for (const [id, hero] of this.heroes) {
       if (!visible.some((a) => a.id === id)) {
+        // If a parent goes away, promote each attached child to orphan so it
+        // re-enters slot-based layout instead of vanishing along with the parent.
+        const orphanedChildren = this.parentChildren.get(id);
+        if (orphanedChildren !== undefined) {
+          for (const childId of orphanedChildren) {
+            this.subagentParents.delete(childId);
+            const childHero = this.heroes.get(childId);
+            const childAgent = visible.find((a) => a.id === childId);
+            if (childHero !== undefined && childAgent !== undefined) {
+              const childBuildingDef = getBuildingForActivity(childAgent.currentActivity);
+              this.addToSlot(childBuildingDef.id, childId);
+              buildingsToReposition.add(childBuildingDef.id);
+            }
+          }
+          this.parentChildren.delete(id);
+        }
+
+        // If the leaving hero was itself an attached sub-agent, detach cleanly
+        // and re-layout the remaining siblings so the deterministic order tightens.
+        this.detachSubagent(id);
+
         const oldBuilding = this.removeFromSlot(id);
         hero.destroy();
         this.heroes.delete(id);
@@ -662,15 +879,24 @@ export class VillageScene extends Phaser.Scene {
       }
     }
 
-    // Track which buildings need repositioning
-    const buildingsToReposition = new Set<string>();
+    // Process parent heroes before sub-agents so that `canAttachSubagent`
+    // sees the parent in `this.heroes` when the child is spawned.  A single
+    // sort pass is O(n log n) and avoids a two-pass loop for the common case
+    // where parents and children arrive in the same snapshot.
+    const orderedVisible = [...visible].sort((a, b) => {
+      const aIsChild = a.isSubagent ? 1 : 0;
+      const bIsChild = b.isSubagent ? 1 : 0;
+      return aIsChild - bIsChild;
+    });
 
-    for (const agent of visible) {
+    for (const agent of orderedVisible) {
       const existing = this.heroes.get(agent.id);
       const buildingDef = getBuildingForActivity(agent.currentActivity);
+      const attachable = this.canAttachSubagent(agent);
 
       if (existing === undefined) {
-        // New hero: spawn at configured spawn point then assign to building
+        // New hero: spawn at configured spawn point then either follow the
+        // parent (attached sub-agent) or take a regular building slot.
         const hero = new HeroSprite(
           this,
           agent.id,
@@ -679,7 +905,7 @@ export class VillageScene extends Phaser.Scene {
           agent.heroColor,
           this.heroSpawn.x,
           this.heroSpawn.y,
-          agent.id.startsWith('agent-'),
+          agent.isSubagent,
           agent.source,
         );
         hero.setHeroScale(this.heroScale);
@@ -693,30 +919,54 @@ export class VillageScene extends Phaser.Scene {
         hero.setInteractiveForSelection(() => {
           eventBridge.emit('hero:clicked', agent.id);
         });
-        this.addToSlot(buildingDef.id, agent.id);
-        buildingsToReposition.add(buildingDef.id);
+
+        if (attachable) {
+          this.attachSubagent(agent.parentSessionId as string, agent.id);
+        } else {
+          this.addToSlot(buildingDef.id, agent.id);
+          buildingsToReposition.add(buildingDef.id);
+        }
       } else {
         // Always update detail text (file/command changes even without activity change)
+        existing.updateName(agent.name);
         existing.updateDetail(agent.currentFile, agent.currentCommand);
         existing.updateTask(agent.currentTask);
         existing.setStatus(agent.status);
         existing.setErrorTimestamp(agent.lastErrorAt);
         existing.setModel(agent.model);
 
-        const currentBuildingId = this.heroBuildingMap.get(agent.id);
-
-        if (currentBuildingId !== buildingDef.id) {
-          // Hero changed building — update activity before repositioning
+        const wasAttached = this.subagentParents.has(agent.id);
+        if (wasAttached && !attachable) {
+          // Orphaned mid-life — leave the parent group and fall back to slot.
+          this.detachSubagent(agent.id);
           existing.setActivity(agent.currentActivity);
-          const oldBuilding = this.removeFromSlot(agent.id);
           this.addToSlot(buildingDef.id, agent.id);
-
-          if (oldBuilding !== undefined) {
-            buildingsToReposition.add(oldBuilding);
-          }
           buildingsToReposition.add(buildingDef.id);
+        } else if (!wasAttached && attachable && this.heroBuildingMap.has(agent.id)) {
+          // Newly attachable (parent appeared) — vacate slot and follow parent.
+          const oldBuilding = this.removeFromSlot(agent.id);
+          if (oldBuilding !== undefined) buildingsToReposition.add(oldBuilding);
+          this.attachSubagent(agent.parentSessionId as string, agent.id);
+        } else if (!wasAttached) {
+          const currentBuildingId = this.heroBuildingMap.get(agent.id);
+
+          if (currentBuildingId !== buildingDef.id) {
+            // Hero changed building — update activity before repositioning
+            existing.setActivity(agent.currentActivity);
+            const oldBuilding = this.removeFromSlot(agent.id);
+            this.addToSlot(buildingDef.id, agent.id);
+
+            if (oldBuilding !== undefined) {
+              buildingsToReposition.add(oldBuilding);
+            }
+            buildingsToReposition.add(buildingDef.id);
+          } else if (existing.currentActivity !== agent.currentActivity) {
+            // Same building, different activity — update label
+            existing.setActivity(agent.currentActivity);
+          }
         } else if (existing.currentActivity !== agent.currentActivity) {
-          // Same building, different activity — update label
+          // Attached sub-agent — keep activity label up to date; layout is
+          // driven by the parent's position each frame.
           existing.setActivity(agent.currentActivity);
         }
       }
@@ -727,6 +977,17 @@ export class VillageScene extends Phaser.Scene {
     for (const hero of this.heroes.values()) {
       hero.setSourceBadgeVisible(showSourceBadge);
     }
+
+    // Assign party index (1-based) using the same status-ordered sort PartyBar
+    // applies — that's what ties the marker above the sprite to the row in the
+    // side panel. Hidden heroes (subagents whose parent isn't here yet) still
+    // get a number but it's safe to skip if `setIndex` is no-op on them.
+    const indexed = [...visible].sort(
+      (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
+    );
+    indexed.forEach((agent, i) => {
+      this.heroes.get(agent.id)?.setIndex(i + 1);
+    });
 
     for (const buildingId of buildingsToReposition) {
       this.repositionBuilding(buildingId);

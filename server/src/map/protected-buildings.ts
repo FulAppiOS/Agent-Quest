@@ -14,15 +14,17 @@ export interface ProtectedBuildingDefault {
   defaultScale: number;
 }
 
+// Coordinates mirror BUILDING_DEFS in client/src/game/data/building-layout.ts.
+// Keep both in sync whenever buildings are repositioned.
 export const DEFAULT_PROTECTED_BUILDINGS: ProtectedBuildingDefault[] = [
-  { id: 'library',    label: 'Library',    activity: 'reading',   x: 1060, y: 600,  defaultScale: 0.52 },
-  { id: 'alchemist',  label: 'Alchemist',  activity: 'debugging', x: 1210, y: 460,  defaultScale: 0.50 },
-  { id: 'castle',     label: 'Castle',     activity: 'thinking',  x: 1430, y: 430,  defaultScale: 0.46 },
-  { id: 'watchtower', label: 'Watchtower', activity: 'reviewing', x: 1650, y: 470,  defaultScale: 0.42 },
-  { id: 'chapel',     label: 'Chapel',     activity: 'git',       x: 1790, y: 610,  defaultScale: 0.38 },
-  { id: 'tavern',     label: 'Tavern',     activity: 'idle',      x: 1510, y: 810,  defaultScale: 0.50 },
-  { id: 'forge',      label: 'Forge',      activity: 'editing',   x: 1150, y: 970,  defaultScale: 0.42 },
-  { id: 'arena',      label: 'Arena',      activity: 'bash',      x: 1700, y: 970,  defaultScale: 0.42 },
+  { id: 'library',    label: 'Library',    activity: 'reading',   x: 1150, y: 900,  defaultScale: 0.52 },
+  { id: 'castle',     label: 'Castle',     activity: 'thinking',  x: 1300, y: 700,  defaultScale: 0.46 },
+  { id: 'forge',      label: 'Forge',      activity: 'editing',   x: 1380, y: 880,  defaultScale: 0.42 },
+  { id: 'arena',      label: 'Arena',      activity: 'bash',      x: 1560, y: 880,  defaultScale: 0.42 },
+  { id: 'alchemist',  label: 'Alchemist',  activity: 'debugging', x: 1470, y: 700,  defaultScale: 0.50 },
+  { id: 'chapel',     label: 'Chapel',     activity: 'git',       x: 1720, y: 560,  defaultScale: 0.38 },
+  { id: 'watchtower', label: 'Watchtower', activity: 'reviewing', x: 1600, y: 450,  defaultScale: 0.42 },
+  { id: 'tavern',     label: 'Tavern',     activity: 'idle',      x: 1250, y: 780,  defaultScale: 0.50 },
 ];
 
 export const PROTECTED_BUILDING_IDS: readonly string[] = DEFAULT_PROTECTED_BUILDINGS.map((b) => b.id);

@@ -26,10 +26,10 @@ export class ClaudeProvider implements SessionProvider {
       maxAgeMs: this.opts.maxAgeMs,
       claudeDirs: this.opts.claudeDirs,
 
-      onNewSession: async (sessionId, filePath, configDir) => {
+      onNewSession: async (sessionId, filePath, configDir, subagentCtx) => {
         const contents = await Bun.file(filePath).text();
         const events = parseSessionFile(contents);
-        const nameOverride = sessionId.startsWith('agent-')
+        const nameOverride = subagentCtx.isSubagent
           ? await resolveSubagentLabel(filePath).catch(() => undefined)
           : undefined;
         await handlers.onSessionStart({
@@ -38,10 +38,11 @@ export class ClaudeProvider implements SessionProvider {
           configDir,
           events,
           nameOverride,
+          subagentCtx,
         });
       },
 
-      onSessionUpdate: (sessionId, _filePath, newContent, configDir) => {
+      onSessionUpdate: (sessionId, _filePath, newContent, configDir, subagentCtx) => {
         const events: ParsedEvent[] = [];
         for (const line of newContent.split('\n')) {
           if (line.trim() === '') continue;
@@ -54,6 +55,7 @@ export class ClaudeProvider implements SessionProvider {
           sessionId,
           configDir,
           events,
+          subagentCtx,
         });
       },
     });

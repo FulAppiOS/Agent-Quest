@@ -148,6 +148,25 @@
 .partybar-status-overlay.error     { background: #8B2500; }
 .partybar-status-overlay.waiting   { background: #FFD700; }
 
+/* === Index marker (matches the number above the sprite in the village) === */
+.partybar-index {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #F5E6C8;
+  font: 600 11px/18px 'Fira Code', monospace;
+  text-align: center;
+  border: 1px solid rgba(244, 230, 200, 0.4);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* === Row body (Full only) === */
 .partybar-row-body {
   display: flex;

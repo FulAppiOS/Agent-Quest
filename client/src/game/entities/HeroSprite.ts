@@ -1,20 +1,19 @@
 import * as Phaser from 'phaser';
-import { HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
+import { HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
+import { truncateLabel } from '../../utils/truncateLabel';
+import { computeSpriteScale } from './hero-scale';
 
 const MOVE_SPEED = 150;
 /** Ground distance covered by one full run-cycle. Keeps legs synced to travel. */
 const RUN_PIXELS_PER_CYCLE = 60;
 
-/**
- * Label offsets are computed per-instance from the sprite's actual
- * displayHeight so they adapt to whatever scale the active theme uses.
- * The formulas below reproduce the original Tiny Swords values
- * (sprite 96 px → name -50, activity +46, detail +60, task +74).
- */
-const TASK_MAX_CHARS = 28;
+/** Truncation caps — short so labels stay inside the sprite's visual footprint. */
+const NAME_MAX_CHARS = 18;
+const TASK_MAX_CHARS = 44;
+const ACTIVITY_MSG_MAX_CHARS = 44;
 
 const ACTIVITY_COLOR: Record<AgentActivity, string> = {
   idle:      '#888888',
@@ -31,15 +30,14 @@ const WAITING_COLOR = '#FFD700';
 const ERROR_COLOR = '#FF4444';
 const ERROR_WINDOW_MS = 90 * 1000;
 
+const LABEL_BG = 'rgba(0,0,0,0.65)';
+const LABEL_PAD = { x: 4, y: 2 };
+const BUBBLE_TASK_COLOR = '#3D1F00';   // user command — dark brown, dominant
+const BUBBLE_MSG_COLOR = '#8C6A4A';   // system feedback — mid brown, recessive
+const INDEX_COLOR = '#F5E6C8';
+
 const HALO_TEXTURE_KEY = 'hero-selection-halo';
 
-/**
- * Lazily build a soft radial-gradient texture we can reuse as the selection
- * halo. Cached in Phaser's global TextureManager for the lifetime of the
- * game — scenes share it via the same key. The gradient fades white →
- * transparent so the glow blends with the scene instead of looking like a
- * flat disc.
- */
 function ensureHaloTexture(scene: Phaser.Scene): void {
   if (scene.textures.exists(HALO_TEXTURE_KEY)) return;
   const size = 128;
@@ -58,22 +56,31 @@ function ensureHaloTexture(scene: Phaser.Scene): void {
   tex.refresh();
 }
 
+/**
+ * On-sprite label IA (issue #16):
+ *
+ *   [N]                      ← indexText (top-right of sprite, matches PartyBar number)
+ *   [task line]              ← taskText (above head, yellow, user prompt)
+ *   [activity message]       ← activityMsgText (below taskText, gray, last Activity Feed message)
+ *   [SPRITE]
+ *   [hero name]              ← nameText (below feet, 2 lines, color reflects activity)
+ *   [name line 2]
+ *
+ * Everything else (subagent marker, source/model badge, separate activity word
+ * label) lives in PartyBar — that's the single place to look for per-hero
+ * metadata so the canvas stays uncluttered.
+ */
 export class HeroSprite {
   readonly id: string;
   readonly heroClass: HeroClass;
   private scene: Phaser.Scene;
   private sprite: Phaser.GameObjects.Sprite;
-  private nameText: Phaser.GameObjects.Text;
-  private subagentText: Phaser.GameObjects.Text | null = null;
-  private sourceText: Phaser.GameObjects.Text | null = null;
-  private source: AgentSource;
   private isSubagent: boolean;
-  private sourceBadgeVisible = false;
-  private activityText: Phaser.GameObjects.Text;
-  /** Lazily created when a model badge applies (Claude sessions only). */
-  private modelText: Phaser.GameObjects.Text | null = null;
-  private detailText: Phaser.GameObjects.Text;
+  private nameText: Phaser.GameObjects.Text;
   private taskText: Phaser.GameObjects.Text;
+  private activityMsgText: Phaser.GameObjects.Text;
+  private bubbleBg: Phaser.GameObjects.Graphics;
+  private indexText: Phaser.GameObjects.Text;
   private _x: number;
   private _y: number;
   private moveTween: Phaser.Tweens.Tween | null = null;
@@ -83,16 +90,26 @@ export class HeroSprite {
   private runKey: string;
   private facesLeft: boolean;
   private nameOffsetY: number;
-  private subagentOffsetY: number;
-  private activityOffsetY: number;
-  private detailOffsetY: number;
   private taskOffsetY: number;
+  private activityMsgOffsetY: number;
+  private indexOffsetX: number;
+  private indexOffsetY: number;
   currentActivity: AgentActivity = 'idle';
   private isWaiting = false;
   private isErrorRecent = false;
   private nameBaseColor = '#DDDDDD';
   private selectionTween: Phaser.Tweens.Tween | null = null;
   private selectionHalo: Phaser.GameObjects.Image | null = null;
+  private wanderTimer: Phaser.Time.TimerEvent | null = null;
+
+  /**
+   * Sub-agent visual distinction markers. Null for main-session heroes.
+   * - `subagentGlowRing`: pulsing circular outline drawn around the sprite
+   * - `subagentIconText`: small ⚙ badge at the sprite's top-right corner
+   */
+  private subagentGlowRing: Phaser.GameObjects.Graphics | null = null;
+  private subagentIconText: Phaser.GameObjects.Text | null = null;
+  private subagentGlowTween: Phaser.Tweens.Tween | null = null;
 
   /** Grid base position — used for slot repositioning. */
   gridBaseX = 0;
@@ -107,49 +124,46 @@ export class HeroSprite {
     x: number,
     y: number,
     isSubagent = false,
-    source: AgentSource = 'claude',
+    _source: AgentSource = 'claude',
   ) {
     this.scene = scene;
     this.id = id;
     this.heroClass = heroClass;
-    this.source = source;
     this.isSubagent = isSubagent;
     this._x = x;
     this._y = y;
 
     const theme = getActiveTheme();
-    // Map the logical hero color to a sprite base the theme actually ships
-    // with. Extra palette entries (teal/orange/green) share the sprite of
-    // their base color — only the label (name tag) gets the expanded color,
-    // the sprite itself is never recolored.
     const spriteBase = HERO_COLOR_SPRITE_BASE[heroColor];
     const cfg = theme.getHeroConfig(spriteBase, heroClass);
     this.idleKey = cfg.idleKey;
     this.runKey = cfg.runKey;
     this.facesLeft = cfg.facesLeft;
 
-    // Create sprite with idle animation
     this.sprite = scene.add.sprite(x, y, this.idleKey);
-    this.sprite.setScale(theme.heroScale);
-    // Flip sprites that natively face left so they face right by default
+    this.sprite.setScale(computeSpriteScale(theme.heroScale, isSubagent));
     this.sprite.setFlipX(this.facesLeft);
     if (cfg.tint !== null) this.sprite.setTint(cfg.tint);
-    // Tag at construction time so the scene-level background-click
-    // detector (VillageScene) can classify pointerdown hits correctly
-    // regardless of which code path later wires up interactivity.
     this.sprite.setData('isHero', true);
 
-    // Label offsets derived from actual sprite height — scale with theme.
     const halfH = this.sprite.displayHeight / 2;
-    this.nameOffsetY = -(halfH + 2);
-    // Subagent marker sits ~16px below the name (standard "subtitle" placement,
-    // so the name stays the primary anchor for the eye).
-    this.subagentOffsetY = this.nameOffsetY + 16;
-    this.activityOffsetY = halfH - 2;
-    this.detailOffsetY = halfH + 12;
-    this.taskOffsetY = halfH + 26;
+    const halfW = this.sprite.displayWidth / 2;
 
-    // Create idle animation if it doesn't exist yet
+    // Above-head bubble — sits right at the head so the bubble's tail looks
+    // like it grows out of the sprite. The gap between sprite and bubble was
+    // ~16 px before; pulling it in to ~2 px reads as direct speech.
+    this.activityMsgOffsetY = -(halfH - 24);
+    this.taskOffsetY = this.activityMsgOffsetY - 13;
+
+    // Below-feet name (2 lines). Tiny Swords CC0 sprites have ~8 px of
+    // transparent padding below the character's feet inside the frame, so
+    // the visual foot line is well above the frame's mathematical bottom.
+    this.nameOffsetY = halfH - 24;
+
+    // Index marker — top-left of the sprite, snug against the head.
+    this.indexOffsetX = -(halfW - 38);
+    this.indexOffsetY = -(halfH - 28);
+
     const idleAnimKey = `${this.idleKey}-anim`;
     if (!scene.anims.exists(idleAnimKey)) {
       const idleFrameSpec = cfg.idleFrameIndices !== undefined
@@ -165,7 +179,6 @@ export class HeroSprite {
 
     const runAnimKey = `${this.runKey}-anim`;
     if (!scene.anims.exists(runAnimKey)) {
-      // Match frame rate to ground speed so legs don't float or drag.
       const runFrameRate = cfg.runFrames * (MOVE_SPEED / RUN_PIXELS_PER_CYCLE);
       const runFrameSpec = cfg.runFrameIndices !== undefined
         ? { frames: cfg.runFrameIndices }
@@ -182,87 +195,198 @@ export class HeroSprite {
 
     const nameColor = HERO_LABEL_COLOR[heroColor] ?? '#DDDDDD';
     this.nameBaseColor = nameColor;
-    this.nameText = addCrispText(scene, x, y + this.nameOffsetY, name, {
-      fontSize: '14px',
-      color: nameColor,
-      fontFamily: 'monospace',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5);
 
-    // Subagent marker: only created for spawned subagents — sits just above
-    // the name to visually distinguish child heroes from parent sessions.
+    // Hero name — below feet, wraps to 2 lines for long display names.
+    this.nameText = addCrispText(scene, x, y + this.nameOffsetY, truncateLabel(name, NAME_MAX_CHARS), {
+      fontSize: '11px',
+      color: nameColor,
+      fontFamily: "'Fira Code', monospace",
+      backgroundColor: LABEL_BG,
+      padding: LABEL_PAD,
+      align: 'center',
+    }).setOrigin(0.5, 0);
+
+    // Speech bubble — Graphics plate (rounded rect + tail) holds both text lines.
+    // The plate is sized in `updateBubble()` after the texts have rasterized so
+    // its width tracks the widest line.
+    this.bubbleBg = scene.add.graphics();
+    this.bubbleBg.setVisible(false);
+
+    this.taskText = addCrispText(scene, x, y + this.taskOffsetY, '', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: BUBBLE_TASK_COLOR,
+      fontFamily: "'Fira Code', monospace",
+      align: 'center',
+      wordWrap: { width: 140 },
+    }).setOrigin(0.5, 1).setVisible(false);
+
+    this.activityMsgText = addCrispText(scene, x, y + this.activityMsgOffsetY, '', {
+      fontSize: '9px',
+      color: BUBBLE_MSG_COLOR,
+      fontFamily: "'Fira Code', monospace",
+      align: 'center',
+      wordWrap: { width: 140 },
+    }).setOrigin(0.5, 1).setVisible(false);
+
+    // Index marker — sits to the left of the name on the same row. `setOrigin(1, 0)`
+    // anchors its right edge to the position so it grows leftward; the actual x is
+    // sprite-left-edge minus a 2px gap.
+    this.indexText = addCrispText(scene, x + this.indexOffsetX, y + this.indexOffsetY, '', {
+      fontSize: '10px',
+      color: INDEX_COLOR,
+      fontFamily: "'Fira Code', monospace",
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      padding: { x: 3, y: 1 },
+      align: 'center',
+    }).setOrigin(1, 0).setVisible(false);
+
+    this.setBubbleAlpha(1.0);
+    this.updateDepth();
+
     if (isSubagent) {
-      this.subagentText = addCrispText(scene, x, y + this.subagentOffsetY, 'subagent', {
-        fontSize: '9px',
-        color: '#9AA4B0',
+      this.initSubagentMarkers();
+    }
+  }
+
+  /**
+   * Create the sub-agent glow ring and gear-icon badge that distinguish
+   * sub-agent sprites from main-session heroes in the village view.
+   *
+   * Called once from the constructor when `isSubagent` is true.
+   * The glow ring pulses via a looping alpha tween so it catches the eye
+   * even in a dense scene. The badge renders as a tiny ⚙ symbol at the
+   * sprite's top-right corner.
+   */
+  private initSubagentMarkers(): void {
+    const radius = this.sprite.displayWidth * 0.55;
+
+    // Glow ring — drawn as a filled transparent circle so the stroke appears
+    // on top of the sprite rather than underneath it. A pulsing tween drives
+    // alpha between 0.35 and 0.8, giving a "breathing" glow effect.
+    this.subagentGlowRing = this.scene.add.graphics();
+    this.drawSubagentGlowRing(radius, 0.55);
+
+    this.subagentGlowTween = this.scene.tweens.add({
+      targets: this.subagentGlowRing,
+      alpha: { from: 0.35, to: 0.8 },
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Gear-icon badge — small text label at top-right so it reads like a
+    // status indicator without needing a custom texture asset.
+    this.subagentIconText = addCrispText(
+      this.scene,
+      this._x,
+      this._y,
+      '⚙',
+      {
+        fontSize: '10px',
+        color: '#c8a8ff',
         fontFamily: 'monospace',
-        fontStyle: 'italic',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setOrigin(0.5);
+        backgroundColor: 'rgba(20,10,40,0.75)',
+        padding: { x: 2, y: 1 },
+      },
+    ).setOrigin(0, 1);
+
+    // Position markers and depth after creation so they respect the hero's
+    // initial position set in the constructor.
+    this.repositionSubagentMarkers();
+    this.updateSubagentMarkerDepth();
+  }
+
+  /**
+   * Redraw the glow ring graphics at the hero's current screen position.
+   * Called whenever the hero moves or its scale changes.
+   */
+  private drawSubagentGlowRing(radius: number, alpha: number): void {
+    if (this.subagentGlowRing === null) return;
+    this.subagentGlowRing.clear();
+    this.subagentGlowRing.lineStyle(2, 0x9b72cf, alpha);
+    this.subagentGlowRing.strokeCircle(this._x, this._y, radius);
+  }
+
+  /** Move the glow ring and icon badge to the hero's current world position. */
+  private repositionSubagentMarkers(): void {
+    if (this.subagentGlowRing === null && this.subagentIconText === null) return;
+
+    const radius = this.sprite.displayWidth * 0.55;
+
+    if (this.subagentGlowRing !== null) {
+      // Graphics objects draw in world space — clear and redraw at new position.
+      this.subagentGlowRing.clear();
+      this.subagentGlowRing.lineStyle(2, 0x9b72cf, 1.0);
+      this.subagentGlowRing.strokeCircle(this._x, this._y, radius);
     }
 
-    // Source badge is created lazily by setSourceBadgeVisible(true) — shown
-    // only when the UI is in mixed-provider mode.
+    if (this.subagentIconText !== null) {
+      // Badge sits at top-right of the sprite footprint.
+      const badgeOffsetX = this.sprite.displayWidth * 0.4;
+      const badgeOffsetY = -(this.sprite.displayHeight * 0.4);
+      this.subagentIconText.setPosition(
+        this._x + badgeOffsetX,
+        this._y + badgeOffsetY,
+      );
+    }
+  }
 
-    // Activity label below hero
-    this.activityText = addCrispText(scene, x, y + this.activityOffsetY, 'idle', {
-      fontSize: '12px',
-      color: ACTIVITY_COLOR.idle,
-      fontFamily: 'monospace',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
+  /** Sync sub-agent marker depth with the sprite so they render above the ground. */
+  private updateSubagentMarkerDepth(): void {
+    const footY = this._y + this.sprite.displayHeight * 0.5;
+    if (this.subagentGlowRing !== null) {
+      this.subagentGlowRing.setDepth(footY + 0.45);
+    }
+    if (this.subagentIconText !== null) {
+      this.subagentIconText.setDepth(footY + 1.3);
+    }
+  }
 
-    // Detail label (file/command) below activity
-    this.detailText = addCrispText(scene, x, y + this.detailOffsetY, '', {
-      fontSize: '11px',
-      color: '#AABBCC',
-      fontFamily: 'monospace',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
-
-    // Task label (current user prompt) below detail
-    this.taskText = addCrispText(scene, x, y + this.taskOffsetY, '', {
-      fontSize: '10px',
-      color: '#9FB7D4',
-      fontFamily: 'monospace',
-      fontStyle: 'italic',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
-
-    // Set initial Y-based depth
-    this.updateDepth();
+  private setBubbleAlpha(alpha: number): void {
+    this.bubbleBg.setAlpha(alpha);
+    this.taskText.setAlpha(alpha);
+    this.activityMsgText.setAlpha(alpha);
   }
 
   get x(): number { return this._x; }
   get y(): number { return this._y; }
 
-  /** Override the default hero scale (e.g. from MapConfig settings). */
   setHeroScale(scale: number): void {
-    this.sprite.setScale(scale);
+    this.sprite.setScale(computeSpriteScale(scale, this.isSubagent));
   }
 
-  /** Make the sprite respond to pointerdown with the supplied callback. */
+  /** Teleport sprite + every label to (x, y). */
+  teleportTo(x: number, y: number): void {
+    this._x = x;
+    this._y = y;
+    this.sprite.setPosition(x, y);
+    this.nameText.setPosition(x, y + this.nameOffsetY);
+    this.taskText.setPosition(x, y + this.taskOffsetY);
+    this.activityMsgText.setPosition(x, y + this.activityMsgOffsetY);
+    this.indexText.setPosition(x + this.indexOffsetX, y + this.indexOffsetY);
+    this.updateBubble();
+    if (this.selectionHalo !== null) {
+      this.selectionHalo.setPosition(x, y);
+    }
+    if (this.isSubagent) {
+      this.repositionSubagentMarkers();
+    }
+    this.updateDepth();
+  }
+
+  getIsSubagent(): boolean {
+    return this.isSubagent;
+  }
+
   setInteractiveForSelection(onClick: () => void): void {
     if (!this.sprite.input || !this.sprite.input.enabled) {
       this.sprite.setInteractive({ useHandCursor: true });
     }
-    // The `isHero` tag is set in the constructor so it's present even for
-    // spawn paths that never call this method.
     this.sprite.on('pointerdown', onClick);
   }
 
-  /**
-   * Apply or clear a selection visual: a pulsing blue halo BEHIND the sprite
-   * (alpha + scale yoyo ~1s cycle). The sprite itself stays untinted so the
-   * character's natural colors are preserved; only the surrounding light
-   * pulses. The name text is brightened so the selected hero's label stands
-   * out against its neighbors.
-   */
   setSelected(selected: boolean): void {
     if (this.selectionTween !== null) {
       this.selectionTween.stop();
@@ -280,10 +404,6 @@ export class HeroSprite {
       halo.setAlpha(0.35);
       halo.setDepth(this.sprite.depth - 0.1);
       this.selectionHalo = halo;
-      // Capture the baseline scale AFTER setDisplaySize so the tween
-      // yoyos between this fixed baseline and baseline × peak factor.
-      // Using halo.scaleX directly in the tween target would be the
-      // same math but reads as if the scale were self-referential.
       const baseScale = halo.scaleX;
       this.selectionTween = this.scene.tweens.add({
         targets: halo,
@@ -296,20 +416,35 @@ export class HeroSprite {
         ease: 'Sine.easeInOut',
       });
       this.nameText.setColor('#FFFFFF');
-      this.nameText.setStroke('#1E5FA3', 5);
+      this.setBubbleAlpha(1.0);
     } else {
-      this.nameText.setColor(this.nameBaseColor);
-      this.nameText.setStroke('#000000', 3);
+      this.refreshNameColor();
+      this.setBubbleAlpha(1.0);
     }
   }
 
-  /** Update the displayed activity label and internal state. */
-  setActivity(activity: AgentActivity): void {
-    this.currentActivity = activity;
-    this.refreshActivityVisual();
+  /** Reflect activity / waiting / error state in the name color (single visual signal). */
+  private refreshNameColor(): void {
+    if (this.isErrorRecent) {
+      this.nameText.setColor(ERROR_COLOR);
+    } else if (this.isWaiting) {
+      this.nameText.setColor(WAITING_COLOR);
+    } else {
+      this.nameText.setColor(ACTIVITY_COLOR[this.currentActivity] ?? this.nameBaseColor);
+    }
   }
 
-  /** Apply status-driven overlays (e.g. 'waiting' pulses gold). */
+  setActivity(activity: AgentActivity): void {
+    const wasIdle = this.currentActivity === 'idle';
+    this.currentActivity = activity;
+    this.refreshNameColor();
+    if (activity === 'idle' && !wasIdle) {
+      this.startIdleWander();
+    } else if (activity !== 'idle' && wasIdle) {
+      this.stopIdleWander();
+    }
+  }
+
   setStatus(status: AgentState['status']): void {
     const wantsWaiting = status === 'waiting';
     if (wantsWaiting && !this.isWaiting) {
@@ -319,10 +454,88 @@ export class HeroSprite {
       this.isWaiting = false;
       this.stopWaitingPulse();
     }
-    this.refreshActivityVisual();
+    if (status === 'completed') {
+      this.stopIdleWander();
+      this.playCompletionVFX();
+    }
+    this.refreshNameColor();
   }
 
-  /** Apply recent-error overlay; auto-clears after ERROR_WINDOW_MS from the given timestamp. */
+  private playCompletionVFX(): void {
+    const emitter = this.scene.add.particles(this._x, this._y - 10, 'px', {
+      speed: { min: 30, max: 80 },
+      scale: { start: 2, end: 0 },
+      alpha: { start: 1, end: 0 },
+      tint: [0xFFD700, 0xFFA500, 0xFFFF00],
+      lifespan: 800,
+      quantity: 12,
+      emitting: false,
+    });
+    emitter.explode(12);
+    emitter.setDepth(this.sprite.depth + 1);
+    this.scene.time.delayedCall(1000, () => emitter.destroy());
+  }
+
+  private startIdleWander(): void {
+    if (this.wanderTimer !== null) return;
+    this.scheduleNextWander();
+  }
+
+  private stopIdleWander(): void {
+    if (this.wanderTimer !== null) {
+      this.wanderTimer.remove();
+      this.wanderTimer = null;
+    }
+  }
+
+  private scheduleNextWander(): void {
+    const delay = Phaser.Math.Between(3000, 7000);
+    this.wanderTimer = this.scene.time.delayedCall(delay, () => {
+      this.wanderTimer = null;
+      if (this.currentActivity !== 'idle' || this.moveTween !== null) return;
+      const offsetX = Phaser.Math.Between(-12, 12);
+      const offsetY = Phaser.Math.Between(-8, 8);
+      this.wanderTo(this.gridBaseX + offsetX, this.gridBaseY + offsetY);
+    });
+  }
+
+  private wanderTo(targetX: number, targetY: number): void {
+    const dx = targetX - this._x;
+    const dy = targetY - this._y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < 3) { this.scheduleNextWander(); return; }
+    if (Math.abs(dx) > 3) this.sprite.setFlipX((dx < 0) !== this.facesLeft);
+    this.sprite.play(`${this.runKey}-anim`, true);
+    const duration = (distance / 60) * 1000;
+    this.moveTween = this.scene.tweens.add({
+      targets: { x: this._x, y: this._y },
+      x: targetX,
+      y: targetY,
+      duration,
+      ease: 'Linear',
+      onUpdate: (_tween, target: { x: number; y: number }) => {
+        this._x = target.x;
+        this._y = target.y;
+        this.sprite.setPosition(this._x, this._y);
+        this.nameText.setPosition(this._x, this._y + this.nameOffsetY);
+        this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
+        this.activityMsgText.setPosition(this._x, this._y + this.activityMsgOffsetY);
+        this.indexText.setPosition(this._x + this.indexOffsetX, this._y + this.indexOffsetY);
+        this.updateBubble();
+        if (this.selectionHalo !== null) this.selectionHalo.setPosition(this._x, this._y);
+        if (this.isSubagent) {
+          this.repositionSubagentMarkers();
+        }
+        this.updateDepth();
+      },
+      onComplete: () => {
+        this.moveTween = null;
+        this.sprite.play(`${this.idleKey}-anim`, true);
+        this.scheduleNextWander();
+      },
+    });
+  }
+
   setErrorTimestamp(ts: number | undefined): void {
     if (this.errorTimer !== null) {
       this.errorTimer.remove();
@@ -330,43 +543,28 @@ export class HeroSprite {
     }
     if (ts === undefined) {
       this.isErrorRecent = false;
-      this.refreshActivityVisual();
+      this.refreshNameColor();
       return;
     }
     const age = Date.now() - ts;
     if (age >= ERROR_WINDOW_MS) {
       this.isErrorRecent = false;
-      this.refreshActivityVisual();
+      this.refreshNameColor();
       return;
     }
     this.isErrorRecent = true;
-    this.refreshActivityVisual();
+    this.refreshNameColor();
     this.errorTimer = this.scene.time.delayedCall(ERROR_WINDOW_MS - age, () => {
       this.isErrorRecent = false;
       this.errorTimer = null;
-      this.refreshActivityVisual();
+      this.refreshNameColor();
     });
-  }
-
-  private refreshActivityVisual(): void {
-    if (this.isErrorRecent) {
-      this.activityText.setText('error');
-      this.activityText.setColor(ERROR_COLOR);
-    } else if (this.isWaiting) {
-      this.activityText.setText('waiting…');
-      this.activityText.setColor(WAITING_COLOR);
-    } else {
-      this.activityText.setText(this.currentActivity);
-      this.activityText.setColor(ACTIVITY_COLOR[this.currentActivity]);
-    }
-    // Text width changed → re-center the activity/model pair on the hero.
-    this.layoutActivityAndModel();
   }
 
   private startWaitingPulse(): void {
     if (this.waitingTween !== null) return;
     this.waitingTween = this.scene.tweens.add({
-      targets: this.activityText,
+      targets: this.nameText,
       alpha: { from: 1, to: 0.45 },
       duration: 700,
       ease: 'Sine.easeInOut',
@@ -380,179 +578,155 @@ export class HeroSprite {
       this.waitingTween.stop();
       this.waitingTween = null;
     }
-    this.activityText.setAlpha(1);
+    this.nameText.setAlpha(1);
   }
 
-  /** Update depth of sprite and labels based on Y position (Y-sorting). */
   private updateDepth(): void {
-    // Sort by the hero's FEET, not its center, so the pivot matches buildings
-    // (bottom-anchored, origin 0.5/1) and decorations that sort on their base.
-    // Without this, a hero whose feet align with a building's foot would render
-    // behind it because his center-y is well above the building's foot-y.
     const footY = this._y + this.sprite.displayHeight * 0.5;
     this.sprite.setDepth(footY + 0.5);
-    this.nameText.setDepth(footY + 0.6);
-    if (this.subagentText !== null) this.subagentText.setDepth(footY + 0.6);
-    if (this.sourceText !== null) this.sourceText.setDepth(footY + 0.6);
-    this.activityText.setDepth(footY + 0.6);
-    if (this.modelText !== null) this.modelText.setDepth(footY + 0.6);
-    this.detailText.setDepth(footY + 0.6);
-    this.taskText.setDepth(footY + 0.6);
+    // Labels render above buildings (buildings sort by their foot-y too,
+    // so footY + 1 puts hero labels in front of any building at the same row).
+    this.nameText.setDepth(footY + 1.1);
+    this.bubbleBg.setDepth(footY + 1.0);
+    this.taskText.setDepth(footY + 1.1);
+    this.activityMsgText.setDepth(footY + 1.1);
+    this.indexText.setDepth(footY + 1.2);
     if (this.selectionHalo !== null) this.selectionHalo.setDepth(footY + 0.4);
+    if (this.isSubagent) {
+      this.updateSubagentMarkerDepth();
+    }
   }
 
   /**
-   * Show or hide the source badge (`CODEX` / `CLAUDE`). Called by the scene
-   * whenever the fleet's provider makeup changes. Lazily creates the Text
-   * object on first reveal. When a subagent marker is already present, the
-   * two labels sit side-by-side on the subagent row; otherwise the badge sits
-   * alone on that row.
+   * Redraw the speech-bubble plate behind taskText + activityMsgText, sized
+   * to whichever lines are currently visible. Called on every text/visibility
+   * change. Hides the plate when both lines are empty.
    */
-  setSourceBadgeVisible(visible: boolean): void {
-    this.sourceBadgeVisible = visible;
-    const justCreated = visible && this.sourceText === null;
-    if (justCreated) {
-      this.sourceText = addCrispText(
-        this.scene,
-        this._x,
-        this._y + this.subagentOffsetY,
-        this.source.toUpperCase(),
-        {
-          fontSize: '9px',
-          color: SOURCE_BADGE_COLOR[this.source],
-          fontFamily: 'monospace',
-          stroke: '#000000',
-          strokeThickness: 2,
-        },
-      );
-    }
-    if (this.sourceText !== null) {
-      this.sourceText.setVisible(visible);
-    }
-    this.layoutSubagentAndSource();
-    // A hero parked at its building has no active move tween, so the text
-    // would keep its default depth (0) and render behind buildings until the
-    // next move. Force a depth sweep so the new badge is visible immediately.
-    if (justCreated) this.updateDepth();
-  }
-
-  /**
-   * Position the subagent marker and source badge on the shared subagent row.
-   * When both are visible they sit side-by-side (centered as a pair); when
-   * only one is visible it sits centered on its own.
-   */
-  private layoutSubagentAndSource(): void {
-    const y = this._y + this.subagentOffsetY;
-    if (this.sourceBadgeVisible && this.isSubagent && this.subagentText !== null && this.sourceText !== null) {
-      this.subagentText.setOrigin(1, 0.5);
-      this.subagentText.setPosition(this._x - 3, y);
-      this.sourceText.setOrigin(0, 0.5);
-      this.sourceText.setPosition(this._x + 3, y);
+  private updateBubble(): void {
+    const taskVisible = this.taskText.visible && this.taskText.text.length > 0;
+    const msgVisible = this.activityMsgText.visible && this.activityMsgText.text.length > 0;
+    this.bubbleBg.clear();
+    if (!taskVisible && !msgVisible) {
+      this.bubbleBg.setVisible(false);
       return;
     }
-    if (this.subagentText !== null) {
-      this.subagentText.setOrigin(0.5);
-      this.subagentText.setPosition(this._x, y);
+    const padX = 6;
+    const padY = 4;
+
+    // Derive plate bounds from the actual text positions + display sizes.
+    // Both texts use origin (0.5, 1) — their anchor is bottom-center, so:
+    //   textTop    = text.y - text.displayHeight
+    //   textBottom = text.y
+    const texts: Phaser.GameObjects.Text[] = [];
+    if (taskVisible) texts.push(this.taskText);
+    if (msgVisible) texts.push(this.activityMsgText);
+
+    let minTop = Infinity;
+    let maxBottom = -Infinity;
+    let maxWidth = 0;
+    for (const t of texts) {
+      const tTop = t.y - t.displayHeight;
+      const tBottom = t.y;
+      if (tTop < minTop) minTop = tTop;
+      if (tBottom > maxBottom) maxBottom = tBottom;
+      if (t.displayWidth > maxWidth) maxWidth = t.displayWidth;
     }
-    if (this.sourceText !== null) {
-      this.sourceText.setOrigin(0.5);
-      this.sourceText.setPosition(this._x, y);
-    }
+
+    const w = maxWidth + padX * 2;
+    const top = minTop - padY;
+    const bottom = maxBottom + padY;
+    const h = bottom - top;
+    const cx = this._x;
+    const left = cx - w / 2;
+
+    // Parchment-style speech bubble: warm cream fill + dark brown border.
+    this.bubbleBg.fillStyle(0xF5E0B0, 0.92);
+    this.bubbleBg.fillRoundedRect(left, top, w, h, 9);
+    this.bubbleBg.lineStyle(2, 0x8B5E3C, 0.9);
+    this.bubbleBg.strokeRoundedRect(left, top, w, h, 9);
+
+    // Tail — triangle pointing down toward the sprite's head.
+    const tailW = 10;
+    const tailH = 8;
+    // Fill tail with parchment color first, then draw border edges.
+    this.bubbleBg.fillStyle(0xF5E0B0, 0.92);
+    this.bubbleBg.beginPath();
+    this.bubbleBg.moveTo(cx - tailW / 2, bottom);
+    this.bubbleBg.lineTo(cx + tailW / 2, bottom);
+    this.bubbleBg.lineTo(cx, bottom + tailH);
+    this.bubbleBg.closePath();
+    this.bubbleBg.fillPath();
+    // Border on the two exposed tail edges (left-diagonal + right-diagonal).
+    this.bubbleBg.lineStyle(2, 0x8B5E3C, 0.9);
+    this.bubbleBg.beginPath();
+    this.bubbleBg.moveTo(cx - tailW / 2, bottom);
+    this.bubbleBg.lineTo(cx, bottom + tailH);
+    this.bubbleBg.lineTo(cx + tailW / 2, bottom);
+    this.bubbleBg.strokePath();
+    this.bubbleBg.setVisible(true);
   }
 
-  /**
-   * Show the model badge (e.g. `OPUS`, `SONNET`) next to the activity label on
-   * the row below the hero. Pass `undefined` to hide/destroy it. Called by the
-   * scene whenever the agent's model changes (mid-session switches included).
-   */
-  setModel(modelId: string | undefined): void {
-    const badge = modelBadge(modelId);
-    if (badge === null) {
-      if (this.modelText !== null) {
-        this.modelText.destroy();
-        this.modelText = null;
-        this.layoutActivityAndModel();
-      }
-      return;
-    }
-    if (this.modelText === null) {
-      this.modelText = addCrispText(
-        this.scene,
-        this._x,
-        this._y + this.activityOffsetY,
-        badge.short,
-        {
-          fontSize: '11px',
-          color: badge.color,
-          fontFamily: 'monospace',
-          fontStyle: 'bold',
-          stroke: '#000000',
-          strokeThickness: 2,
-        },
-      );
-      // New text object: give it the hero's current depth so it renders above
-      // buildings even before the next tween tick re-runs updateDepth().
-      this.updateDepth();
-    } else {
-      this.modelText.setText(badge.short);
-      this.modelText.setColor(badge.color);
-    }
-    this.layoutActivityAndModel();
+  /** Source / model badges and subagent markers live in PartyBar now — these are no-ops kept for caller compatibility. */
+  setSourceBadgeVisible(_visible: boolean): void {
+    // intentionally empty
   }
 
-  /**
-   * Center the activity label — plus the model badge when present — as a
-   * group on the hero's x axis, sharing the activityOffsetY row. A 6 px gap
-   * separates the two so they read as "activity · MODEL" without gluing.
-   */
-  private layoutActivityAndModel(): void {
-    const y = this._y + this.activityOffsetY;
-    if (this.modelText === null) {
-      this.activityText.setOrigin(0.5, 0.5);
-      this.activityText.setPosition(this._x, y);
-      return;
-    }
-    const gap = 6;
-    const widthA = this.activityText.displayWidth;
-    const widthM = this.modelText.displayWidth;
-    const leftEdge = this._x - (widthA + gap + widthM) / 2;
-    this.activityText.setOrigin(0, 0.5);
-    this.activityText.setPosition(leftEdge, y);
-    this.modelText.setOrigin(0, 0.5);
-    this.modelText.setPosition(leftEdge + widthA + gap, y);
+  setModel(_modelId: string | undefined): void {
+    // intentionally empty
   }
 
-  /** Update the truncated task line shown below the detail. */
+  /** Update the hero name label. */
+  updateName(name: string): void {
+    const truncated = truncateLabel(name, NAME_MAX_CHARS);
+    if (this.nameText.text === truncated) return;
+    this.nameText.setText(truncated);
+  }
+
+  /** Update the task line of the head bubble (user's last prompt). Pass undefined/empty to hide. */
   updateTask(task?: string): void {
     if (task === undefined || task.length === 0) {
       this.taskText.setText('');
-      return;
+      this.taskText.setVisible(false);
+    } else {
+      this.taskText.setText(truncateLabel(task, TASK_MAX_CHARS));
+      this.taskText.setVisible(true);
     }
-    const single = task.replace(/\s+/g, ' ').trim();
-    const text = single.length > TASK_MAX_CHARS
-      ? single.slice(0, TASK_MAX_CHARS - 1) + '\u2026'
-      : single;
-    this.taskText.setText(text);
+    this.updateBubble();
   }
 
-  /** Update the detail line shown below the activity label. */
+  /** Update the activity-feed message line (last tool call / message). Pass undefined/empty to hide. */
   updateDetail(file?: string, command?: string): void {
     let detail = '';
-    if (file) {
-      // Show only the filename, not the full path
+    if (command !== undefined && command.length > 0) {
+      detail = truncateLabel(command, ACTIVITY_MSG_MAX_CHARS);
+    } else if (file !== undefined && file.length > 0) {
       const parts = file.split('/');
       detail = parts[parts.length - 1] ?? file;
-    } else if (command) {
-      detail = command.length > 25 ? command.slice(0, 24) + '\u2026' : command;
     }
-    this.detailText.setText(detail);
+    if (detail.length === 0) {
+      this.activityMsgText.setText('');
+      this.activityMsgText.setVisible(false);
+    } else {
+      this.activityMsgText.setText(detail);
+      this.activityMsgText.setVisible(true);
+    }
+    this.updateBubble();
+  }
+
+  /** Set the party index marker. Pass undefined to hide. */
+  setIndex(index: number | undefined): void {
+    if (index === undefined) {
+      this.indexText.setVisible(false);
+      return;
+    }
+    this.indexText.setText(String(index));
+    this.indexText.setVisible(true);
   }
 
   moveTo(targetX: number, targetY: number, activity: AgentActivity): void {
     this.currentActivity = activity;
-    this.refreshActivityVisual();
+    this.refreshNameColor();
 
-    // Cancel existing move
     if (this.moveTween !== null) {
       this.moveTween.stop();
       this.moveTween = null;
@@ -560,7 +734,6 @@ export class HeroSprite {
 
     const path = findRoadPath({ x: this._x, y: this._y }, { x: targetX, y: targetY });
 
-    // Remove the first point (current position)
     if (path.length > 1) {
       path.shift();
     }
@@ -594,7 +767,6 @@ export class HeroSprite {
       return;
     }
 
-    // Flip based on horizontal direction (invert for sprites that natively face left)
     if (Math.abs(dx) > 5) {
       this.sprite.setFlipX((dx < 0) !== this.facesLeft);
     }
@@ -614,12 +786,15 @@ export class HeroSprite {
         this._y = target.y;
         this.sprite.setPosition(this._x, this._y);
         this.nameText.setPosition(this._x, this._y + this.nameOffsetY);
-        this.layoutSubagentAndSource();
-        this.layoutActivityAndModel();
-        this.detailText.setPosition(this._x, this._y + this.detailOffsetY);
         this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
+        this.activityMsgText.setPosition(this._x, this._y + this.activityMsgOffsetY);
+        this.indexText.setPosition(this._x + this.indexOffsetX, this._y + this.indexOffsetY);
+        this.updateBubble();
         if (this.selectionHalo !== null) {
           this.selectionHalo.setPosition(this._x, this._y);
+        }
+        if (this.isSubagent) {
+          this.repositionSubagentMarkers();
         }
         this.updateDepth();
       },
@@ -641,6 +816,7 @@ export class HeroSprite {
       this.waitingTween.stop();
       this.waitingTween = null;
     }
+    this.stopIdleWander();
     if (this.errorTimer !== null) {
       this.errorTimer.remove();
       this.errorTimer = null;
@@ -653,13 +829,23 @@ export class HeroSprite {
       this.selectionHalo.destroy();
       this.selectionHalo = null;
     }
+    if (this.subagentGlowTween !== null) {
+      this.subagentGlowTween.stop();
+      this.subagentGlowTween = null;
+    }
+    if (this.subagentGlowRing !== null) {
+      this.subagentGlowRing.destroy();
+      this.subagentGlowRing = null;
+    }
+    if (this.subagentIconText !== null) {
+      this.subagentIconText.destroy();
+      this.subagentIconText = null;
+    }
     this.sprite.destroy();
     this.nameText.destroy();
-    if (this.subagentText !== null) this.subagentText.destroy();
-    if (this.sourceText !== null) this.sourceText.destroy();
-    this.activityText.destroy();
-    if (this.modelText !== null) this.modelText.destroy();
-    this.detailText.destroy();
+    this.bubbleBg.destroy();
     this.taskText.destroy();
+    this.activityMsgText.destroy();
+    this.indexText.destroy();
   }
 }

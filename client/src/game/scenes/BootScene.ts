@@ -18,8 +18,45 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Diagnostic logging for issue #13 — preload stuck at ~30%. These three
+    // listeners pin down which file ID was the last to land and at what
+    // progress fraction. Empirically reducing `maxParallelDownloads` makes
+    // things WORSE (drops to 0% stuck), so this PR ships diagnostics only
+    // and the real fix is tracked as the next strand.
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
+      console.warn(`[BOOT] FILE_LOAD_ERROR src=${file.src} key=${file.key} type=${file.type}`);
       this.missingAssets.push(file.src);
+    });
+    this.load.on(Phaser.Loader.Events.COMPLETE, () => {
+      console.log(
+        `[BOOT] preload COMPLETE totalToLoad=${this.load.totalToLoad} totalComplete=${this.load.totalComplete} totalFailed=${this.load.totalFailed}`,
+      );
+    });
+    // FILE_COMPLETE fires when an individual asset finishes. Logging both
+    // key AND src lets the reader pair a 30%-stuck moment with the exact
+    // path that landed last (the stuck file is in flight, not this one).
+    this.load.on(Phaser.Loader.Events.FILE_COMPLETE, (key: string, type: string, _data: unknown) => {
+      const file = this.load.list
+        ? Array.from(this.load.list.values()).find((f: Phaser.Loader.File) => f.key === key)
+        : undefined;
+      const src = file?.src ?? '?';
+      console.log(`[BOOT] filecomplete type=${type} key=${key} src=${src}`);
+    });
+    // Log on either a pct bucket change OR a totalComplete tick. The bucket
+    // alone hides progress within a 10% range; tracking totalComplete makes
+    // a partial-load stall (e.g. queue=60, complete frozen at 18) obvious.
+    let lastReportedPct = -1;
+    let lastReportedComplete = -1;
+    this.load.on(Phaser.Loader.Events.PROGRESS, (p: number) => {
+      const pct = Math.floor(p * 10) * 10;
+      const totalComplete = this.load.totalComplete;
+      if (pct !== lastReportedPct || totalComplete !== lastReportedComplete) {
+        lastReportedPct = pct;
+        lastReportedComplete = totalComplete;
+        console.log(
+          `[BOOT] preload progress ${pct}% (totalToLoad=${this.load.totalToLoad}, totalComplete=${totalComplete}, totalFailed=${this.load.totalFailed})`,
+        );
+      }
     });
 
     // Logo shown on the loading screen + reused by the React TopBar
@@ -104,7 +141,7 @@ export class BootScene extends Phaser.Scene {
       this.statusText = addCrispText(this, cx, statusY, headline, {
         fontSize: '16px',
         color: '#f0d89a',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'center',
         wordWrap: { width: Math.min(this.scale.width * 0.8, 640) },
       }).setOrigin(0.5);
@@ -118,7 +155,7 @@ export class BootScene extends Phaser.Scene {
       const summary = addCrispText(this, cx, statusY + 28, summaryLines, {
         fontSize: '13px',
         color: '#e8c880',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'left',
       }).setOrigin(0.5, 0);
 
@@ -134,7 +171,7 @@ export class BootScene extends Phaser.Scene {
       const sample = addCrispText(this, cx, summary.y + summary.displayHeight + 16, sampleLines, {
         fontSize: '11px',
         color: '#8ea0b4',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'left',
         wordWrap: { width: Math.min(this.scale.width * 0.9, 780) },
       }).setOrigin(0.5, 0);
@@ -145,7 +182,7 @@ export class BootScene extends Phaser.Scene {
       const hint = addCrispText(this, cx, sample.y + sample.displayHeight + 20, hintText, {
         fontSize: '12px',
         color: '#aabbcc',
-        fontFamily: 'monospace',
+        fontFamily: "'Fira Code', monospace",
         align: 'center',
         wordWrap: { width: Math.min(this.scale.width * 0.9, 720) },
       }).setOrigin(0.5, 0);
@@ -153,7 +190,7 @@ export class BootScene extends Phaser.Scene {
       const primary = addCrispText(this, cx, hint.y + hint.displayHeight + 24, '↻  Reload page', {
           fontSize: '16px',
           color: '#1a1a2e',
-          fontFamily: 'monospace',
+          fontFamily: "'Fira Code', monospace",
           backgroundColor: '#c4a35a',
           padding: { x: 18, y: 10 },
         })
@@ -168,7 +205,7 @@ export class BootScene extends Phaser.Scene {
     this.statusText = addCrispText(this, cx, statusY, 'Connecting to server...', {
       fontSize: '18px',
       color: '#888888',
-      fontFamily: 'monospace',
+      fontFamily: "'Fira Code', monospace",
     }).setOrigin(0.5);
 
     this.onConnected = () => {
