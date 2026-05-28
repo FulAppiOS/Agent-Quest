@@ -4,40 +4,47 @@ export interface Point {
 }
 
 /**
- * Compact organic village waypoints. The interactive map hugs a ~750×550
- * area centred near (1400, 720) — all agents' functional targets are within
- * view at default zoom.
+ * Road network aligned with the handle-issue workflow order so heroes travel
+ * in a coherent direction rather than zigzagging across the village.
+ *
+ * Flow: Gate(0) → south-junction(1) → center(3) → north-junction(5)
+ *       with lateral spurs reaching each building cluster:
+ *         • Library spur:   1 → 6
+ *         • Plaza/Tavern:   2 ↔ 3
+ *         • East/Bash:      3 → 4
+ *         • Edit↔Bash↔Debug triangle: 3 ↔ 8, 4 ↔ 8
+ *         • Thinking spur:  5 → 7
+ *         • Git/Review:     5 → 9 → 10
  */
 const DEFAULT_WAYPOINTS: Point[] = [
   { x: 1400, y: 1130 }, // 0  gate
-  { x: 1400, y: 1000 }, // 1  south-junction
-  { x: 1320, y: 790 },  // 2  plaza
-  { x: 1430, y: 560 },  // 3  north-junction
-  { x: 1130, y: 790 },  // 4  west-junction
-  { x: 1680, y: 790 },  // 5  east-junction
-  { x: 1150, y: 560 },  // 6  nw-corner
-  { x: 1660, y: 560 },  // 7  ne-corner
-  { x: 1150, y: 1000 }, // 8  sw-corner
-  { x: 1680, y: 1000 }, // 9  se-corner
-  { x: 1040, y: 680 },  // 10 library-access
-  { x: 1790, y: 680 },  // 11 chapel-access
-  { x: 1430, y: 490 },  // 12 castle-access
+  { x: 1380, y: 960 },  // 1  south-junction (gateway to library and center)
+  { x: 1250, y: 780 },  // 2  plaza / tavern hub (west)
+  { x: 1400, y: 780 },  // 3  center-junction (editing cluster hub)
+  { x: 1540, y: 780 },  // 4  east-junction (bash area)
+  { x: 1400, y: 600 },  // 5  north-junction (thinking / git branch)
+  { x: 1150, y: 900 },  // 6  library-access (reading)
+  { x: 1300, y: 700 },  // 7  castle-access (thinking)
+  { x: 1470, y: 700 },  // 8  alchemist-access (debugging)
+  { x: 1720, y: 560 },  // 9  chapel-access (git)
+  { x: 1600, y: 450 },  // 10 watchtower-access (reviewing)
 ];
 
 const DEFAULT_EDGES: [number, number][] = [
   // N-S main spine
-  [0, 1], [1, 2], [2, 3],
-  // E-W through plaza
-  [2, 4], [2, 5],
-  // Corner diagonals (non-grid feel)
-  [1, 8], [1, 9],
-  [3, 6], [3, 7],
-  [4, 6], [4, 8],
-  [5, 7], [5, 9],
-  // Short spurs
-  [6, 10], [4, 10],
-  [7, 11], [5, 11],
-  [3, 12],
+  [0, 1], [1, 3], [3, 5],
+  // Library spur (reading — first stop after gate)
+  [1, 6],
+  // E-W through center
+  [2, 3], [3, 4],
+  // Editing ↔ Bash ↔ Debug tight triangle
+  [3, 8], [4, 8],
+  // Thinking spur
+  [5, 7],
+  // Debug from north (test-fail loop)
+  [5, 8],
+  // Git / review branch
+  [5, 9], [9, 10],
 ];
 
 // ---------------------------------------------------------------------------
@@ -290,7 +297,8 @@ export function findRoadPath(from: Point, to: Point): Point[] {
 
 /** Exposed so TerrainRenderer can paint roads along the same network. */
 export function getRoadSegments(): Array<{ a: Point; b: Point; main: boolean }> {
-  const mainEdges = new Set(['0-1', '1-2', '2-3']);
+  // Main spine: gate(0)→south-junction(1)→center(3)→north-junction(5)
+  const mainEdges = new Set(['0-1', '1-3', '3-5']);
   const result: Array<{ a: Point; b: Point; main: boolean }> = [];
   for (const [a, b] of activeEdges) {
     const key = `${Math.min(a, b)}-${Math.max(a, b)}`;

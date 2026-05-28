@@ -28,21 +28,35 @@ export const WORLD_HEIGHT = 1800;
 export const CITY_CLEAR = { x: 1400, y: 780, rx: 520, ry: 420 };
 
 /** Plaza/fountain anchor — drives road hub & heroes' visual centre. */
-export const PLAZA = { x: 1320, y: 790 };
+export const PLAZA = { x: 1400, y: 780 };
 
 /**
- * Organic, non-symmetric placement of the 8 functional buildings. Kept tight
- * (≈700×550 spread) so the whole interactive map is readable without zoom-out.
+ * Buildings placed in workflow order so hero movement follows the natural
+ * handle-issue flow: spawn(Gate) → reading → thinking → editing ⇄ bash ⇄
+ * debugging → git → reviewing → idle.
+ *
+ * Key layout decisions:
+ * - Library (reading) and Castle (thinking) sit near the south gate so the
+ *   first steps of a new task require minimal travel.
+ * - Forge (editing), Arena (bash), and Alchemist (debugging) form a tight
+ *   central cluster — the three most frequent mutual transitions stay close.
+ * - Chapel (git) and Watchtower (reviewing) share the north-east corner,
+ *   representing the late-stage commit/review phase.
+ * - Tavern (idle) anchors the western plaza so waiting heroes don't clutter
+ *   the active work zone.
+ *
+ * All coordinates lie inside the CITY_CLEAR ellipse (centre 1400,780;
+ * rx=520, ry=420).
  */
 export const BUILDING_DEFS: BuildingDef[] = [
-  { id: 'library',    label: 'Library',    activity: 'reading',   x: 1060, y: 600,  imageKey: 'building-library',    scale: 0.52, description: 'Agents come here to read and search code',                toolCalls: ['Read', 'Grep', 'Glob'] },
-  { id: 'alchemist',  label: 'Alchemist',  activity: 'debugging', x: 1210, y: 460,  imageKey: 'building-alchemist',  scale: 0.50, description: 'Agents come here to debug and fix errors',                toolCalls: ['(fixing after errors)'] },
-  { id: 'castle',     label: 'Castle',     activity: 'thinking',  x: 1430, y: 430,  imageKey: 'building-castle',     scale: 0.46, description: 'Agents come here to think and reason',                    toolCalls: ['(AI thinking/planning)'] },
-  { id: 'watchtower', label: 'Watchtower', activity: 'reviewing', x: 1650, y: 470,  imageKey: 'building-watchtower', scale: 0.42, description: 'Agents come here to review code and dispatch subagents',  toolCalls: ['Agent', 'review'] },
-  { id: 'chapel',     label: 'Chapel',     activity: 'git',       x: 1790, y: 610,  imageKey: 'building-chapel',     scale: 0.38, description: 'Agents come here to commit and push code',                toolCalls: ['git commit', 'git push', 'git merge'] },
-  { id: 'tavern',     label: 'Tavern',     activity: 'idle',      x: 1510, y: 810,  imageKey: 'building-tavern',     scale: 0.50, description: 'Agents rest here while waiting for user input',           toolCalls: ['(idle/waiting)'] },
-  { id: 'forge',      label: 'Forge',      activity: 'editing',   x: 1150, y: 970,  imageKey: 'building-forge',      scale: 0.42, description: 'Agents come here to write and edit code',                 toolCalls: ['Edit', 'Write'] },
-  { id: 'arena',      label: 'Arena',      activity: 'bash',      x: 1700, y: 970,  imageKey: 'building-arena',      scale: 0.42, description: 'Agents come here to run commands and tests',              toolCalls: ['Bash'] },
+  { id: 'library',    label: 'Library',    activity: 'reading',   x: 1150, y: 900,  imageKey: 'building-library',    scale: 0.52, description: 'Agents come here to read and search code',                toolCalls: ['Read', 'Grep', 'Glob'] },
+  { id: 'castle',     label: 'Castle',     activity: 'thinking',  x: 1300, y: 700,  imageKey: 'building-castle',     scale: 0.46, description: 'Agents come here to think and reason',                    toolCalls: ['(AI thinking/planning)'] },
+  { id: 'forge',      label: 'Forge',      activity: 'editing',   x: 1380, y: 880,  imageKey: 'building-forge',      scale: 0.42, description: 'Agents come here to write and edit code',                 toolCalls: ['Edit', 'Write'] },
+  { id: 'arena',      label: 'Arena',      activity: 'bash',      x: 1560, y: 880,  imageKey: 'building-arena',      scale: 0.42, description: 'Agents come here to run commands and tests',              toolCalls: ['Bash'] },
+  { id: 'alchemist',  label: 'Alchemist',  activity: 'debugging', x: 1470, y: 700,  imageKey: 'building-alchemist',  scale: 0.50, description: 'Agents come here to debug and fix errors',                toolCalls: ['(fixing after errors)'] },
+  { id: 'chapel',     label: 'Chapel',     activity: 'git',       x: 1720, y: 560,  imageKey: 'building-chapel',     scale: 0.38, description: 'Agents come here to commit and push code',                toolCalls: ['git commit', 'git push', 'git merge'] },
+  { id: 'watchtower', label: 'Watchtower', activity: 'reviewing', x: 1600, y: 450,  imageKey: 'building-watchtower', scale: 0.42, description: 'Agents come here to review code and dispatch subagents',  toolCalls: ['Agent', 'review'] },
+  { id: 'tavern',     label: 'Tavern',     activity: 'idle',      x: 1250, y: 780,  imageKey: 'building-tavern',     scale: 0.50, description: 'Agents rest here while waiting for user input',           toolCalls: ['(idle/waiting)'] },
 ];
 
 /** South gate — where heroes first spawn before walking into the village. */
