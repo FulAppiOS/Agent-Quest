@@ -25,6 +25,14 @@ const STATUS_ORDER: Record<AgentState['status'], number> = {
 };
 import { TILE_SIZE } from '../../editor/types/map';
 import { computeChildOffset } from './subagent-layout';
+import {
+  buildConnectorSegments,
+  CONNECTOR_COLOR,
+  CONNECTOR_ALPHA,
+  CONNECTOR_LINE_WIDTH,
+  CONNECTOR_DASH_LENGTH,
+  CONNECTOR_GAP_LENGTH,
+} from './subagent-connector';
 
 /** Set `cam.zoom` to `newZoom` while keeping the world point currently
  * under screen coordinates (sx, sy) pinned to the same screen spot.
@@ -69,6 +77,13 @@ export class VillageScene extends Phaser.Scene {
 
   /** Reverse lookup: attached child id → parent id. */
   private subagentParents = new Map<string, string>();
+
+  /**
+   * Reusable Graphics object for drawing the dashed connector lines between
+   * parent heroes and their attached sub-agents. Cleared and redrawn each
+   * frame in `update()` so it always reflects current hero positions.
+   */
+  private subagentConnectorGraphics: Phaser.GameObjects.Graphics | null = null;
 
   /** Atmospheric effects */
   private nightOverlay: Phaser.GameObjects.Graphics | null = null;
@@ -210,6 +225,13 @@ export class VillageScene extends Phaser.Scene {
         pinchStartDist = 0;
       }
     });
+
+    // --- Sub-agent connector lines ---
+    // A single reusable Graphics layer cleared and redrawn each frame in update().
+    // Depth sits just below sprites (footY + 0.3) so connectors appear as
+    // ground-level guides without obscuring hero labels.
+    this.subagentConnectorGraphics = this.add.graphics();
+    this.subagentConnectorGraphics.setDepth(0.3);
 
     // --- Night overlay ---
     this.nightOverlay = this.add.graphics();
@@ -646,7 +668,19 @@ export class VillageScene extends Phaser.Scene {
    * tween-driven road network, so this is what actually makes them follow.
    */
   override update(): void {
+    // Always clear connectors — even when parentChildren is empty so leftover
+    // lines from a previous frame disappear when the last sub-agent detaches.
+    this.subagentConnectorGraphics?.clear();
+
     if (this.parentChildren.size === 0) return;
+
+    const connectorPairs: Array<{
+      parentX: number;
+      parentY: number;
+      childX: number;
+      childY: number;
+    }> = [];
+
     for (const [parentId, siblings] of this.parentChildren) {
       const parentHero = this.heroes.get(parentId);
       if (parentHero === undefined) continue;
@@ -662,6 +696,67 @@ export class VillageScene extends Phaser.Scene {
           TILE_SIZE,
         );
         child.teleportTo(offset.x, offset.y);
+        connectorPairs.push({
+          parentX: parentHero.x,
+          parentY: parentHero.y,
+          childX: offset.x,
+          childY: offset.y,
+        });
+      }
+    }
+
+    this.drawSubagentConnectors(connectorPairs);
+  }
+
+  /**
+   * Draw dashed lines connecting each parent hero to its attached sub-agents.
+   *
+   * Uses `buildConnectorSegments` (pure, testable) for geometry and draws
+   * a dash-gap pattern manually since Phaser's Graphics API does not expose
+   * a native `setLineDash` equivalent. The result is a subtle dotted line
+   * that reads as a "belongs to" relation without overpowering the sprites.
+   */
+  private drawSubagentConnectors(
+    pairs: ReadonlyArray<{
+      parentX: number;
+      parentY: number;
+      childX: number;
+      childY: number;
+    }>,
+  ): void {
+    const graphics = this.subagentConnectorGraphics;
+    if (graphics === null || pairs.length === 0) return;
+
+    const segments = buildConnectorSegments(pairs);
+    graphics.lineStyle(CONNECTOR_LINE_WIDTH, CONNECTOR_COLOR, CONNECTOR_ALPHA);
+
+    for (const segment of segments) {
+      if (segment.length < 1) continue;
+
+      const dx = (segment.x2 - segment.x1) / segment.length;
+      const dy = (segment.y2 - segment.y1) / segment.length;
+      let traveled = 0;
+      let drawing = true;
+
+      while (traveled < segment.length) {
+        const segmentEnd = Math.min(
+          traveled + (drawing ? CONNECTOR_DASH_LENGTH : CONNECTOR_GAP_LENGTH),
+          segment.length,
+        );
+        if (drawing) {
+          graphics.beginPath();
+          graphics.moveTo(
+            segment.x1 + dx * traveled,
+            segment.y1 + dy * traveled,
+          );
+          graphics.lineTo(
+            segment.x1 + dx * segmentEnd,
+            segment.y1 + dy * segmentEnd,
+          );
+          graphics.strokePath();
+        }
+        traveled = segmentEnd;
+        drawing = !drawing;
       }
     }
   }

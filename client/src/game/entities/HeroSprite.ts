@@ -103,6 +103,15 @@ export class HeroSprite {
   private selectionHalo: Phaser.GameObjects.Image | null = null;
   private wanderTimer: Phaser.Time.TimerEvent | null = null;
 
+  /**
+   * Sub-agent visual distinction markers. Null for main-session heroes.
+   * - `subagentGlowRing`: pulsing circular outline drawn around the sprite
+   * - `subagentIconText`: small ⚙ badge at the sprite's top-right corner
+   */
+  private subagentGlowRing: Phaser.GameObjects.Graphics | null = null;
+  private subagentIconText: Phaser.GameObjects.Text | null = null;
+  private subagentGlowTween: Phaser.Tweens.Tween | null = null;
+
   /** Grid base position — used for slot repositioning. */
   gridBaseX = 0;
   gridBaseY = 0;
@@ -236,6 +245,105 @@ export class HeroSprite {
 
     this.setBubbleAlpha(1.0);
     this.updateDepth();
+
+    if (isSubagent) {
+      this.initSubagentMarkers();
+    }
+  }
+
+  /**
+   * Create the sub-agent glow ring and gear-icon badge that distinguish
+   * sub-agent sprites from main-session heroes in the village view.
+   *
+   * Called once from the constructor when `isSubagent` is true.
+   * The glow ring pulses via a looping alpha tween so it catches the eye
+   * even in a dense scene. The badge renders as a tiny ⚙ symbol at the
+   * sprite's top-right corner.
+   */
+  private initSubagentMarkers(): void {
+    const radius = this.sprite.displayWidth * 0.55;
+
+    // Glow ring — drawn as a filled transparent circle so the stroke appears
+    // on top of the sprite rather than underneath it. A pulsing tween drives
+    // alpha between 0.35 and 0.8, giving a "breathing" glow effect.
+    this.subagentGlowRing = this.scene.add.graphics();
+    this.drawSubagentGlowRing(radius, 0.55);
+
+    this.subagentGlowTween = this.scene.tweens.add({
+      targets: this.subagentGlowRing,
+      alpha: { from: 0.35, to: 0.8 },
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Gear-icon badge — small text label at top-right so it reads like a
+    // status indicator without needing a custom texture asset.
+    this.subagentIconText = addCrispText(
+      this.scene,
+      this._x,
+      this._y,
+      '⚙',
+      {
+        fontSize: '10px',
+        color: '#c8a8ff',
+        fontFamily: 'monospace',
+        backgroundColor: 'rgba(20,10,40,0.75)',
+        padding: { x: 2, y: 1 },
+      },
+    ).setOrigin(0, 1);
+
+    // Position markers and depth after creation so they respect the hero's
+    // initial position set in the constructor.
+    this.repositionSubagentMarkers();
+    this.updateSubagentMarkerDepth();
+  }
+
+  /**
+   * Redraw the glow ring graphics at the hero's current screen position.
+   * Called whenever the hero moves or its scale changes.
+   */
+  private drawSubagentGlowRing(radius: number, alpha: number): void {
+    if (this.subagentGlowRing === null) return;
+    this.subagentGlowRing.clear();
+    this.subagentGlowRing.lineStyle(2, 0x9b72cf, alpha);
+    this.subagentGlowRing.strokeCircle(this._x, this._y, radius);
+  }
+
+  /** Move the glow ring and icon badge to the hero's current world position. */
+  private repositionSubagentMarkers(): void {
+    if (this.subagentGlowRing === null && this.subagentIconText === null) return;
+
+    const radius = this.sprite.displayWidth * 0.55;
+
+    if (this.subagentGlowRing !== null) {
+      // Graphics objects draw in world space — clear and redraw at new position.
+      this.subagentGlowRing.clear();
+      this.subagentGlowRing.lineStyle(2, 0x9b72cf, 1.0);
+      this.subagentGlowRing.strokeCircle(this._x, this._y, radius);
+    }
+
+    if (this.subagentIconText !== null) {
+      // Badge sits at top-right of the sprite footprint.
+      const badgeOffsetX = this.sprite.displayWidth * 0.4;
+      const badgeOffsetY = -(this.sprite.displayHeight * 0.4);
+      this.subagentIconText.setPosition(
+        this._x + badgeOffsetX,
+        this._y + badgeOffsetY,
+      );
+    }
+  }
+
+  /** Sync sub-agent marker depth with the sprite so they render above the ground. */
+  private updateSubagentMarkerDepth(): void {
+    const footY = this._y + this.sprite.displayHeight * 0.5;
+    if (this.subagentGlowRing !== null) {
+      this.subagentGlowRing.setDepth(footY + 0.45);
+    }
+    if (this.subagentIconText !== null) {
+      this.subagentIconText.setDepth(footY + 1.3);
+    }
   }
 
   private setBubbleAlpha(alpha: number): void {
@@ -263,6 +371,9 @@ export class HeroSprite {
     this.updateBubble();
     if (this.selectionHalo !== null) {
       this.selectionHalo.setPosition(x, y);
+    }
+    if (this.isSubagent) {
+      this.repositionSubagentMarkers();
     }
     this.updateDepth();
   }
@@ -480,6 +591,9 @@ export class HeroSprite {
     this.activityMsgText.setDepth(footY + 1.1);
     this.indexText.setDepth(footY + 1.2);
     if (this.selectionHalo !== null) this.selectionHalo.setDepth(footY + 0.4);
+    if (this.isSubagent) {
+      this.updateSubagentMarkerDepth();
+    }
   }
 
   /**
@@ -678,6 +792,9 @@ export class HeroSprite {
         if (this.selectionHalo !== null) {
           this.selectionHalo.setPosition(this._x, this._y);
         }
+        if (this.isSubagent) {
+          this.repositionSubagentMarkers();
+        }
         this.updateDepth();
       },
       onComplete: () => {
@@ -710,6 +827,18 @@ export class HeroSprite {
     if (this.selectionHalo !== null) {
       this.selectionHalo.destroy();
       this.selectionHalo = null;
+    }
+    if (this.subagentGlowTween !== null) {
+      this.subagentGlowTween.stop();
+      this.subagentGlowTween = null;
+    }
+    if (this.subagentGlowRing !== null) {
+      this.subagentGlowRing.destroy();
+      this.subagentGlowRing = null;
+    }
+    if (this.subagentIconText !== null) {
+      this.subagentIconText.destroy();
+      this.subagentIconText = null;
     }
     this.sprite.destroy();
     this.nameText.destroy();
