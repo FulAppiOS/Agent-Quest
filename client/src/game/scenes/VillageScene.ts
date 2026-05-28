@@ -879,7 +879,17 @@ export class VillageScene extends Phaser.Scene {
       }
     }
 
-    for (const agent of visible) {
+    // Process parent heroes before sub-agents so that `canAttachSubagent`
+    // sees the parent in `this.heroes` when the child is spawned.  A single
+    // sort pass is O(n log n) and avoids a two-pass loop for the common case
+    // where parents and children arrive in the same snapshot.
+    const orderedVisible = [...visible].sort((a, b) => {
+      const aIsChild = a.isSubagent ? 1 : 0;
+      const bIsChild = b.isSubagent ? 1 : 0;
+      return aIsChild - bIsChild;
+    });
+
+    for (const agent of orderedVisible) {
       const existing = this.heroes.get(agent.id);
       const buildingDef = getBuildingForActivity(agent.currentActivity);
       const attachable = this.canAttachSubagent(agent);

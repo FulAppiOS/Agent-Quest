@@ -36,7 +36,9 @@ export class BootScene extends Phaser.Scene {
     // key AND src lets the reader pair a 30%-stuck moment with the exact
     // path that landed last (the stuck file is in flight, not this one).
     this.load.on(Phaser.Loader.Events.FILE_COMPLETE, (key: string, type: string, _data: unknown) => {
-      const file = this.load.list?.entries?.find?.((f: Phaser.Loader.File) => f.key === key);
+      const file = this.load.list
+        ? Array.from(this.load.list.values()).find((f: Phaser.Loader.File) => f.key === key)
+        : undefined;
       const src = file?.src ?? '?';
       console.log(`[BOOT] filecomplete type=${type} key=${key} src=${src}`);
     });

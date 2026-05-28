@@ -75,7 +75,6 @@ export class HeroSprite {
   readonly heroClass: HeroClass;
   private scene: Phaser.Scene;
   private sprite: Phaser.GameObjects.Sprite;
-  private source: AgentSource;
   private isSubagent: boolean;
   private nameText: Phaser.GameObjects.Text;
   private taskText: Phaser.GameObjects.Text;
@@ -125,12 +124,11 @@ export class HeroSprite {
     x: number,
     y: number,
     isSubagent = false,
-    source: AgentSource = 'claude',
+    _source: AgentSource = 'claude',
   ) {
     this.scene = scene;
     this.id = id;
     this.heroClass = heroClass;
-    this.source = source;
     this.isSubagent = isSubagent;
     this._x = x;
     this._y = y;
@@ -525,6 +523,9 @@ export class HeroSprite {
         this.indexText.setPosition(this._x + this.indexOffsetX, this._y + this.indexOffsetY);
         this.updateBubble();
         if (this.selectionHalo !== null) this.selectionHalo.setPosition(this._x, this._y);
+        if (this.isSubagent) {
+          this.repositionSubagentMarkers();
+        }
         this.updateDepth();
       },
       onComplete: () => {
