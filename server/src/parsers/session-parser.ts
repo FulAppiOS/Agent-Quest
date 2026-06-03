@@ -91,6 +91,13 @@ export interface ParsedEvent {
    * lines without usage and for Codex (which doesn't report tokens).
    */
   usage?: { input: number; output: number; cacheRead: number };
+  /**
+   * The assistant `message.id`. Claude splits one logical assistant message
+   * across several JSONL lines (one per content block) that all repeat the same
+   * `usage`, so the state manager dedupes token accounting by this id to avoid
+   * counting a message's tokens 2-3×.
+   */
+  usageMessageId?: string;
 }
 
 interface LastPromptLine {
@@ -253,6 +260,9 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     : undefined;
 
   const usage = parseUsage(asst.message.usage);
+  const usageMessageId = typeof (asst.message as { id?: unknown }).id === 'string'
+    ? (asst.message as { id: string }).id
+    : undefined;
 
   return {
     sessionId: asst.sessionId,
@@ -268,6 +278,7 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     isTurnEnd,
     model,
     usage,
+    usageMessageId,
   };
 }
 

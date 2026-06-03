@@ -80,6 +80,8 @@ function isSubagentSessionId(sessionId: string): boolean {
 
 export class AgentStateManager {
   private agents = new Map<string, AgentState>();
+  /** Per-agent set of assistant message ids whose usage has already been counted. */
+  private countedUsageIds = new Map<string, Set<string>>();
   private classIndex = 0;
   private colorIndex = 0;
   private idleThresholdMs: number;
@@ -125,6 +127,7 @@ export class AgentStateManager {
     if (existing === undefined) {
       const agent = this.createAgent(event, configDir, source, nameOverride);
       this.agents.set(event.sessionId, agent);
+      this.addUsage(agent, event);
       this.applyDerivedStatus(agent);
       this.applyTurnAndError(agent, event);
       // Liveness wins over turn-end: a dead pid can't be mid-turn.
@@ -397,6 +400,7 @@ export class AgentStateManager {
     const removed: string[] = [];
     for (const agent of candidates) {
       this.agents.delete(agent.id);
+      this.countedUsageIds.delete(agent.id);
       removed.push(agent.id);
     }
 
@@ -460,9 +464,7 @@ export class AgentStateManager {
       currentActivity: event.activity,
       currentFile: event.file,
       currentCommand: event.command,
-      tokenUsage: event.usage !== undefined
-        ? { input: event.usage.input, output: event.usage.output, cacheRead: event.usage.cacheRead }
-        : { input: 0, output: 0, cacheRead: 0 },
+      tokenUsage: { input: 0, output: 0, cacheRead: 0 },
       cost: 0,
       sessionStart: event.timestamp,
       toolCalls: [...event.toolCalls],
@@ -480,6 +482,29 @@ export class AgentStateManager {
     return agent;
   }
 
+  /**
+   * Accumulate token usage, deduped by assistant message id. Claude writes one
+   * logical assistant message as several JSONL lines (one per content block)
+   * that all repeat the same `usage`; without this guard a message's tokens
+   * would be counted 2-3× and the cost estimate would be wildly inflated.
+   */
+  private addUsage(agent: AgentState, event: ParsedEvent): void {
+    if (event.usage === undefined) return;
+    const id = event.usageMessageId;
+    if (id !== undefined) {
+      let seen = this.countedUsageIds.get(agent.id);
+      if (seen === undefined) {
+        seen = new Set();
+        this.countedUsageIds.set(agent.id, seen);
+      }
+      if (seen.has(id)) return; // this message's usage already counted
+      seen.add(id);
+    }
+    agent.tokenUsage.input += event.usage.input;
+    agent.tokenUsage.output += event.usage.output;
+    agent.tokenUsage.cacheRead += event.usage.cacheRead;
+  }
+
   private updateAgent(agent: AgentState, event: ParsedEvent): void {
     agent.status = 'active';
     agent.currentActivity = event.activity;
@@ -493,13 +518,7 @@ export class AgentStateManager {
     if (event.model !== undefined) {
       agent.model = event.model;
     }
-    // Accumulate token usage across the session (each turn re-bills context, so
-    // summing per-message usage is the real cost basis).
-    if (event.usage !== undefined) {
-      agent.tokenUsage.input += event.usage.input;
-      agent.tokenUsage.output += event.usage.output;
-      agent.tokenUsage.cacheRead += event.usage.cacheRead;
-    }
+    this.addUsage(agent, event);
 
     // Subagents keep their filename-derived name — the event's slug is the
     // parent session's slug (copied verbatim) and would be misleading.
