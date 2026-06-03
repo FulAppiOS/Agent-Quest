@@ -10,6 +10,8 @@ import { DetailPanel } from './components/DetailPanel';
 import { BuildingInfoPanel } from './components/BuildingInfoPanel';
 import { Tutorial } from './components/Tutorial';
 import { NoInstallBanner } from './components/NoInstallBanner';
+import { SettingsPanel } from './components/SettingsPanel';
+import { useSettings } from './hooks/useSettings';
 import './App.css';
 
 export default function App() {
@@ -21,6 +23,8 @@ export default function App() {
   } | null>(null);
   const [villageReady, setVillageReady] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, updateSettings] = useSettings();
 
   const closeTutorial = useCallback(() => {
     setTutorialOpen(false);
@@ -103,6 +107,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onOpen = () => setSettingsOpen(true);
+    eventBridge.on('settings:open', onOpen);
+    return () => eventBridge.off('settings:open', onOpen);
+  }, []);
+
+  useEffect(() => {
     eventBridge.emit('agents:updated', agents);
   }, [agents]);
 
@@ -152,6 +162,13 @@ export default function App() {
         </div>
       )}
       {tutorialOpen && <Tutorial onClose={closeTutorial} />}
+      {settingsOpen && (
+        <SettingsPanel
+          settings={settings}
+          onChange={updateSettings}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 }

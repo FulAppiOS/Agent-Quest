@@ -142,6 +142,14 @@ export function TopBar({ agents, connected }: TopBarProps) {
             </a>
             <button
               className="topbar-effect-btn"
+              onClick={() => eventBridge.emit('settings:open')}
+              title="Settings"
+              aria-label="Settings"
+            >
+              {'\u{2699}\u{FE0F}'}
+            </button>
+            <button
+              className="topbar-effect-btn"
               onClick={() => eventBridge.emit('tutorial:open')}
               title="Show tutorial"
             >

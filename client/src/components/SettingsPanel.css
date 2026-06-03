@@ -1,0 +1,224 @@
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  font-family: 'Fira Code', monospace;
+}
+
+.settings-modal {
+  position: relative;
+  width: min(460px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: rgba(26, 26, 46, 0.96);
+  border: 1px solid rgba(196, 163, 90, 0.45);
+  border-radius: 6px;
+  padding: 20px 24px 22px;
+  color: #F5E6C8;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.settings-modal::-webkit-scrollbar { width: 6px; }
+.settings-modal::-webkit-scrollbar-track { background: rgba(26, 26, 46, 0.5); }
+.settings-modal::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
+
+.settings-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  line-height: 1;
+  font-size: 18px;
+  background: none;
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  color: #C4A35A;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.settings-close:hover {
+  color: #E2C77A;
+  border-color: rgba(196, 163, 90, 0.6);
+}
+
+.settings-title {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.settings-section-label {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin: 16px 0 6px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.25);
+  padding-bottom: 3px;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.settings-toggle.is-disabled {
+  cursor: default;
+}
+
+.settings-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-toggle-label {
+  font-size: 13px;
+  color: #F5E6C8;
+}
+
+.settings-toggle-hint {
+  font-size: 11px;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* Switch ------------------------------------------------------------------ */
+.settings-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+}
+
+.settings-switch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-switch input:disabled {
+  cursor: default;
+}
+
+.settings-switch-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  border-radius: 11px;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.settings-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #C4A35A;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.settings-switch input:checked + .settings-switch-track {
+  background: rgba(196, 163, 90, 0.3);
+  border-color: #C4A35A;
+}
+
+.settings-switch input:checked + .settings-switch-track::after {
+  transform: translateX(16px);
+  background: #E2C77A;
+}
+
+.settings-switch input:disabled + .settings-switch-track {
+  opacity: 0.45;
+}
+
+.settings-switch input:focus-visible + .settings-switch-track {
+  outline: 2px solid rgba(196, 163, 90, 0.7);
+  outline-offset: 2px;
+}
+
+/* Sub-group of dependent toggles ----------------------------------------- */
+.settings-subgroup {
+  padding-left: 12px;
+  border-left: 1px solid rgba(196, 163, 90, 0.2);
+  margin: 2px 0 4px;
+  transition: opacity 0.18s ease;
+}
+
+.settings-subgroup[data-dim="true"] {
+  opacity: 0.5;
+}
+
+/* Volume row -------------------------------------------------------------- */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  transition: opacity 0.18s ease;
+}
+
+.settings-row[data-dim="true"] {
+  opacity: 0.5;
+}
+
+.settings-volume {
+  flex: 1;
+  accent-color: #C4A35A;
+  cursor: pointer;
+}
+
+.settings-volume:disabled {
+  cursor: default;
+}
+
+.settings-volume-value {
+  font-size: 12px;
+  color: #C4A35A;
+  width: 38px;
+  text-align: right;
+}
+
+/* Messages ---------------------------------------------------------------- */
+.settings-warn {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #E0A86A;
+  background: rgba(139, 69, 19, 0.18);
+  border-left: 3px solid #C4773A;
+  border-radius: 2px;
+  padding: 8px 10px;
+  margin: 4px 0 6px;
+}
+
+.settings-foot {
+  font-size: 11px;
+  color: #777;
+  text-align: center;
+  margin: 16px 0 0;
+  line-height: 1.5;
+}
