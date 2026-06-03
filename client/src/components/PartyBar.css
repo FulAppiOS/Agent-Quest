@@ -77,6 +77,42 @@
 .partybar-list::-webkit-scrollbar-thumb { background: rgba(196, 163, 90, 0.4); border-radius: 3px; }
 .partybar-list::-webkit-scrollbar-track { background: transparent; }
 
+/* === Completed section === */
+.partybar-completed {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(196, 163, 90, 0.25);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.partybar-completed-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  cursor: pointer;
+  color: #9a937e;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+.partybar-completed-header:hover { background: rgba(196, 163, 90, 0.1); color: #C4A35A; }
+.partybar.mode-icons .partybar-completed-header { justify-content: center; }
+.partybar-completed-caret { font-size: 9px; color: #C4A35A; }
+.partybar-completed-count { color: #888; }
+.partybar-completed-list {
+  max-height: 220px;
+}
+/* Finished sessions read as dimmed until hovered/selected. */
+.partybar-completed-list .partybar-agent { opacity: 0.6; }
+.partybar-completed-list .partybar-agent:hover,
+.partybar-completed-list .partybar-agent.selected { opacity: 1; }
+
 /* === Row === */
 .partybar-agent {
   display: flex;

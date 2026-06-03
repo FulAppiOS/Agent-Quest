@@ -222,6 +222,16 @@
   margin: 4px 0 10px;
 }
 
+.settings-hook-blurb {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(196, 163, 90, 0.15);
+}
+
+.settings-hook-blurb strong {
+  color: #E2C77A;
+}
+
 .settings-hint-block code {
   background: rgba(196, 163, 90, 0.12);
   border: 1px solid rgba(196, 163, 90, 0.2);

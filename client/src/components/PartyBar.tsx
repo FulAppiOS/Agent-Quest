@@ -117,14 +117,31 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
   );
 }
 
+const LIVE_STATUSES = new Set<AgentState['status']>(['active', 'waiting', 'idle']);
+
 export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBadge }: PartyBarProps) {
   const [prefs, updatePrefs] = usePartyPrefs();
   const mode: 'full' | 'icons' = prefs.foldState;
+  const [showCompleted, setShowCompleted] = useState(false);
 
-  const visible = agents.filter((a) => a.status === 'active' || a.status === 'idle');
-  const sorted = [...visible].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
-  const activeCount = visible.filter((a) => a.status === 'active').length;
-  const idleCount = visible.filter((a) => a.status === 'idle').length;
+  // Live roster: active + waiting + idle. 'waiting' must be here — with sticky
+  // waiting on the server a finished-turn agent stays 'waiting', and dropping it
+  // would make heroes vanish from the party the moment they're done.
+  const live = agents.filter((a) => LIVE_STATUSES.has(a.status));
+  const sorted = [...live].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+  const activeCount = live.filter((a) => a.status === 'active').length;
+  const waitingCount = live.filter((a) => a.status === 'waiting').length;
+  const idleCount = live.filter((a) => a.status === 'idle').length;
+
+  // Completed sessions, most recently finished first — shown in a collapsible
+  // section so finished work stays reviewable instead of just disappearing.
+  const completed = agents
+    .filter((a) => a.status === 'completed')
+    .sort((a, b) => b.lastEvent - a.lastEvent);
+
+  const headerParts = [`${activeCount} active`];
+  if (waitingCount > 0) headerParts.push(`${waitingCount} waiting`);
+  headerParts.push(`${idleCount} idle`);
 
   const toggleFold = useCallback(() => {
     updatePrefs({ foldState: mode === 'full' ? 'icons' : 'full' });
@@ -138,9 +155,9 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
     <div className={`partybar mode-${mode}`} role="list" aria-label="Party">
       <div className="partybar-header">
         {mode === 'full' ? (
-          <span className="partybar-title">Party ({activeCount} active, {idleCount} idle)</span>
+          <span className="partybar-title">Party ({headerParts.join(', ')})</span>
         ) : (
-          <span className="partybar-title-compact">{activeCount + idleCount}</span>
+          <span className="partybar-title-compact">{live.length}</span>
         )}
         <button
           type="button"
@@ -163,6 +180,37 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
           />
         ))}
       </div>
+
+      {completed.length > 0 && (
+        <div className="partybar-completed">
+          <button
+            type="button"
+            className="partybar-completed-header"
+            aria-expanded={showCompleted}
+            onClick={() => setShowCompleted((v) => !v)}
+            title={`${completed.length} completed session${completed.length === 1 ? '' : 's'}`}
+          >
+            <span className="partybar-completed-caret" aria-hidden="true">{showCompleted ? '▾' : '▸'}</span>
+            {mode === 'full'
+              ? <span>Completed ({completed.length})</span>
+              : <span className="partybar-completed-count">{completed.length}✓</span>}
+          </button>
+          {showCompleted && (
+            <div className="partybar-list partybar-completed-list">
+              {completed.map((agent) => (
+                <PartyRow
+                  key={agent.id}
+                  agent={agent}
+                  mode={mode}
+                  isSelected={agent.id === selectedAgentId}
+                  onClick={() => handleClick(agent.id)}
+                  showSourceBadge={showSourceBadge}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

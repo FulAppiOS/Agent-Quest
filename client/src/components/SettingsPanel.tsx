@@ -187,6 +187,41 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
           </div>
         )}
 
+        <div className="settings-hint-block settings-hook-blurb">
+          <strong>Reliable turn-end</strong> — let Claude tell Agent Quest the instant an
+          agent finishes, instead of inferring it from logs (fewer false alarms, no delay).
+          Optional, Claude-only. Enabling writes a small <code>Stop</code> hook into your
+          Claude <code>settings.json</code>; existing hooks are left untouched.
+        </div>
+        {hook.loading ? (
+          <p className="settings-muted">Checking…</p>
+        ) : hook.status === null ? (
+          <p className="settings-warn">Couldn't reach the server{hook.error !== null ? `: ${hook.error}` : ''}.</p>
+        ) : hook.status.configDirs.length === 0 ? (
+          <p className="settings-muted">No Claude Code install detected.</p>
+        ) : (
+          <>
+            <div className="settings-hook">
+              <span className={`settings-hook-state ${hook.status.installed ? 'on' : ''}`}>
+                {hook.status.installed ? 'Reliable turn-end: on' : hook.status.anyInstalled ? 'Partially enabled' : 'Reliable turn-end: off'}
+              </span>
+              <button
+                className="settings-btn"
+                disabled={hook.busy}
+                onClick={() => { void setHookEnabled(!hook.status!.installed); }}
+              >
+                {hook.busy ? '…' : hook.status.installed ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+            {hook.status.anyInstalled && (
+              <p className="settings-muted">
+                Restart your Claude Code sessions (or start new ones) for the change to take effect.
+              </p>
+            )}
+            {hook.error !== null && <p className="settings-warn">{hook.error}</p>}
+          </>
+        )}
+
         <div className="settings-subgroup" data-dim={!anyChannel}>
           <Toggle
             label="Turn finished"
@@ -241,43 +276,6 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
           checked={settings.doNotDisturb}
           onToggle={(v) => onChange({ doNotDisturb: v })}
         />
-
-        <div className="settings-section-label">Reliable Claude turn-end</div>
-        <p className="settings-hint-block">
-          Let Claude Code tell Agent Quest the instant an agent finishes its turn,
-          instead of inferring it from the logs — fewer false alarms, no delay.
-          Optional and Claude-only (Codex reports turn-end natively). Enabling
-          writes a small <code>Stop</code> hook into your Claude{' '}
-          <code>settings.json</code>; your existing hooks are left untouched.
-        </p>
-        {hook.loading ? (
-          <p className="settings-muted">Checking…</p>
-        ) : hook.status === null ? (
-          <p className="settings-warn">Couldn't reach the server{hook.error !== null ? `: ${hook.error}` : ''}.</p>
-        ) : hook.status.configDirs.length === 0 ? (
-          <p className="settings-muted">No Claude Code install detected.</p>
-        ) : (
-          <>
-            <div className="settings-hook">
-              <span className={`settings-hook-state ${hook.status.installed ? 'on' : ''}`}>
-                {hook.status.installed ? 'Enabled' : hook.status.anyInstalled ? 'Partially enabled' : 'Disabled'}
-              </span>
-              <button
-                className="settings-btn"
-                disabled={hook.busy}
-                onClick={() => { void setHookEnabled(!hook.status!.installed); }}
-              >
-                {hook.busy ? '…' : hook.status.installed ? 'Disable' : 'Enable'}
-              </button>
-            </div>
-            {hook.status.anyInstalled && (
-              <p className="settings-muted">
-                Restart your Claude Code sessions (or start new ones) for the change to take effect.
-              </p>
-            )}
-            {hook.error !== null && <p className="settings-warn">{hook.error}</p>}
-          </>
-        )}
 
         <p className="settings-foot">
           Preferences are saved locally in this browser. Nothing is uploaded.
