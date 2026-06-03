@@ -740,4 +740,82 @@ describe('AgentStateManager', () => {
     expect(res!.agent.source).toBe('codex');
     expect(res!.agent.status).toBe('active');  // NOT completed despite oracle saying "not live"
   });
+
+  describe('isSubagent flag', () => {
+    test('is false for a regular session', () => {
+      const mgr = new AgentStateManager();
+      const r = mgr.processEvent(makeEvent({ sessionId: 'sess-1' }));
+      expect(r!.agent.isSubagent).toBe(false);
+    });
+
+    test('is true for an agent- session id', () => {
+      const mgr = new AgentStateManager();
+      const r = mgr.processEvent(makeEvent({ sessionId: 'agent-explore-43e8a1e24296c9a5' }));
+      expect(r!.agent.isSubagent).toBe(true);
+    });
+  });
+
+  describe('markTurnEnd (Stop hook)', () => {
+    test('promotes an active agent to waiting and reports the change', () => {
+      const mgr = new AgentStateManager();
+      mgr.processEvent(makeEvent());
+      expect(mgr.markTurnEnd('sess-1')).toBe(true);
+      const a = mgr.getAgent('sess-1')!;
+      expect(a.status).toBe('waiting');
+      expect(a.currentActivity).toBe('idle');
+      expect(a.busy).toBe(false);
+    });
+
+    test('is a no-op (false) when already waiting', () => {
+      const mgr = new AgentStateManager();
+      mgr.processEvent(makeEvent());
+      mgr.markTurnEnd('sess-1');
+      expect(mgr.markTurnEnd('sess-1')).toBe(false);
+    });
+
+    test('does not resurrect an idle/completed agent', () => {
+      const mgr = new AgentStateManager({ idleThresholdMs: 5 * 60_000, completedThresholdMs: 30 * 60_000 });
+      mgr.processEvent(makeEvent({ timestamp: Date.now() - 10 * 60_000 })); // idle
+      expect(mgr.getAgent('sess-1')!.status).toBe('idle');
+      expect(mgr.markTurnEnd('sess-1')).toBe(false);
+      expect(mgr.getAgent('sess-1')!.status).toBe('idle');
+    });
+
+    test('ignores subagents and unknown ids', () => {
+      const mgr = new AgentStateManager();
+      mgr.processEvent(makeEvent({ sessionId: 'agent-x-43e8a1e24296c9a5' }));
+      expect(mgr.markTurnEnd('agent-x-43e8a1e24296c9a5')).toBe(false);
+      expect(mgr.markTurnEnd('does-not-exist')).toBe(false);
+    });
+  });
+
+  describe('sticky waiting', () => {
+    test('refreshAll does not revert a freshly-waiting agent back to active', () => {
+      const mgr = new AgentStateManager();
+      mgr.processEvent(makeEvent());
+      mgr.markTurnEnd('sess-1');
+      expect(mgr.getAgent('sess-1')!.status).toBe('waiting');
+      // refreshAll re-derives status from lastEvent age (recent) — must keep waiting.
+      mgr.refreshAll();
+      expect(mgr.getAgent('sess-1')!.status).toBe('waiting');
+    });
+
+    test('a waiting agent still ages into idle after the idle threshold', () => {
+      const mgr = new AgentStateManager({ idleThresholdMs: 5 * 60_000, completedThresholdMs: 30 * 60_000 });
+      mgr.processEvent(makeEvent());
+      mgr.markTurnEnd('sess-1');
+      mgr.getAgent('sess-1')!.lastEvent = Date.now() - 10 * 60_000; // silent 10 min
+      mgr.refreshAll();
+      expect(mgr.getAgent('sess-1')!.status).toBe('idle');
+    });
+
+    test('genuine new activity moves a waiting agent back to active', () => {
+      const mgr = new AgentStateManager();
+      mgr.processEvent(makeEvent());
+      mgr.markTurnEnd('sess-1');
+      expect(mgr.getAgent('sess-1')!.status).toBe('waiting');
+      mgr.processEvent(makeEvent({ activity: 'editing', file: '/x.ts' }));
+      expect(mgr.getAgent('sess-1')!.status).toBe('active');
+    });
+  });
 });

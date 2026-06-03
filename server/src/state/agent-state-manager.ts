@@ -223,6 +223,14 @@ export class AgentStateManager {
     } else if (age > idleThreshold) {
       agent.status = 'idle';
       agent.currentActivity = 'idle';
+    } else if (agent.status === 'waiting' && agent.busy !== true) {
+      // Sticky 'waiting': a turn-end (inferred from JSONL or pushed by the Stop
+      // hook) means "finished, your move". Without this, the periodic
+      // refreshAll would recompute age < idleThreshold and revert it to
+      // 'active' within ~10s, so the dashboard would never actually show that
+      // the agent is done. The `busy !== true` guard lets genuine new activity
+      // (a user prompt sets busy=true via applyTaskUpdate; tool events set
+      // 'active' directly) pull the agent back out of waiting.
     } else {
       agent.status = 'active';
     }
@@ -273,6 +281,27 @@ export class AgentStateManager {
     if (agent === undefined) return;
     agent.status = 'completed';
     agent.currentActivity = 'idle';
+  }
+
+  /**
+   * Authoritative turn-end pushed by the Claude Code `Stop` hook: the main
+   * agent finished responding and is waiting for the user. Mirrors the JSONL
+   * `isTurnEnd` path (only promotes an active/waiting agent, never resurrects an
+   * idle/completed one, and never touches subagents) but arrives immediately and
+   * without the inference's false positives. Does not bump `lastEvent` — the
+   * idle/completed timers still run off real activity. Returns true if the
+   * agent's visible state changed (so the caller can broadcast).
+   */
+  markTurnEnd(sessionId: string): boolean {
+    const agent = this.agents.get(sessionId);
+    if (agent === undefined) return false;
+    if (isSubagentSessionId(agent.id)) return false;
+    agent.busy = false;
+    if (agent.status !== 'active' && agent.status !== 'waiting') return false;
+    const changed = agent.status !== 'waiting' || agent.currentActivity !== 'idle';
+    agent.status = 'waiting';
+    agent.currentActivity = 'idle';
+    return changed;
   }
 
   /** Mark active agents as idle after inactivity threshold. Busy agents get a longer grace. */
@@ -444,6 +473,7 @@ export class AgentStateManager {
       configDir,
       source,
       model: event.model,
+      isSubagent: isSubagentSessionId(event.sessionId),
     };
     return agent;
   }

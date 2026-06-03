@@ -7,6 +7,7 @@ import { WebSocketServer } from './ws/websocket-server';
 import type { WsClient } from './ws/websocket-server';
 import { MapStorage } from './map/storage';
 import { registerMapRoutes } from './map/routes';
+import { registerHookRoutes } from './hooks/routes';
 import { ClaudeProvider } from './providers/claude-provider';
 import { CodexProvider } from './providers/codex-provider';
 import type { ProviderHandlers, SessionStartPayload, SessionEventsPayload } from './providers/types';
@@ -149,6 +150,16 @@ const providerHandlers: ProviderHandlers = {
 
 const claudeProvider = new ClaudeProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
 const codexProvider = new CodexProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
+
+// Optional Claude Code lifecycle-hook integration (Claude-only — Codex has no
+// hooks). Provides authoritative, low-latency turn-end signals and an opt-in
+// installer that writes the hook into each Claude settings.json on request.
+registerHookRoutes(app, {
+  stateManager,
+  wsServer,
+  getClaudeConfigDirs: () => claudeProvider.getConfigDirs(),
+  hookUrl: `http://localhost:${PORT}/api/hooks/claude`,
+});
 
 function allConfigDirs(): string[] {
   return [...claudeProvider.getConfigDirs(), ...codexProvider.getConfigDirs()];

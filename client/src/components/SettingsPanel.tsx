@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { AppSettings } from '../hooks/useSettings';
+import { SERVER_URL } from '../config';
 import './SettingsPanel.css';
 
 interface SettingsPanelProps {
@@ -48,14 +49,63 @@ function Toggle({
   );
 }
 
+interface HookStatus {
+  installed: boolean;
+  anyInstalled: boolean;
+  configDirs: string[];
+}
+
+interface HookUiState {
+  loading: boolean;
+  status: HookStatus | null;
+  error: string | null;
+  busy: boolean;
+}
+
 export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProps) {
   const [permission, setPermission] = useState<PermissionState>(() => readPermission());
+  const [hook, setHook] = useState<HookUiState>({ loading: true, status: null, error: null, busy: false });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  const refreshHook = useCallback(async () => {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/hooks/status`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as Record<string, unknown>;
+      setHook((h) => ({
+        ...h,
+        loading: false,
+        error: null,
+        status: {
+          installed: data.installed === true,
+          anyInstalled: data.anyInstalled === true,
+          configDirs: Array.isArray(data.configDirs) ? (data.configDirs as string[]) : [],
+        },
+      }));
+    } catch (e) {
+      setHook((h) => ({ ...h, loading: false, error: (e as Error).message }));
+    }
+  }, []);
+
+  useEffect(() => { void refreshHook(); }, [refreshHook]);
+
+  const setHookEnabled = useCallback(async (enable: boolean) => {
+    setHook((h) => ({ ...h, busy: true, error: null }));
+    try {
+      const res = await fetch(`${SERVER_URL}/api/hooks/${enable ? 'install' : 'uninstall'}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      setHook((h) => ({ ...h, error: (e as Error).message }));
+    } finally {
+      setHook((h) => ({ ...h, busy: false }));
+      await refreshHook();
+    }
+  }, [refreshHook]);
 
   // Enabling notifications needs the browser's permission. Ask for it the moment
   // the user flips the master switch on; reflect the outcome in the hint below.
@@ -152,6 +202,43 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
           checked={settings.doNotDisturb}
           onToggle={(v) => onChange({ doNotDisturb: v })}
         />
+
+        <div className="settings-section-label">Reliable Claude turn-end</div>
+        <p className="settings-hint-block">
+          Let Claude Code tell Agent Quest the instant an agent finishes its turn,
+          instead of inferring it from the logs — fewer false alarms, no delay.
+          Optional and Claude-only (Codex reports turn-end natively). Enabling
+          writes a small <code>Stop</code> hook into your Claude{' '}
+          <code>settings.json</code>; your existing hooks are left untouched.
+        </p>
+        {hook.loading ? (
+          <p className="settings-muted">Checking…</p>
+        ) : hook.status === null ? (
+          <p className="settings-warn">Couldn't reach the server{hook.error !== null ? `: ${hook.error}` : ''}.</p>
+        ) : hook.status.configDirs.length === 0 ? (
+          <p className="settings-muted">No Claude Code install detected.</p>
+        ) : (
+          <>
+            <div className="settings-hook">
+              <span className={`settings-hook-state ${hook.status.installed ? 'on' : ''}`}>
+                {hook.status.installed ? 'Enabled' : hook.status.anyInstalled ? 'Partially enabled' : 'Disabled'}
+              </span>
+              <button
+                className="settings-btn"
+                disabled={hook.busy}
+                onClick={() => { void setHookEnabled(!hook.status!.installed); }}
+              >
+                {hook.busy ? '…' : hook.status.installed ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+            {hook.status.anyInstalled && (
+              <p className="settings-muted">
+                Restart your Claude Code sessions (or start new ones) for the change to take effect.
+              </p>
+            )}
+            {hook.error !== null && <p className="settings-warn">{hook.error}</p>}
+          </>
+        )}
 
         <p className="settings-foot">
           Preferences are saved locally in this browser. Nothing is uploaded.

@@ -66,6 +66,12 @@ export interface AgentState {
    * sessions and for Claude sessions whose JSONL predates the field.
    */
   model?: string;
+  /**
+   * True for Claude Code subagents (spawned via the Task tool — their session
+   * id is filename-derived with an `agent-` prefix). The client uses this to
+   * suppress per-subagent notifications. Always false for Codex (no subagents).
+   */
+  isSubagent: boolean;
 }
 
 // --- Session metadata from ~/.claude/sessions/<pid>.json
