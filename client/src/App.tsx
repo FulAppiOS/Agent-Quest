@@ -12,6 +12,7 @@ import { Tutorial } from './components/Tutorial';
 import { NoInstallBanner } from './components/NoInstallBanner';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useSettings } from './hooks/useSettings';
+import { useAgentNotifications } from './hooks/useAgentNotifications';
 import './App.css';
 
 export default function App() {
@@ -47,6 +48,9 @@ export default function App() {
     selectAgent(id);
     setSelectedBuilding(null);
   }, [selectAgent]);
+
+  // Desktop notifications + sounds on agent state transitions (gated by settings).
+  useAgentNotifications(agents, settings, handleSelectAgent);
 
   // When selecting building, clear agent. `anchor` is the click's screen-space
   // position, captured by the Building entity and used by BuildingInfoPanel

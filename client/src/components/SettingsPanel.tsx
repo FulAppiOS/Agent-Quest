@@ -68,6 +68,9 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
 
   const notifyOn = settings.notificationsEnabled;
   const permissionBlocked = notifyOn && permission === 'denied';
+  // The category toggles ("which events do I care about") gate both channels,
+  // so they stay live as long as at least one channel — desktop or sound — is on.
+  const anyChannel = settings.notificationsEnabled || settings.soundEnabled;
 
   return (
     <div className="settings-backdrop" onClick={onClose}>
@@ -95,26 +98,26 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
           </p>
         )}
 
-        <div className="settings-subgroup" data-dim={!notifyOn}>
+        <div className="settings-subgroup" data-dim={!anyChannel}>
           <Toggle
             label="Turn finished"
             hint="Agent finished its turn and is waiting for you"
             checked={settings.notifyWaiting}
-            disabled={!notifyOn}
+            disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyWaiting: v })}
           />
           <Toggle
             label="Errors"
             hint="Agent hit an error"
             checked={settings.notifyError}
-            disabled={!notifyOn}
+            disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyError: v })}
           />
           <Toggle
             label="Session completed"
             hint="Agent session ended"
             checked={settings.notifyCompleted}
-            disabled={!notifyOn}
+            disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyCompleted: v })}
           />
         </div>

@@ -101,6 +101,21 @@ export interface AgentState {
   source: AgentSource;
   /** Raw model id from Claude Code (e.g. `claude-opus-4-6`). Undefined for Codex. */
   model?: string;
+  /** True for Claude Code subagents (Task tool). Set by the server once it
+   * sends the flag; until then `isSubagentAgent()` falls back to the id prefix. */
+  isSubagent?: boolean;
+}
+
+/**
+ * Whether an agent is a subagent (spawned via the Task tool) rather than a
+ * top-level session. Prefers the explicit server flag; falls back to the
+ * `agent-` session-id prefix the server uses internally, so this is correct
+ * even before the flag ships. Codex has no subagents, so this is always false
+ * for Codex sources in practice. Used to suppress per-subagent notifications.
+ */
+export function isSubagentAgent(a: Pick<AgentState, 'id' | 'isSubagent'>): boolean {
+  if (typeof a.isSubagent === 'boolean') return a.isSubagent;
+  return a.id.startsWith('agent-');
 }
 
 /**
