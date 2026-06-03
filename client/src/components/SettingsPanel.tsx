@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AppSettings } from '../hooks/useSettings';
 import { SERVER_URL } from '../config';
+import { playChime } from '../notifications/sound';
 import './SettingsPanel.css';
 
 interface SettingsPanelProps {
@@ -72,6 +73,35 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Keep the permission state in sync with the browser — including changes the
+  // user makes in the site settings while the panel is open. Without this, once
+  // the permission was 'denied' the "blocked" message would never clear even
+  // after the user allowed notifications, because we'd never re-read it.
+  useEffect(() => {
+    setPermission(readPermission());
+    const perms = typeof navigator !== 'undefined' ? navigator.permissions : undefined;
+    if (perms?.query === undefined) return;
+    let status: PermissionStatus | null = null;
+    let cancelled = false;
+    const toState = (s: string): PermissionState => (s === 'prompt' ? 'default' : (s as PermissionState));
+    perms.query({ name: 'notifications' as PermissionName }).then((st) => {
+      if (cancelled) { return; }
+      status = st;
+      setPermission(toState(st.state));
+      st.onchange = () => setPermission(toState(st.state));
+    }).catch(() => { /* notifications not queryable here — fall back to readPermission */ });
+    return () => { cancelled = true; if (status !== null) status.onchange = null; };
+  }, []);
+
+  const sendTestNotification = useCallback(() => {
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('Agent Quest', { body: 'Notifications are working \u{1F514}', tag: 'agentquest:test' });
+      }
+    } catch { /* ignore */ }
+    if (settings.soundEnabled) playChime('waiting', settings.volume);
+  }, [settings.soundEnabled, settings.volume]);
+
   const refreshHook = useCallback(async () => {
     try {
       const res = await fetch(`${SERVER_URL}/api/hooks/status`);
@@ -111,7 +141,10 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
   // the user flips the master switch on; reflect the outcome in the hint below.
   const handleNotificationsToggle = (next: boolean) => {
     onChange({ notificationsEnabled: next });
-    if (next && permission === 'default' && typeof Notification !== 'undefined') {
+    // Re-request whenever we don't already have it. On 'default' the browser
+    // prompts; on 'denied' it resolves immediately without a prompt (harmless),
+    // and the Permissions API subscription will reflect any later change.
+    if (next && permission !== 'granted' && permission !== 'unsupported' && typeof Notification !== 'undefined') {
       void Notification.requestPermission().then((p) => setPermission(p as PermissionState));
     }
   };
@@ -146,6 +179,12 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
           <p className="settings-warn">
             This browser doesn't support desktop notifications — sounds will still work.
           </p>
+        )}
+        {notifyOn && permission === 'granted' && (
+          <div className="settings-row">
+            <span className="settings-muted">Allowed by your browser.</span>
+            <button className="settings-btn" onClick={sendTestNotification}>Send a test</button>
+          </div>
         )}
 
         <div className="settings-subgroup" data-dim={!anyChannel}>
