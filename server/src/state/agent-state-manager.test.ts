@@ -818,4 +818,55 @@ describe('AgentStateManager', () => {
       expect(mgr.getAgent('sess-1')!.status).toBe('active');
     });
   });
+
+  describe('waiting → completed correctness', () => {
+    test('a waiting agent ages to completed past the completed threshold (refreshAll)', () => {
+      const mgr = new AgentStateManager({ idleThresholdMs: 5 * 60_000, completedThresholdMs: 30 * 60_000 });
+      mgr.processEvent(makeEvent());
+      mgr.markTurnEnd('sess-1');
+      expect(mgr.getAgent('sess-1')!.status).toBe('waiting');
+      mgr.getAgent('sess-1')!.lastEvent = Date.now() - 31 * 60_000; // silent 31 min
+      const changed = mgr.refreshAll();
+      expect(changed).toContain('sess-1');
+      expect(mgr.getAgent('sess-1')!.status).toBe('completed');
+    });
+
+    test('waiting agents are aged by refreshAll, not the 30s active/idle sweep', () => {
+      const mgr = new AgentStateManager({ idleThresholdMs: 5 * 60_000, completedThresholdMs: 30 * 60_000 });
+      mgr.processEvent(makeEvent());
+      mgr.markTurnEnd('sess-1');
+      mgr.getAgent('sess-1')!.lastEvent = Date.now() - 40 * 60_000;
+      // checkIdleAgents/checkCompletedAgents only act on active/idle — a waiting
+      // agent is deliberately left untouched by them...
+      mgr.checkIdleAgents(5 * 60_000);
+      mgr.checkCompletedAgents(30 * 60_000);
+      expect(mgr.getAgent('sess-1')!.status).toBe('waiting');
+      // ...it's refreshAll (the 10s re-derive) that ages it to completed.
+      mgr.refreshAll();
+      expect(mgr.getAgent('sess-1')!.status).toBe('completed');
+    });
+
+    test('a waiting agent whose pid died is forced to completed immediately', () => {
+      let live = ['sess-1', 'anchor'];
+      const oracle = { hasAnyLive: () => live.length > 0, isLive: (s: string) => live.includes(s) };
+      const mgr = new AgentStateManager({ livenessOracle: oracle });
+      mgr.processEvent(makeEvent({ sessionId: 'sess-1', timestamp: Date.now() }));
+      mgr.processEvent(makeEvent({ sessionId: 'anchor', slug: 'anchor', timestamp: Date.now() }));
+      mgr.markTurnEnd('sess-1');
+      expect(mgr.getAgent('sess-1')!.status).toBe('waiting');
+
+      live = ['anchor']; // sess-1's process exited while it was waiting
+      const changed = mgr.refreshAll();
+      expect(changed).toContain('sess-1');
+      expect(mgr.getAgent('sess-1')!.status).toBe('completed');
+    });
+
+    test('completed agent is not revived to waiting by a stray Stop hook', () => {
+      const mgr = new AgentStateManager({ completedThresholdMs: 30 * 60_000 });
+      mgr.processEvent(makeEvent({ timestamp: Date.now() - 60 * 60_000 })); // completed
+      expect(mgr.getAgent('sess-1')!.status).toBe('completed');
+      expect(mgr.markTurnEnd('sess-1')).toBe(false);
+      expect(mgr.getAgent('sess-1')!.status).toBe('completed');
+    });
+  });
 });

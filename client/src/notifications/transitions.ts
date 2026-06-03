@@ -24,19 +24,23 @@ export function snapshotOf(a: AgentState): AgentSnapshot {
 
 /**
  * Diff the previous per-agent snapshots against the current agent list and
- * return the alerts to raise, plus the fresh snapshot map to keep.
+ * return the genuine end-of-task transitions, plus the fresh snapshot map.
  *
- * Rules (main agents only — subagents are recorded but never alert, so the
- * Task-tool fan-out doesn't spam notifications):
- *   - error     — `lastErrorAt` advanced, or status entered 'error'
+ * Only real task-completion signals are emitted (main agents only — subagents
+ * never alert, so the Task-tool fan-out doesn't spam):
  *   - waiting   — status entered 'waiting' ("turn finished, your move")
- *   - completed — status entered 'completed'
- * At most one alert per agent per diff, prioritized error > waiting > completed.
+ *   - completed — status entered 'completed' (session ended)
  *
- * Agents seen for the first time (not in `prev`) only seed the baseline and
- * never alert — so an initial snapshot or a websocket reconnect doesn't fire a
- * burst of notifications for sessions that were already waiting/completed.
- * Building `next` only from current agents also drops removed agents naturally.
+ * Mid-turn errors are deliberately NOT a transition here: a failed tool call is
+ * usually recovered from within the same turn, so it isn't task completion. The
+ * caller folds "ended with an error" into the waiting transition instead (by
+ * inspecting `lastErrorAt` when the turn actually ends), and debounces waiting
+ * to drop inferred-turn-end false positives.
+ *
+ * Agents seen for the first time only seed the baseline and never alert — so an
+ * initial snapshot or a websocket reconnect doesn't fire a burst for sessions
+ * already waiting/completed. Building `next` only from current agents also drops
+ * removed agents naturally.
  */
 export function computeAlerts(
   prev: Map<string, AgentSnapshot>,
@@ -54,14 +58,11 @@ export function computeAlerts(
     const before = prev.get(a.id);
     if (before === undefined) continue; // first sight → baseline only
 
-    const errorAdvanced = cur.lastErrorAt !== undefined && cur.lastErrorAt !== before.lastErrorAt;
-    const enteredError = before.status !== 'error' && cur.status === 'error';
     const enteredWaiting = before.status !== 'waiting' && cur.status === 'waiting';
     const enteredCompleted = before.status !== 'completed' && cur.status === 'completed';
 
     let category: ChimeKind | null = null;
-    if (errorAdvanced || enteredError) category = 'error';
-    else if (enteredWaiting) category = 'waiting';
+    if (enteredWaiting) category = 'waiting';
     else if (enteredCompleted) category = 'completed';
 
     if (category !== null) {

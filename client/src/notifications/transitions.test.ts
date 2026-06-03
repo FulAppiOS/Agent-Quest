@@ -47,16 +47,18 @@ describe('computeAlerts', () => {
     expect(alerts[0]?.category).toBe('completed');
   });
 
-  it('alerts when lastErrorAt advances', () => {
+  it('does NOT alert on a mid-turn error (lastErrorAt advancing without turn-end)', () => {
     const prev = snap([makeAgent({ status: 'active', lastErrorAt: undefined })]);
     const { alerts } = computeAlerts(prev, [makeAgent({ status: 'active', lastErrorAt: 123 })]);
-    expect(alerts[0]?.category).toBe('error');
+    expect(alerts).toEqual([]);
   });
 
-  it('prioritizes error over waiting on a simultaneous change', () => {
+  it('emits a waiting transition even when an error happened in the same turn', () => {
     const prev = snap([makeAgent({ status: 'active', lastErrorAt: 1 })]);
     const { alerts } = computeAlerts(prev, [makeAgent({ status: 'waiting', lastErrorAt: 2 })]);
-    expect(alerts[0]?.category).toBe('error');
+    // Category is 'waiting' here; the hook reclassifies to 'error' at fire time
+    // based on lastErrorAt recency.
+    expect(alerts[0]?.category).toBe('waiting');
   });
 
   it('does not re-alert while status stays waiting', () => {

@@ -11,8 +11,9 @@ import { BuildingInfoPanel } from './components/BuildingInfoPanel';
 import { Tutorial } from './components/Tutorial';
 import { NoInstallBanner } from './components/NoInstallBanner';
 import { SettingsPanel } from './components/SettingsPanel';
+import { Toasts, type ToastItem } from './components/Toasts';
 import { useSettings } from './hooks/useSettings';
-import { useAgentNotifications } from './hooks/useAgentNotifications';
+import { useAgentNotifications, type ToastPayload } from './hooks/useAgentNotifications';
 import './App.css';
 
 export default function App() {
@@ -26,6 +27,20 @@ export default function App() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, updateSettings] = useSettings();
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const pushToast = useCallback((p: ToastPayload) => {
+    setToasts((prev) => {
+      const key = `${p.agentId}:${p.category}`;
+      // One toast per agent+category; refresh (move to top) instead of stacking.
+      const without = prev.filter((t) => t.key !== key);
+      return [{ ...p, key }, ...without].slice(0, 5);
+    });
+  }, []);
+
+  const dismissToast = useCallback((key: string) => {
+    setToasts((prev) => prev.filter((t) => t.key !== key));
+  }, []);
 
   const closeTutorial = useCallback(() => {
     setTutorialOpen(false);
@@ -49,8 +64,10 @@ export default function App() {
     setSelectedBuilding(null);
   }, [selectAgent]);
 
-  // Desktop notifications + sounds on agent state transitions (gated by settings).
-  useAgentNotifications(agents, settings, handleSelectAgent);
+  // Desktop notifications + sounds + in-app toasts on agent state transitions
+  // (gated by settings). Toasts are the browser-independent, permission-free
+  // channel.
+  useAgentNotifications(agents, settings, handleSelectAgent, pushToast);
 
   // When selecting building, clear agent. `anchor` is the click's screen-space
   // position, captured by the Building entity and used by BuildingInfoPanel
@@ -163,6 +180,7 @@ export default function App() {
             onSelectAgent={handleSelectAgent}
             showSourceBadge={showSourceBadge}
           />
+          <Toasts items={toasts} onActivate={handleSelectAgent} onDismiss={dismissToast} />
         </div>
       )}
       {tutorialOpen && <Tutorial onClose={closeTutorial} />}

@@ -16,6 +16,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export interface AppSettings {
   /** Master switch for desktop (Web Notification API) notifications. */
   notificationsEnabled: boolean;
+  /** Show dismissable in-app toasts (works on any browser, no OS permission). */
+  inAppToasts: boolean;
   /** Play a sound alongside notifications. */
   soundEnabled: boolean;
   /** Notification sound volume, 0..1. */
@@ -32,6 +34,7 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   notificationsEnabled: false, // opt-in: also needs browser permission (step 2)
+  inAppToasts: true,           // on by default — reliable everywhere, no permission
   soundEnabled: true,
   volume: 0.5,
   doNotDisturb: false,
@@ -63,6 +66,7 @@ export function parseSettings(raw: string | null): AppSettings {
   const o = obj as Record<string, unknown>;
   return {
     notificationsEnabled: isBool(o.notificationsEnabled) ? o.notificationsEnabled : DEFAULT_SETTINGS.notificationsEnabled,
+    inAppToasts: isBool(o.inAppToasts) ? o.inAppToasts : DEFAULT_SETTINGS.inAppToasts,
     soundEnabled: isBool(o.soundEnabled) ? o.soundEnabled : DEFAULT_SETTINGS.soundEnabled,
     volume: clampVolume(o.volume),
     doNotDisturb: isBool(o.doNotDisturb) ? o.doNotDisturb : DEFAULT_SETTINGS.doNotDisturb,

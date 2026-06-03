@@ -158,7 +158,7 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
   const permissionBlocked = notifyOn && permission === 'denied';
   // The category toggles ("which events do I care about") gate both channels,
   // so they stay live as long as at least one channel — desktop or sound — is on.
-  const anyChannel = settings.notificationsEnabled || settings.soundEnabled;
+  const anyChannel = settings.notificationsEnabled || settings.soundEnabled || settings.inAppToasts;
 
   return (
     <div className="settings-backdrop" onClick={onClose}>
@@ -191,6 +191,12 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
             <button className="settings-btn" onClick={sendTestNotification}>Send a test</button>
           </div>
         )}
+        <Toggle
+          label="In-app toasts"
+          hint="Dismissable banners inside the dashboard — works everywhere, no permission"
+          checked={settings.inAppToasts}
+          onToggle={(v) => onChange({ inAppToasts: v })}
+        />
 
         <div className="settings-hint-block settings-hook-blurb">
           <strong>Reliable turn-end</strong> — let Claude tell Agent Quest the instant an

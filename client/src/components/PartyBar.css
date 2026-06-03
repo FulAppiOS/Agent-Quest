@@ -250,11 +250,36 @@
   flex: 1;
   min-width: 0;
 }
-/* Status-driven text colors mirror the status dot, so the label and the dot
-   agree at a glance. */
-.partybar-activity.status-waiting   { color: #FFD700; opacity: 0.95; }
-.partybar-activity.status-completed { color: #9a9a9a; }
-.partybar-activity.status-error     { color: #FF6B6B; opacity: 0.95; }
+/* Notable states render as a pill (matching the source/model badge style) so
+   they stand out from the plain activity text. Waiting is the loudest. */
+.partybar-activity.status-waiting,
+.partybar-activity.status-completed,
+.partybar-activity.status-error {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 1px 8px;
+  border-radius: 9px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  opacity: 1;
+  border: 1px solid transparent;
+}
+.partybar-activity.status-waiting {
+  color: #FFD700;
+  background: rgba(255, 215, 0, 0.16);
+  border-color: rgba(255, 215, 0, 0.55);
+}
+.partybar-activity.status-completed {
+  color: #b9b9b9;
+  background: rgba(150, 150, 150, 0.14);
+  border-color: rgba(150, 150, 150, 0.4);
+}
+.partybar-activity.status-error {
+  color: #FF6B6B;
+  background: rgba(255, 107, 107, 0.14);
+  border-color: rgba(255, 107, 107, 0.5);
+}
 
 /* === Responsive === */
 @media (max-width: 600px) {

@@ -1,0 +1,85 @@
+.toasts {
+  position: absolute;
+  top: 48px;
+  right: 8px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, calc(100vw - 16px));
+  font-family: 'Fira Code', ui-monospace, monospace;
+  pointer-events: none; /* let clicks pass except on the toasts themselves */
+}
+
+.toast {
+  display: flex;
+  align-items: stretch;
+  background: rgba(26, 26, 46, 0.96);
+  border: 1px solid rgba(196, 163, 90, 0.4);
+  border-left-width: 4px;
+  border-radius: 5px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  pointer-events: auto;
+  animation: toast-in 0.18s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+.toast-waiting   { border-left-color: #FFD700; }
+.toast-error     { border-left-color: #FF6B6B; }
+.toast-completed { border-left-color: #9a9a9a; }
+
+.toast-body-btn {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  min-width: 0;
+}
+.toast-body-btn:hover { background: rgba(255, 255, 255, 0.05); }
+
+.toast-icon { font-size: 15px; line-height: 1.2; flex-shrink: 0; }
+
+.toast-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.toast-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #F5E6C8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toast-message {
+  font-size: 11px;
+  color: #9a937e;
+  line-height: 1.4;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  width: 26px;
+  align-self: stretch;
+  background: none;
+  border: none;
+  border-left: 1px solid rgba(196, 163, 90, 0.18);
+  color: #888;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.toast-close:hover { color: #E2C77A; background: rgba(196, 163, 90, 0.12); }

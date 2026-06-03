@@ -410,8 +410,30 @@
 .detail-last-message a { color: #9ec4f5; text-decoration: none; }
 .detail-last-message a:hover { text-decoration: underline; }
 
-/* Status-colored state value (mirrors the status overlay dot). */
-.detail-state.status-active    { color: #7ED9A0; }
-.detail-state.status-waiting   { color: #FFD700; }
-.detail-state.status-completed { color: #9a9a9a; }
-.detail-state.status-error     { color: #FF6B6B; }
+/* Status-colored state value (mirrors the status overlay dot). Notable states
+   render as a pill so they stand out; active stays plain text. */
+.detail-state.status-active { color: #7ED9A0; }
+.detail-state.status-waiting,
+.detail-state.status-completed,
+.detail-state.status-error {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: 9px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.detail-state.status-waiting {
+  color: #FFD700;
+  background: rgba(255, 215, 0, 0.16);
+  border-color: rgba(255, 215, 0, 0.55);
+}
+.detail-state.status-completed {
+  color: #b9b9b9;
+  background: rgba(150, 150, 150, 0.14);
+  border-color: rgba(150, 150, 150, 0.4);
+}
+.detail-state.status-error {
+  color: #FF6B6B;
+  background: rgba(255, 107, 107, 0.14);
+  border-color: rgba(255, 107, 107, 0.5);
+}
