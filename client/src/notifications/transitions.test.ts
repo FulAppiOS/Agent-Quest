@@ -10,7 +10,7 @@ function makeAgent(over: Partial<AgentState> = {}): AgentState {
     heroColor: 'blue',
     status: 'active',
     currentActivity: 'idle',
-    tokenUsage: { input: 0, output: 0, cacheRead: 0 },
+    tokenUsage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     cost: 0,
     sessionStart: 0,
     toolCalls: [],

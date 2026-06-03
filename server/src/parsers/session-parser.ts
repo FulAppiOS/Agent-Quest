@@ -26,19 +26,25 @@ function asNonNegInt(v: unknown): number {
 }
 
 /**
- * Parse Claude's `message.usage` block. `cacheRead` folds both cache-read and
- * cache-creation input tokens (both are input billed at different rates, but for
- * a usage summary we group them as "cached"). Returns undefined when there's no
- * usable usage data so we don't manufacture zero rows.
+ * Parse Claude's `message.usage` block into the four *billable* token buckets.
+ * Cache READ tokens (`cache_read_input_tokens`, billed at 0.1× input) and cache
+ * WRITE tokens (`cache_creation_input_tokens`, billed at 1.25×–2× input) are kept
+ * SEPARATE: writes are 12.5–20× more expensive than reads, so folding them into
+ * a single "cached" bucket and pricing it at the read rate massively misprices a
+ * session (the old behaviour). Returns undefined when there's no usable usage
+ * data so we don't manufacture zero rows.
  */
-export function parseUsage(usage: unknown): { input: number; output: number; cacheRead: number } | undefined {
+export function parseUsage(
+  usage: unknown,
+): { input: number; output: number; cacheRead: number; cacheWrite: number } | undefined {
   if (usage === null || typeof usage !== 'object') return undefined;
   const u = usage as Record<string, unknown>;
   const input = asNonNegInt(u['input_tokens']);
   const output = asNonNegInt(u['output_tokens']);
-  const cacheRead = asNonNegInt(u['cache_read_input_tokens']) + asNonNegInt(u['cache_creation_input_tokens']);
-  if (input === 0 && output === 0 && cacheRead === 0) return undefined;
-  return { input, output, cacheRead };
+  const cacheRead = asNonNegInt(u['cache_read_input_tokens']);
+  const cacheWrite = asNonNegInt(u['cache_creation_input_tokens']);
+  if (input === 0 && output === 0 && cacheRead === 0 && cacheWrite === 0) return undefined;
+  return { input, output, cacheRead, cacheWrite };
 }
 
 export function extractFileFromToolUse(
@@ -90,7 +96,7 @@ export interface ParsedEvent {
    * is the real cost basis, so the state manager sums these). Undefined for
    * lines without usage and for Codex (which doesn't report tokens).
    */
-  usage?: { input: number; output: number; cacheRead: number };
+  usage?: { input: number; output: number; cacheRead: number; cacheWrite: number };
   /**
    * The assistant `message.id`. Claude splits one logical assistant message
    * across several JSONL lines (one per content block) that all repeat the same

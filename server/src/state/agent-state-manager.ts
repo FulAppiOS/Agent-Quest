@@ -464,7 +464,7 @@ export class AgentStateManager {
       currentActivity: event.activity,
       currentFile: event.file,
       currentCommand: event.command,
-      tokenUsage: { input: 0, output: 0, cacheRead: 0 },
+      tokenUsage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       cost: 0,
       sessionStart: event.timestamp,
       toolCalls: [...event.toolCalls],
@@ -503,6 +503,7 @@ export class AgentStateManager {
     agent.tokenUsage.input += event.usage.input;
     agent.tokenUsage.output += event.usage.output;
     agent.tokenUsage.cacheRead += event.usage.cacheRead;
+    agent.tokenUsage.cacheWrite += event.usage.cacheWrite;
   }
 
   private updateAgent(agent: AgentState, event: ParsedEvent): void {

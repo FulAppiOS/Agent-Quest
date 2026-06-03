@@ -822,24 +822,24 @@ describe('AgentStateManager', () => {
   describe('token usage accumulation (deduped by message id)', () => {
     test('counts a message\'s usage once even when its lines repeat', () => {
       const mgr = new AgentStateManager();
-      const ev = { usage: { input: 10, output: 20, cacheRead: 30 }, usageMessageId: 'm1' };
+      const ev = { usage: { input: 10, output: 20, cacheRead: 30, cacheWrite: 40 }, usageMessageId: 'm1' };
       mgr.processEvent(makeEvent(ev));        // creates agent
       mgr.processEvent(makeEvent(ev));        // same message id again (another content block)
-      expect(mgr.getAgent('sess-1')!.tokenUsage).toEqual({ input: 10, output: 20, cacheRead: 30 });
+      expect(mgr.getAgent('sess-1')!.tokenUsage).toEqual({ input: 10, output: 20, cacheRead: 30, cacheWrite: 40 });
     });
 
     test('accumulates across distinct message ids', () => {
       const mgr = new AgentStateManager();
-      mgr.processEvent(makeEvent({ usage: { input: 10, output: 20, cacheRead: 30 }, usageMessageId: 'm1' }));
-      mgr.processEvent(makeEvent({ usage: { input: 1, output: 2, cacheRead: 3 }, usageMessageId: 'm2' }));
-      expect(mgr.getAgent('sess-1')!.tokenUsage).toEqual({ input: 11, output: 22, cacheRead: 33 });
+      mgr.processEvent(makeEvent({ usage: { input: 10, output: 20, cacheRead: 30, cacheWrite: 40 }, usageMessageId: 'm1' }));
+      mgr.processEvent(makeEvent({ usage: { input: 1, output: 2, cacheRead: 3, cacheWrite: 4 }, usageMessageId: 'm2' }));
+      expect(mgr.getAgent('sess-1')!.tokenUsage).toEqual({ input: 11, output: 22, cacheRead: 33, cacheWrite: 44 });
     });
 
     test('events without usage leave totals untouched', () => {
       const mgr = new AgentStateManager();
-      mgr.processEvent(makeEvent({ usage: { input: 5, output: 5, cacheRead: 5 }, usageMessageId: 'm1' }));
+      mgr.processEvent(makeEvent({ usage: { input: 5, output: 5, cacheRead: 5, cacheWrite: 5 }, usageMessageId: 'm1' }));
       mgr.processEvent(makeEvent({ activity: 'reading' })); // no usage
-      expect(mgr.getAgent('sess-1')!.tokenUsage).toEqual({ input: 5, output: 5, cacheRead: 5 });
+      expect(mgr.getAgent('sess-1')!.tokenUsage).toEqual({ input: 5, output: 5, cacheRead: 5, cacheWrite: 5 });
     });
   });
 

@@ -2,9 +2,9 @@ import { describe, test, expect } from 'bun:test';
 import { parseJsonlLine, toolNameToActivity, extractFileFromToolUse, parseUsage } from './session-parser';
 
 describe('parseUsage', () => {
-  test('reads input/output and folds both cache fields into cacheRead', () => {
+  test('keeps cache read and cache write (creation) in separate buckets', () => {
     expect(parseUsage({ input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 20, cache_creation_input_tokens: 5 }))
-      .toEqual({ input: 100, output: 50, cacheRead: 25 });
+      .toEqual({ input: 100, output: 50, cacheRead: 20, cacheWrite: 5 });
   });
   test('returns undefined for missing/empty/garbage usage', () => {
     expect(parseUsage(undefined)).toBeUndefined();
@@ -13,8 +13,12 @@ describe('parseUsage', () => {
     expect(parseUsage({ input_tokens: 0, output_tokens: 0 })).toBeUndefined();
     expect(parseUsage('nope')).toBeUndefined();
   });
+  test('counts a cache-write-only message (no read, no input/output)', () => {
+    expect(parseUsage({ input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 7 }))
+      .toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 7 });
+  });
   test('ignores negative/NaN values', () => {
-    expect(parseUsage({ input_tokens: -5, output_tokens: 10 })).toEqual({ input: 0, output: 10, cacheRead: 0 });
+    expect(parseUsage({ input_tokens: -5, output_tokens: 10 })).toEqual({ input: 0, output: 10, cacheRead: 0, cacheWrite: 0 });
   });
 });
 

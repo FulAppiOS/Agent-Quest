@@ -25,12 +25,6 @@ function formatNum(n: number): string {
   return String(n);
 }
 
-function formatCost(usd: number): string {
-  if (usd < 0.01) return `<$0.01`;
-  if (usd < 1) return `$${usd.toFixed(2)}`;
-  return `$${usd.toFixed(2)}`;
-}
-
 function cwdBasename(cwd: string): string {
   const parts = cwd.split('/').filter((p) => p.length > 0);
   return parts[parts.length - 1] ?? cwd;
@@ -82,29 +76,26 @@ export function SessionReport({ agent }: { agent: AgentState }) {
         </>
       )}
 
-      <div className="report-section-title">Economy</div>
+      {/* Tokens — Claude only. Codex doesn't report usage, so the section is
+          omitted entirely for it (no misleading empty rows). */}
       {r.hasTokens ? (
-        <div className="report-econ">
-          <div className="report-econ-row"><span>Input</span><span>{formatNum(r.tokens.input)}</span></div>
-          <div className="report-econ-row"><span>Output</span><span>{formatNum(r.tokens.output)}</span></div>
-          <div className="report-econ-row"><span>Cache read</span><span>{formatNum(r.tokens.cacheRead)}</span></div>
-          <div className="report-econ-row report-econ-total"><span>Total tokens</span><span>{formatNum(r.tokens.total)}</span></div>
-          {r.estCost !== null ? (
-            <>
-              <div className="report-econ-row"><span>Est. cost</span><span>{formatCost(r.estCost)}<span className="report-est"> est.</span></span></div>
-              {r.costPerMin !== null && <div className="report-econ-row"><span>Cost / min</span><span>{formatCost(r.costPerMin)}<span className="report-est"> est.</span></span></div>}
-            </>
-          ) : (
-            <div className="report-muted">Cost estimate unavailable for this model.</div>
-          )}
-        </div>
-      ) : (
-        <div className="report-muted">
-          {r.source === 'codex'
-            ? 'Codex doesn’t report token usage, so cost can’t be shown.'
-            : 'No token usage recorded for this session yet.'}
-        </div>
-      )}
+        <>
+          <div className="report-section-title">Tokens</div>
+          <div className="report-econ">
+            <div className="report-econ-row"><span>Input</span><span>{formatNum(r.tokens.input)}</span></div>
+            <div className="report-econ-row"><span>Output</span><span>{formatNum(r.tokens.output)}</span></div>
+            <div className="report-econ-row"><span>Cache read</span><span>{formatNum(r.tokens.cacheRead)}</span></div>
+            <div className="report-econ-row"><span>Cache write</span><span>{formatNum(r.tokens.cacheWrite)}</span></div>
+            <div className="report-econ-row report-econ-total"><span>Total tokens</span><span>{formatNum(r.tokens.total)}</span></div>
+          </div>
+          <div className="report-muted report-tokens-note">Tokens for this session only — its subagents are tracked separately.</div>
+        </>
+      ) : r.source === 'claude' ? (
+        <>
+          <div className="report-section-title">Tokens</div>
+          <div className="report-muted">No token usage recorded for this session yet.</div>
+        </>
+      ) : null}
     </div>
   );
 }

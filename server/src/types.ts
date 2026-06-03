@@ -45,7 +45,7 @@ export interface AgentState {
   currentActivity: AgentActivity;
   currentFile?: string;
   currentCommand?: string;
-  tokenUsage: { input: number; output: number; cacheRead: number };
+  tokenUsage: { input: number; output: number; cacheRead: number; cacheWrite: number };
   cost: number;
   sessionStart: number;   // timestamp ms
   toolCalls: ToolCall[];

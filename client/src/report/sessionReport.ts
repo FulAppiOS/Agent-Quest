@@ -1,13 +1,14 @@
-import type { AgentActivity, AgentSource, AgentState } from '../types/agent';
+import type { AgentActivity, AgentState } from '../types/agent';
 
 /**
  * Per-session "report card" derived purely from an AgentState. Kept as a pure
  * function so it's testable and DB-ready: the same shape can later be produced
  * from persisted events instead of the live snapshot, without touching the UI.
  *
- * Everything is computed from data already on the agent (tool history, files,
- * tokens, timestamps). Cost is an ESTIMATE from a per-model price table — token
- * counts are exact, dollar figures are approximate.
+ * We report token COUNTS (exact, from the JSONL) but deliberately NOT a dollar
+ * cost: pricing changes with every model generation and would need constant
+ * maintenance, and per-session token totals here don't include the session's
+ * subagents (each is its own agent), so a cost figure would mislead anyway.
  */
 
 export interface ActivitySlice {
@@ -24,12 +25,8 @@ export interface SessionReport {
   filesModified: number;
   errorCount: number;
   hasTokens: boolean;
-  tokens: { input: number; output: number; cacheRead: number; total: number };
-  /** Estimated USD cost; null for Codex, missing tokens, or unknown model. */
-  estCost: number | null;
-  /** Estimated USD per minute; null when cost or duration is unavailable. */
-  costPerMin: number | null;
-  source: AgentSource;
+  tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number };
+  source: AgentState['source'];
   model?: string;
 }
 
@@ -42,24 +39,6 @@ const TOOL_ACTIVITY_MAP: Record<string, AgentActivity> = {
 
 function toolToActivity(name: string): AgentActivity {
   return TOOL_ACTIVITY_MAP[name] ?? 'thinking';
-}
-
-/** Approximate USD price per token, by model family. */
-interface Price { input: number; output: number; cacheRead: number }
-const PRICES: Record<'opus' | 'sonnet' | 'haiku', Price> = {
-  // ~per-MTok: opus 15/75, sonnet 3/15, haiku 0.8/4; cache read ~0.1× input.
-  opus:   { input: 15e-6,  output: 75e-6, cacheRead: 1.5e-6 },
-  sonnet: { input: 3e-6,   output: 15e-6, cacheRead: 0.3e-6 },
-  haiku:  { input: 0.8e-6, output: 4e-6,  cacheRead: 0.08e-6 },
-};
-
-function priceFor(model: string | undefined): Price | null {
-  if (model === undefined) return null;
-  const id = model.toLowerCase();
-  if (id.includes('opus')) return PRICES.opus;
-  if (id.includes('sonnet')) return PRICES.sonnet;
-  if (id.includes('haiku')) return PRICES.haiku;
-  return null;
 }
 
 export function computeSessionReport(agent: AgentState): SessionReport {
@@ -84,15 +63,7 @@ export function computeSessionReport(agent: AgentState): SessionReport {
     .slice(0, 6);
 
   const tu = agent.tokenUsage;
-  const total = tu.input + tu.output + tu.cacheRead;
-  const hasTokens = total > 0;
-
-  const price = priceFor(agent.model);
-  let estCost: number | null = null;
-  if (agent.source === 'claude' && hasTokens && price !== null) {
-    estCost = tu.input * price.input + tu.output * price.output + tu.cacheRead * price.cacheRead;
-  }
-  const costPerMin = estCost !== null && durationMs > 0 ? estCost / (durationMs / 60_000) : null;
+  const total = tu.input + tu.output + tu.cacheRead + tu.cacheWrite;
 
   return {
     durationMs,
@@ -101,10 +72,8 @@ export function computeSessionReport(agent: AgentState): SessionReport {
     topTools,
     filesModified: agent.filesModified.length,
     errorCount: agent.errors.length,
-    hasTokens,
-    tokens: { input: tu.input, output: tu.output, cacheRead: tu.cacheRead, total },
-    estCost,
-    costPerMin,
+    hasTokens: total > 0,
+    tokens: { input: tu.input, output: tu.output, cacheRead: tu.cacheRead, cacheWrite: tu.cacheWrite, total },
     source: agent.source,
     model: agent.model,
   };
