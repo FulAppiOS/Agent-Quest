@@ -84,12 +84,17 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
     let status: PermissionStatus | null = null;
     let cancelled = false;
     const toState = (s: string): PermissionState => (s === 'prompt' ? 'default' : (s as PermissionState));
-    perms.query({ name: 'notifications' as PermissionName }).then((st) => {
-      if (cancelled) { return; }
-      status = st;
-      setPermission(toState(st.state));
-      st.onchange = () => setPermission(toState(st.state));
-    }).catch(() => { /* notifications not queryable here — fall back to readPermission */ });
+    // Safari doesn't support querying the 'notifications' permission and may
+    // throw synchronously here (not just reject) — wrap the whole call so we
+    // fall back cleanly to the direct Notification.permission read above.
+    try {
+      perms.query({ name: 'notifications' as PermissionName }).then((st) => {
+        if (cancelled) { return; }
+        status = st;
+        setPermission(toState(st.state));
+        st.onchange = () => setPermission(toState(st.state));
+      }).catch(() => { /* not queryable — fall back to readPermission */ });
+    } catch { /* Safari: query('notifications') unsupported — fall back */ }
     return () => { cancelled = true; if (status !== null) status.onchange = null; };
   }, []);
 
