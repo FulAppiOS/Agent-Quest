@@ -2,6 +2,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 6px 14px 12px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .report-env {
@@ -12,7 +16,9 @@
   color: #D6CBB0;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(196, 163, 90, 0.18);
+  min-width: 0;
 }
+.report-env-item { min-width: 0; overflow-wrap: anywhere; }
 .report-env-k { color: #777; margin-right: 4px; }
 
 .report-stats {
@@ -26,12 +32,13 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 8px 4px;
+  padding: 8px 2px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(196, 163, 90, 0.18);
   border-radius: 4px;
+  min-width: 0;
 }
-.report-stat-v { font-size: 16px; font-weight: 600; color: #F5E6C8; }
+.report-stat-v { font-size: 14px; font-weight: 600; color: #F5E6C8; white-space: nowrap; }
 .report-stat-v.is-err { color: #FF6B6B; }
 .report-stat-k { font-size: 9.5px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
 
@@ -52,8 +59,16 @@
 }
 
 .report-bars { display: flex; flex-direction: column; gap: 5px; }
-.report-bar-row { display: flex; align-items: center; gap: 8px; }
-.report-bar-label { width: 72px; font-size: 11px; color: #D6CBB0; flex-shrink: 0; }
+.report-bar-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.report-bar-label {
+  width: 66px;
+  font-size: 11px;
+  color: #D6CBB0;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .report-bar-track {
   flex: 1;
   height: 9px;
