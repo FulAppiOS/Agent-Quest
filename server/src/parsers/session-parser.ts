@@ -21,6 +21,26 @@ export function toolNameToActivity(toolName: string): AgentActivity {
   return TOOL_ACTIVITY_MAP[toolName] ?? 'thinking';
 }
 
+function asNonNegInt(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0;
+}
+
+/**
+ * Parse Claude's `message.usage` block. `cacheRead` folds both cache-read and
+ * cache-creation input tokens (both are input billed at different rates, but for
+ * a usage summary we group them as "cached"). Returns undefined when there's no
+ * usable usage data so we don't manufacture zero rows.
+ */
+export function parseUsage(usage: unknown): { input: number; output: number; cacheRead: number } | undefined {
+  if (usage === null || typeof usage !== 'object') return undefined;
+  const u = usage as Record<string, unknown>;
+  const input = asNonNegInt(u['input_tokens']);
+  const output = asNonNegInt(u['output_tokens']);
+  const cacheRead = asNonNegInt(u['cache_read_input_tokens']) + asNonNegInt(u['cache_creation_input_tokens']);
+  if (input === 0 && output === 0 && cacheRead === 0) return undefined;
+  return { input, output, cacheRead };
+}
+
 export function extractFileFromToolUse(
   toolName: string,
   input: Record<string, unknown>,
@@ -64,6 +84,13 @@ export interface ParsedEvent {
    * seen value so a mid-session model change is reflected.
    */
   model?: string;
+  /**
+   * Token usage from a Claude assistant line's `message.usage`. Per-message and
+   * additive across the session (each turn's `input` re-bills the context — that
+   * is the real cost basis, so the state manager sums these). Undefined for
+   * lines without usage and for Codex (which doesn't report tokens).
+   */
+  usage?: { input: number; output: number; cacheRead: number };
 }
 
 interface LastPromptLine {
@@ -225,6 +252,8 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     ? asst.message.model
     : undefined;
 
+  const usage = parseUsage(asst.message.usage);
+
   return {
     sessionId: asst.sessionId,
     slug: asst.slug,
@@ -238,6 +267,7 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     kind: 'tool',
     isTurnEnd,
     model,
+    usage,
   };
 }
 

@@ -1,0 +1,93 @@
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-env {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 11px;
+  color: #D6CBB0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.18);
+}
+.report-env-k { color: #777; margin-right: 4px; }
+
+.report-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+.report-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 163, 90, 0.18);
+  border-radius: 4px;
+}
+.report-stat-v { font-size: 16px; font-weight: 600; color: #F5E6C8; }
+.report-stat-v.is-err { color: #FF6B6B; }
+.report-stat-k { font-size: 9.5px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.report-section-title {
+  font-family: 'Cinzel', serif;
+  color: #C4A35A;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 12px 0 5px;
+}
+
+.report-empty, .report-muted {
+  font-size: 11px;
+  color: #888;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+
+.report-bars { display: flex; flex-direction: column; gap: 5px; }
+.report-bar-row { display: flex; align-items: center; gap: 8px; }
+.report-bar-label { width: 72px; font-size: 11px; color: #D6CBB0; flex-shrink: 0; }
+.report-bar-track {
+  flex: 1;
+  height: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.report-bar-fill { display: block; height: 100%; border-radius: 5px; min-width: 2px; }
+.report-bar-count { width: 28px; text-align: right; font-size: 11px; color: #C4A35A; flex-shrink: 0; }
+
+.report-tools { display: flex; flex-wrap: wrap; gap: 5px; }
+.report-tool {
+  font-size: 10.5px;
+  color: #D6CBB0;
+  background: rgba(196, 163, 90, 0.1);
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+.report-tool-n { color: #C4A35A; font-weight: 600; }
+
+.report-econ { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.report-econ-row {
+  display: flex;
+  justify-content: space-between;
+  color: #D6CBB0;
+  padding: 2px 0;
+}
+.report-econ-row span:first-child { color: #9a937e; }
+.report-econ-total {
+  border-top: 1px solid rgba(196, 163, 90, 0.18);
+  margin-top: 2px;
+  padding-top: 5px;
+  color: #F5E6C8;
+  font-weight: 600;
+}
+.report-est { color: #777; font-size: 10px; }

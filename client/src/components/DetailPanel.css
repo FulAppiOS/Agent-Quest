@@ -410,6 +410,34 @@
 .detail-last-message a { color: #9ec4f5; text-decoration: none; }
 .detail-last-message a:hover { text-decoration: underline; }
 
+/* Tabs (Live / Report) */
+.detail-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px 0;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.2);
+  flex-shrink: 0;
+}
+.detail-tab {
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  color: #9a937e;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.detail-tab:hover { color: #C4A35A; }
+.detail-tab.active {
+  color: #E2C77A;
+  background: rgba(196, 163, 90, 0.12);
+  border-color: rgba(196, 163, 90, 0.3);
+}
+
 /* Status-colored state value (mirrors the status overlay dot). Notable states
    render as a pill so they stand out; active stays plain text. */
 .detail-state.status-active { color: #7ED9A0; }

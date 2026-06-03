@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
+import { SessionReport } from './SessionReport';
 import { configDirLabel } from './configDirLabel';
 import { isPath, resolvePath } from './activityFeedUtils';
 import './DetailPanel.css';
@@ -43,6 +44,10 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, []);
+
+  const [tab, setTab] = useState<'live' | 'report'>('live');
+  // Reset to the live tab when switching to a different agent.
+  useEffect(() => { setTab('live'); }, [agent.id]);
 
   const isLive = agent.status === 'active' || agent.status === 'waiting';
   const currentFile = isLive ? agent.currentFile : undefined;
@@ -99,6 +104,26 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
         <button className="detail-close" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
 
+      <div className="detail-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'live'}
+          className={`detail-tab ${tab === 'live' ? 'active' : ''}`}
+          onClick={() => setTab('live')}
+        >Live</button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'report'}
+          className={`detail-tab ${tab === 'report' ? 'active' : ''}`}
+          onClick={() => setTab('report')}
+        >Report</button>
+      </div>
+
+      {tab === 'report' ? (
+        <div className="detail-body"><SessionReport agent={agent} /></div>
+      ) : (
       <div className="detail-body">
         <div className="detail-section">
           <div className="detail-section-title">Status</div>
@@ -201,6 +226,7 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
           </div>
         )}
       </div>
+      )}
     </div>
     {modalOpen && lastMessage !== undefined && (
       <LastMessageModal

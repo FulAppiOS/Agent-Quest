@@ -460,7 +460,9 @@ export class AgentStateManager {
       currentActivity: event.activity,
       currentFile: event.file,
       currentCommand: event.command,
-      tokenUsage: { input: 0, output: 0, cacheRead: 0 },
+      tokenUsage: event.usage !== undefined
+        ? { input: event.usage.input, output: event.usage.output, cacheRead: event.usage.cacheRead }
+        : { input: 0, output: 0, cacheRead: 0 },
       cost: 0,
       sessionStart: event.timestamp,
       toolCalls: [...event.toolCalls],
@@ -490,6 +492,13 @@ export class AgentStateManager {
     agent.toolCalls.push(...event.toolCalls);
     if (event.model !== undefined) {
       agent.model = event.model;
+    }
+    // Accumulate token usage across the session (each turn re-bills context, so
+    // summing per-message usage is the real cost basis).
+    if (event.usage !== undefined) {
+      agent.tokenUsage.input += event.usage.input;
+      agent.tokenUsage.output += event.usage.output;
+      agent.tokenUsage.cacheRead += event.usage.cacheRead;
     }
 
     // Subagents keep their filename-derived name — the event's slug is the

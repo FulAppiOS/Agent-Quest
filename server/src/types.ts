@@ -114,6 +114,8 @@ export interface JsonlLine {
     content: string | Array<JsonlToolUse | JsonlToolResult | { type: string; text?: string }>;
     /** Model id — present on `type: 'assistant'` lines produced by Claude Code. */
     model?: string;
+    /** Token usage — present on Claude assistant lines. Shape is read defensively. */
+    usage?: unknown;
   };
 }
 

@@ -1,5 +1,22 @@
 import { describe, test, expect } from 'bun:test';
-import { parseJsonlLine, toolNameToActivity, extractFileFromToolUse } from './session-parser';
+import { parseJsonlLine, toolNameToActivity, extractFileFromToolUse, parseUsage } from './session-parser';
+
+describe('parseUsage', () => {
+  test('reads input/output and folds both cache fields into cacheRead', () => {
+    expect(parseUsage({ input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 20, cache_creation_input_tokens: 5 }))
+      .toEqual({ input: 100, output: 50, cacheRead: 25 });
+  });
+  test('returns undefined for missing/empty/garbage usage', () => {
+    expect(parseUsage(undefined)).toBeUndefined();
+    expect(parseUsage(null)).toBeUndefined();
+    expect(parseUsage({})).toBeUndefined();
+    expect(parseUsage({ input_tokens: 0, output_tokens: 0 })).toBeUndefined();
+    expect(parseUsage('nope')).toBeUndefined();
+  });
+  test('ignores negative/NaN values', () => {
+    expect(parseUsage({ input_tokens: -5, output_tokens: 10 })).toEqual({ input: 0, output: 10, cacheRead: 0 });
+  });
+});
 
 describe('toolNameToActivity', () => {
   test('Read/Grep/Glob map to reading', () => {
