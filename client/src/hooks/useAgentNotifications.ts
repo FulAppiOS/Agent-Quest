@@ -77,15 +77,15 @@ export function useAgentNotifications(
   agents: AgentState[],
   settings: AppSettings,
   onActivate: (id: string) => void,
-  onToast: (toast: ToastPayload) => void,
+  onAlert: (alert: ToastPayload) => void,
 ): void {
   const snapsRef = useRef<Map<string, AgentSnapshot>>(new Map());
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const onActivateRef = useRef(onActivate);
   onActivateRef.current = onActivate;
-  const onToastRef = useRef(onToast);
-  onToastRef.current = onToast;
+  const onAlertRef = useRef(onAlert);
+  onAlertRef.current = onAlert;
   // Latest agents, readable inside a debounce timer without re-arming the effect.
   const agentsRef = useRef<AgentState[]>(agents);
   agentsRef.current = agents;
@@ -115,15 +115,16 @@ export function useAgentNotifications(
     if (!categoryEnabled(s, alert.category)) return;
     if (s.notificationsEnabled) showDesktopNotification(alert, onActivateRef.current);
     if (s.soundEnabled) playChime(alert.category, s.volume);
-    if (s.inAppToasts) {
-      onToastRef.current({
-        agentId: alert.agentId,
-        name: alert.name,
-        category: alert.category,
-        title: titleFor(alert),
-        body: bodyFor(alert),
-      });
-    }
+    // Always surface the alert to the app (notification history + toast). The
+    // app gates the transient toast on its own setting; the history records
+    // every alert regardless, so the menu is a complete log.
+    onAlertRef.current({
+      agentId: alert.agentId,
+      name: alert.name,
+      category: alert.category,
+      title: titleFor(alert),
+      body: bodyFor(alert),
+    });
     if (typeof document !== 'undefined' && document.hidden) {
       badgeRef.current += 1;
       document.title = `(${badgeRef.current}) ${baseTitleRef.current}`;

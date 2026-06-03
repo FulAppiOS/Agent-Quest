@@ -20,7 +20,9 @@ const ACTIVITY_COLOR: Record<AgentActivity, string> = {
   idle:      '#888888',
   thinking:  '#C48BE8',
   reading:   '#88BBFF',
-  editing:   '#FFD27A',
+  // Forge/edit = amber orange. Deliberately NOT yellow — gold is reserved for
+  // the 'waiting' state so the two are never confused on the hero label.
+  editing:   '#FF8C42',
   bash:      '#FF9966',
   git:       '#88E08A',
   debugging: '#FF6B6B',

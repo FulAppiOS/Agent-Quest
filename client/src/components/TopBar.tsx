@@ -1,14 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AgentState } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
+import { NotificationMenu, type NotificationEntry } from './NotificationMenu';
 import './TopBar.css';
+
+interface TopBarNotifications {
+  entries: NotificationEntry[];
+  unread: number;
+  open: boolean;
+  onToggle: () => void;
+  onActivate: (agentId: string) => void;
+  onClear: () => void;
+}
 
 interface TopBarProps {
   agents: AgentState[];
   connected: boolean;
+  notifications: TopBarNotifications;
 }
 
-export function TopBar({ agents, connected }: TopBarProps) {
+export function TopBar({ agents, connected, notifications }: TopBarProps) {
   const active = agents.filter((a) => a.status === 'active').length;
   const waiting = agents.filter((a) => a.status === 'waiting').length;
   const idle = agents.filter((a) => a.status === 'idle').length;
@@ -122,6 +133,14 @@ export function TopBar({ agents, connected }: TopBarProps) {
           </div>
 
           <div className="topbar-effects">
+            <NotificationMenu
+              entries={notifications.entries}
+              unread={notifications.unread}
+              open={notifications.open}
+              onToggle={notifications.onToggle}
+              onActivate={notifications.onActivate}
+              onClear={notifications.onClear}
+            />
             <button
               className={`topbar-effect-btn ${nightOn ? 'active' : ''}`}
               onClick={toggleNight}

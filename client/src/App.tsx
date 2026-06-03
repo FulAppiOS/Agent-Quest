@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { PhaserGame } from './game/PhaserGame';
 import { useAgentState } from './hooks/useAgentState';
 import { useSelectedAgent } from './hooks/useSelectedAgent';
@@ -12,6 +12,7 @@ import { Tutorial } from './components/Tutorial';
 import { NoInstallBanner } from './components/NoInstallBanner';
 import { SettingsPanel } from './components/SettingsPanel';
 import { Toasts, type ToastItem } from './components/Toasts';
+import type { NotificationEntry } from './components/NotificationMenu';
 import { useSettings } from './hooks/useSettings';
 import { useAgentNotifications, type ToastPayload } from './hooks/useAgentNotifications';
 import './App.css';
@@ -28,19 +29,43 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, updateSettings] = useSettings();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
+  const [notifUnread, setNotifUnread] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifIdRef = useRef(0);
+  // Read inside the stable pushAlert callback without re-creating it (and
+  // without the stale-closure that dropped a badge increment on the close frame).
+  const notifOpenRef = useRef(notifOpen);
+  notifOpenRef.current = notifOpen;
 
-  const pushToast = useCallback((p: ToastPayload) => {
-    setToasts((prev) => {
-      const key = `${p.agentId}:${p.category}`;
-      // One toast per agent+category; refresh (move to top) instead of stacking.
-      const without = prev.filter((t) => t.key !== key);
-      return [{ ...p, key }, ...without].slice(0, 5);
-    });
-  }, []);
+  const pushAlert = useCallback((p: ToastPayload) => {
+    // Persistent history for the notification menu — always recorded, even when
+    // transient toasts are disabled, so the menu is a complete log.
+    const entry: NotificationEntry = { ...p, id: ++notifIdRef.current, timestamp: Date.now() };
+    setNotifications((prev) => [entry, ...prev].slice(0, 50));
+    setNotifUnread((n) => (notifOpenRef.current ? 0 : n + 1));
+    // Transient toast (deduped per agent+category), only if enabled.
+    if (settings.inAppToasts) {
+      setToasts((prev) => {
+        const key = `${p.agentId}:${p.category}`;
+        const without = prev.filter((t) => t.key !== key);
+        return [{ ...p, key }, ...without].slice(0, 5);
+      });
+    }
+  }, [settings.inAppToasts]);
 
   const dismissToast = useCallback((key: string) => {
     setToasts((prev) => prev.filter((t) => t.key !== key));
   }, []);
+
+  const toggleNotifMenu = useCallback(() => {
+    setNotifOpen((open) => {
+      if (!open) setNotifUnread(0); // opening clears the unread badge
+      return !open;
+    });
+  }, []);
+
+  const clearNotifications = useCallback(() => setNotifications([]), []);
 
   const closeTutorial = useCallback(() => {
     setTutorialOpen(false);
@@ -67,7 +92,7 @@ export default function App() {
   // Desktop notifications + sounds + in-app toasts on agent state transitions
   // (gated by settings). Toasts are the browser-independent, permission-free
   // channel.
-  useAgentNotifications(agents, settings, handleSelectAgent, pushToast);
+  useAgentNotifications(agents, settings, handleSelectAgent, pushAlert);
 
   // When selecting building, clear agent. `anchor` is the click's screen-space
   // position, captured by the Building entity and used by BuildingInfoPanel
@@ -154,7 +179,18 @@ export default function App() {
       <PhaserGame />
       {villageReady && (
         <div className="overlay">
-          <TopBar agents={agents} connected={connected} />
+          <TopBar
+            agents={agents}
+            connected={connected}
+            notifications={{
+              entries: notifications,
+              unread: notifUnread,
+              open: notifOpen,
+              onToggle: toggleNotifMenu,
+              onActivate: handleSelectAgent,
+              onClear: clearNotifications,
+            }}
+          />
           <NoInstallBanner configDirs={configDirs} connected={connected} />
           <PartyBar
             agents={agents}
