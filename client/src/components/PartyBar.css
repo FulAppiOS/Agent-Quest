@@ -250,6 +250,11 @@
   flex: 1;
   min-width: 0;
 }
+/* Status-driven text colors mirror the status dot, so the label and the dot
+   agree at a glance. */
+.partybar-activity.status-waiting   { color: #FFD700; opacity: 0.95; }
+.partybar-activity.status-completed { color: #9a9a9a; }
+.partybar-activity.status-error     { color: #FF6B6B; opacity: 0.95; }
 
 /* === Responsive === */
 @media (max-width: 600px) {

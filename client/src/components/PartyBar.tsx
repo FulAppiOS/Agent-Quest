@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
 import { usePartyPrefs } from '../hooks/usePartyPrefs';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, type AgentState } from '../types/agent';
 import './PartyBar.css';
 
 interface PartyBarProps {
@@ -52,7 +52,7 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
   ].filter(Boolean).join(' ');
 
   const title = mode === 'icons'
-    ? `${agent.name} · ${agent.currentActivity}`
+    ? `${agent.name} · ${displayActivity(agent)}`
     : undefined;
 
   return (
@@ -60,7 +60,7 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
       type="button"
       className={classes}
       onClick={onClick}
-      aria-label={`Select ${agent.name}${showSourceBadge ? ` (${agent.source})` : ''}, ${agent.currentActivity}`}
+      aria-label={`Select ${agent.name}${showSourceBadge ? ` (${agent.source})` : ''}, ${displayActivity(agent)}`}
       aria-current={isSelected ? 'true' : undefined}
       title={title}
     >
@@ -78,7 +78,7 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
             <span className={`partybar-dot ${agent.status}`} aria-hidden="true" />
           </span>
           <span className="partybar-row-bottom">
-            <span className="partybar-activity">{agent.currentActivity}</span>
+            <span className={`partybar-activity status-${agent.status}`}>{displayActivity(agent)}</span>
             {showSourceBadge && (
               <span
                 className="partybar-source-badge"

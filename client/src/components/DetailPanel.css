@@ -409,3 +409,9 @@
 .detail-last-message li { margin-bottom: 3px; }
 .detail-last-message a { color: #9ec4f5; text-decoration: none; }
 .detail-last-message a:hover { text-decoration: underline; }
+
+/* Status-colored state value (mirrors the status overlay dot). */
+.detail-state.status-active    { color: #7ED9A0; }
+.detail-state.status-waiting   { color: #FFD700; }
+.detail-state.status-completed { color: #9a9a9a; }
+.detail-state.status-error     { color: #FF6B6B; }

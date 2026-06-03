@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { configDirLabel } from './configDirLabel';
 import { isPath, resolvePath } from './activityFeedUtils';
@@ -103,8 +103,8 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
         <div className="detail-section">
           <div className="detail-section-title">Status</div>
           <div className="detail-row">
-            <span className="detail-label">Activity</span>
-            <span className="detail-value">{agent.currentActivity}</span>
+            <span className="detail-label">State</span>
+            <span className={`detail-value detail-state status-${agent.status}`}>{displayActivity(agent)}</span>
           </div>
           <div className="detail-row">
             <span className="detail-label">Session</span>

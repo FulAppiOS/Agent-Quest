@@ -70,6 +70,7 @@
 .topbar-stat-label { color: #888; }
 .topbar-stat-value { color: #F5E6C8; font-weight: 500; }
 .topbar-stat-value.active { color: #2E8B57; }
+.topbar-stat-value.waiting { color: #FFD700; }
 .topbar-stat-value.idle { color: #C4A35A; }
 .topbar-stat-value.error { color: #8B2500; }
 

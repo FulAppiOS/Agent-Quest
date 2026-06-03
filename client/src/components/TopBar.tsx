@@ -10,6 +10,7 @@ interface TopBarProps {
 
 export function TopBar({ agents, connected }: TopBarProps) {
   const active = agents.filter((a) => a.status === 'active').length;
+  const waiting = agents.filter((a) => a.status === 'waiting').length;
   const idle = agents.filter((a) => a.status === 'idle').length;
   const completed = agents.filter((a) => a.status === 'completed').length;
   const errors = agents.filter((a) => a.status === 'error').length;
@@ -94,6 +95,12 @@ export function TopBar({ agents, connected }: TopBarProps) {
               <span className="topbar-stat-label">Active:</span>
               <span className="topbar-stat-value active">{active}</span>
             </div>
+            {waiting > 0 && (
+              <div className="topbar-stat">
+                <span className="topbar-stat-label">Waiting:</span>
+                <span className="topbar-stat-value waiting">{waiting}</span>
+              </div>
+            )}
             <div className="topbar-stat">
               <span className="topbar-stat-label">Idle:</span>
               <span className="topbar-stat-value idle">{idle}</span>

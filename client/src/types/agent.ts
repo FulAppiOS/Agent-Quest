@@ -119,6 +119,24 @@ export function isSubagentAgent(a: Pick<AgentState, 'id' | 'isSubagent'>): boole
 }
 
 /**
+ * The single label to show for an agent across the UI (Party Bar, Detail Panel).
+ * When the agent is actively working we surface the tool activity
+ * (reading / editing / …); otherwise the lifecycle status IS the meaningful
+ * state, so we show that instead. This keeps every view in sync — without it,
+ * a `waiting`/`completed` agent (whose `currentActivity` the server sets to
+ * `idle`) would read as "idle" everywhere except the hero label.
+ */
+export function displayActivity(agent: Pick<AgentState, 'status' | 'currentActivity'>): string {
+  switch (agent.status) {
+    case 'waiting': return 'waiting';
+    case 'completed': return 'completed';
+    case 'error': return 'error';
+    case 'idle': return 'idle';
+    case 'active': return agent.currentActivity;
+  }
+}
+
+/**
  * Compact badge for the model id (e.g. `claude-opus-4-6` → `OPUS`). Returns
  * null for Codex and for Claude sessions whose JSONL predates `message.model`,
  * so the UI can skip the badge entirely rather than rendering a placeholder.
