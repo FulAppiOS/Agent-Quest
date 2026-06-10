@@ -153,6 +153,7 @@ export interface ModelBadge {
 export function modelBadge(model: string | undefined): ModelBadge | null {
   if (model === undefined || model.length === 0) return null;
   const id = model.toLowerCase();
+  if (id.includes('fable'))  return { short: 'FABLE',  color: '#8FE8B0' };
   if (id.includes('opus'))   return { short: 'OPUS',   color: '#C48BE8' };
   if (id.includes('sonnet')) return { short: 'SONNET', color: '#88BBFF' };
   if (id.includes('haiku'))  return { short: 'HAIKU',  color: '#FFD27A' };
