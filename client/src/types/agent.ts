@@ -150,14 +150,34 @@ export interface ModelBadge {
   color: string;
 }
 
+/** Curated colors for the model families we know; new families fall through to the hashed palette. */
+const KNOWN_MODEL_COLORS: ReadonlyArray<{ key: string; color: string }> = [
+  { key: 'fable',  color: '#8FE8B0' },
+  { key: 'opus',   color: '#C48BE8' },
+  { key: 'sonnet', color: '#88BBFF' },
+  { key: 'haiku',  color: '#FFD27A' },
+];
+
+/** Palette for unknown families — distinct from the curated colors above. */
+const FALLBACK_MODEL_COLORS: ReadonlyArray<string> = ['#E8A38F', '#8FDCE8', '#D6E88F', '#E88FCB'];
+
 export function modelBadge(model: string | undefined): ModelBadge | null {
   if (model === undefined || model.length === 0) return null;
   const id = model.toLowerCase();
-  if (id.includes('fable'))  return { short: 'FABLE',  color: '#8FE8B0' };
-  if (id.includes('opus'))   return { short: 'OPUS',   color: '#C48BE8' };
-  if (id.includes('sonnet')) return { short: 'SONNET', color: '#88BBFF' };
-  if (id.includes('haiku'))  return { short: 'HAIKU',  color: '#FFD27A' };
-  return null;
+  for (const { key, color } of KNOWN_MODEL_COLORS) {
+    if (id.includes(key)) return { short: key.toUpperCase(), color };
+  }
+  // Unknown model: extract the family name — the first alphabetic run after a
+  // `claude-`/`claude.` marker (handles Bedrock-style `us.anthropic.claude-...`),
+  // or the first alphabetic run of the whole id for non-Claude providers.
+  const family = id.match(/claude[.-]([a-z]+)/)?.[1] ?? id.match(/[a-z]+/)?.[0];
+  if (family === undefined || family === 'claude') return null;
+  let hash = 0;
+  for (let i = 0; i < family.length; i++) hash = (hash * 31 + family.charCodeAt(i)) >>> 0;
+  return {
+    short: family.slice(0, 8).toUpperCase(),
+    color: FALLBACK_MODEL_COLORS[hash % FALLBACK_MODEL_COLORS.length]!,
+  };
 }
 
 export interface ActivityLogEntry {
