@@ -4,6 +4,7 @@ import { BUILDING_DEFS } from '../data/building-layout';
 import { addCrispText } from '../text';
 import { getActiveTheme } from '../themes/registry';
 import { groupMissingByCategory } from '../data/asset-diagnostics';
+import { sceneRenderScale } from '../dpr';
 
 
 
@@ -82,15 +83,24 @@ export class BootScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#1a1a2e');
 
-    const cx = this.cameras.main.centerX;
-    const cy = this.cameras.main.centerY;
+    // The canvas backing store is at physical pixels (see dpr.ts). Lay the
+    // boot UI out in logical (CSS-pixel) coordinates and zoom the camera by
+    // the render scale, so text keeps its apparent size on Retina displays.
+    const ui = sceneRenderScale(this);
+    const vw = this.scale.width / ui;
+    const vh = this.scale.height / ui;
+    this.cameras.main.setZoom(ui);
+    this.cameras.main.centerOn(vw / 2, vh / 2);
+
+    const cx = vw / 2;
+    const cy = vh / 2;
     const hasMissing = this.missingAssets.length > 0;
 
     // Logo is always rendered the same way — the missing-sprites state just
     // changes the status line underneath and adds a single action button.
     const logo = this.add.image(cx, cy - 40, 'logo').setOrigin(0.5);
-    const maxW = Math.min(this.scale.width * 0.5, 520);
-    const maxH = this.scale.height * 0.55;
+    const maxW = Math.min(vw * 0.5, 520);
+    const maxH = vh * 0.55;
     const scale = Math.min(maxW / logo.width, maxH / logo.height);
     logo.setScale(scale);
 
@@ -106,7 +116,7 @@ export class BootScene extends Phaser.Scene {
         color: '#f0d89a',
         fontFamily: 'monospace',
         align: 'center',
-        wordWrap: { width: Math.min(this.scale.width * 0.8, 640) },
+        wordWrap: { width: Math.min(vw * 0.8, 640) },
       }).setOrigin(0.5);
 
       // Per-category breakdown so the user can tell at a glance whether
@@ -136,7 +146,7 @@ export class BootScene extends Phaser.Scene {
         color: '#8ea0b4',
         fontFamily: 'monospace',
         align: 'left',
-        wordWrap: { width: Math.min(this.scale.width * 0.9, 780) },
+        wordWrap: { width: Math.min(vw * 0.9, 780) },
       }).setOrigin(0.5, 0);
 
       const hintText =
@@ -147,7 +157,7 @@ export class BootScene extends Phaser.Scene {
         color: '#aabbcc',
         fontFamily: 'monospace',
         align: 'center',
-        wordWrap: { width: Math.min(this.scale.width * 0.9, 720) },
+        wordWrap: { width: Math.min(vw * 0.9, 720) },
       }).setOrigin(0.5, 0);
 
       const primary = addCrispText(this, cx, hint.y + hint.displayHeight + 24, '↻  Reload page', {

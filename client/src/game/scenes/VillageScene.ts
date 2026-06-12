@@ -12,6 +12,7 @@ import type { AgentState } from '../../types/agent';
 import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '../../editor/types/map';
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
+import { sceneRenderScale } from '../dpr';
 
 /** Set `cam.zoom` to `newZoom` while keeping the world point currently
  * under screen coordinates (sx, sy) pinned to the same screen spot.
@@ -150,7 +151,7 @@ export class VillageScene extends Phaser.Scene {
     // map is locked to the top-left corner while the viewport scales.
     this.input.on('wheel', (pointer: Phaser.Input.Pointer, _gameObjects: unknown[], _deltaX: number, deltaY: number) => {
       const cam = this.cameras.main;
-      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, this.minZoom(), 1.5);
+      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001 * sceneRenderScale(this), this.minZoom(), this.maxZoom());
       zoomAroundPointer(cam, pointer.x, pointer.y, newZoom);
     });
 
@@ -167,7 +168,7 @@ export class VillageScene extends Phaser.Scene {
           pinchStartZoom = this.cameras.main.zoom;
         } else {
           const scale = dist / pinchStartDist;
-          const newZoom = Phaser.Math.Clamp(pinchStartZoom * scale, this.minZoom(), 1.5);
+          const newZoom = Phaser.Math.Clamp(pinchStartZoom * scale, this.minZoom(), this.maxZoom());
           const mx = (p1.x + p2.x) / 2;
           const my = (p1.y + p2.y) / 2;
           zoomAroundPointer(this.cameras.main, mx, my, newZoom);
@@ -481,7 +482,15 @@ export class VillageScene extends Phaser.Scene {
     const villageH = 700;
     const zoomX = cam.width / villageW;
     const zoomY = cam.height / villageH;
-    cam.setZoom(Phaser.Math.Clamp(Math.min(zoomX, zoomY) * 0.85, this.minZoom(), 1.5));
+    cam.setZoom(Phaser.Math.Clamp(Math.min(zoomX, zoomY) * 0.85, this.minZoom(), this.maxZoom()));
+  }
+
+  /** Upper zoom bound. 1.5 was tuned for a 1:1 (CSS pixel) framebuffer; the
+   * canvas now renders at physical pixels (see dpr.ts), so camera zoom values
+   * carry an extra devicePixelRatio factor and the cap scales with it to keep
+   * the same apparent maximum magnification. */
+  private maxZoom(): number {
+    return 1.5 * sceneRenderScale(this);
   }
 
   /** Lower zoom bound: the larger of the two viewport/world ratios, so the
