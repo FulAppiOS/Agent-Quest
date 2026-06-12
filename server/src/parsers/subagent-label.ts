@@ -34,6 +34,34 @@ function firstSentenceFallback(prompt: string): string | undefined {
   return cleaned.length > 0 ? truncate(cleaned) : undefined;
 }
 
+interface SubagentMeta {
+  description?: string;
+  agentType?: string;
+}
+
+/**
+ * Read the sibling `agent-*.meta.json` the CLI writes next to each subagent
+ * transcript. Classic Task subagents carry `description` + `agentType`;
+ * workflow agents usually only `agentType` (the generic `workflow-subagent`
+ * value carries no information and is dropped).
+ */
+async function readSubagentMeta(filePath: string): Promise<SubagentMeta> {
+  const metaFile = Bun.file(filePath.replace(/\.jsonl$/, '.meta.json'));
+  try {
+    if (!(await metaFile.exists())) return {};
+    const meta = (await metaFile.json()) as { description?: unknown; agentType?: unknown };
+    const description = typeof meta.description === 'string' && meta.description.length > 0
+      ? meta.description
+      : undefined;
+    const agentType = typeof meta.agentType === 'string' && meta.agentType.length > 0 && meta.agentType !== 'workflow-subagent'
+      ? meta.agentType
+      : undefined;
+    return { description, agentType };
+  } catch {
+    return {};
+  }
+}
+
 function readFirstLineContent(text: string): string | undefined {
   const [firstLine] = text.split('\n', 1);
   if (firstLine === undefined || firstLine.trim() === '') return undefined;
@@ -72,17 +100,29 @@ function matchAgentLabel(parentText: string, targetPrompt: string): string | und
 }
 
 /**
- * Given a subagent JSONL path (`.../<parentSessionId>/subagents/agent-*.jsonl`),
- * return a human-readable label by correlating the child's first user prompt
- * against the parent's `Agent` tool_use invocations. Falls back to the first
- * sentence of the subagent prompt when the parent can't be found or doesn't
- * carry an exact prompt match.
+ * Given a subagent JSONL path (`.../<parentSessionId>/subagents/agent-*.jsonl`,
+ * or the ultra-mode variant `.../<parentSessionId>/subagents/workflows/wf_<runId>/agent-*.jsonl`),
+ * return a human-readable label. Tiers, best first:
+ *
+ * 1. `description` from the sibling `agent-*.meta.json`
+ * 2. the parent's matching `Agent` tool_use (description / subagent_type)
+ * 3. `agentType` from meta.json combined with the prompt's first sentence —
+ *    the only informative pair for workflow agents, whose prompts live in
+ *    the Workflow script rather than in the parent transcript
+ * 4. the first sentence of the subagent prompt
  *
  * Returns `undefined` for non-subagent paths or when nothing usable is available.
  */
 export async function resolveSubagentLabel(filePath: string): Promise<string | undefined> {
-  const subagentsDir = dirname(filePath);
+  let subagentsDir = dirname(filePath);
+  // Workflow runs nest two levels deeper: subagents/workflows/wf_<runId>/
+  if (basename(dirname(subagentsDir)) === 'workflows') {
+    subagentsDir = dirname(dirname(subagentsDir));
+  }
   if (basename(subagentsDir) !== 'subagents') return undefined;
+
+  const meta = await readSubagentMeta(filePath);
+  if (meta.description !== undefined) return truncate(meta.description);
 
   const parentSessionDir = dirname(subagentsDir);
   const projectDir = dirname(parentSessionDir);
@@ -93,14 +133,19 @@ export async function resolveSubagentLabel(filePath: string): Promise<string | u
   if (!(await childFile.exists())) return undefined;
   const childText = await childFile.text();
   const prompt = readFirstLineContent(childText);
-  if (prompt === undefined) return undefined;
 
-  const parentFile = Bun.file(parentPath);
-  if (await parentFile.exists()) {
-    const parentText = await parentFile.text();
-    const matched = matchAgentLabel(parentText, prompt);
-    if (matched !== undefined) return matched;
+  if (prompt !== undefined) {
+    const parentFile = Bun.file(parentPath);
+    if (await parentFile.exists()) {
+      const parentText = await parentFile.text();
+      const matched = matchAgentLabel(parentText, prompt);
+      if (matched !== undefined) return matched;
+    }
   }
 
-  return firstSentenceFallback(prompt);
+  const sentence = prompt !== undefined ? firstSentenceFallback(prompt) : undefined;
+  if (meta.agentType !== undefined) {
+    return truncate(sentence !== undefined ? `${meta.agentType}: ${sentence}` : meta.agentType);
+  }
+  return sentence;
 }

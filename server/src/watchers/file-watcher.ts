@@ -128,9 +128,37 @@ export class FileWatcher {
         if (subFiles === null) continue;
 
         for (const subFile of subFiles) {
-          if (!subFile.endsWith('.jsonl')) continue;
-          await this.processJsonlFile(join(subagentsDir, subFile), subFile.replace('.jsonl', ''), claudeDir);
+          if (subFile.endsWith('.jsonl')) {
+            await this.processJsonlFile(join(subagentsDir, subFile), subFile.replace('.jsonl', ''), claudeDir);
+            continue;
+          }
+
+          // Ultra mode (Workflow tool) nests agent JSONLs one level deeper:
+          // <sessionId>/subagents/workflows/wf_<runId>/agent-*.jsonl
+          // (alongside agent-*.meta.json and an orchestration journal.jsonl)
+          if (subFile !== 'workflows') continue;
+          await this.scanWorkflowsDir(join(subagentsDir, subFile), claudeDir);
         }
+      }
+    }
+  }
+
+  private async scanWorkflowsDir(workflowsDir: string, claudeDir: string): Promise<void> {
+    const runDirs = await readdir(workflowsDir).catch(() => null);
+    if (runDirs === null) return;
+
+    for (const runDir of runDirs) {
+      const runPath = join(workflowsDir, runDir);
+      const runStat = await stat(runPath).catch(() => null);
+      if (runStat === null || !runStat.isDirectory()) continue;
+
+      const runFiles = await readdir(runPath).catch(() => null);
+      if (runFiles === null) continue;
+
+      for (const runFile of runFiles) {
+        // Only agent transcripts — skips journal.jsonl and agent-*.meta.json
+        if (!runFile.startsWith('agent-') || !runFile.endsWith('.jsonl')) continue;
+        await this.processJsonlFile(join(runPath, runFile), runFile.replace('.jsonl', ''), claudeDir);
       }
     }
   }

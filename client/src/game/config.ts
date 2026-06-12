@@ -10,8 +10,12 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   // upscale. Both Tiny Swords packs are pixel art, so this is safe for
   // every theme we ship.
   pixelArt: true,
+  // Scale.NONE because RESIZE forces the canvas backing store to CSS pixels,
+  // which on Retina displays renders at half resolution and lets the browser
+  // blur-upscale everything. PhaserGame sizes the canvas at physical pixels
+  // (cssSize * devicePixelRatio) with zoom = 1/dpr instead — see dpr.ts.
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   input: {
