@@ -72,16 +72,22 @@ function matchAgentLabel(parentText: string, targetPrompt: string): string | und
 }
 
 /**
- * Given a subagent JSONL path (`.../<parentSessionId>/subagents/agent-*.jsonl`),
+ * Given a subagent JSONL path (`.../<parentSessionId>/subagents/agent-*.jsonl`,
+ * or the ultra-mode variant `.../<parentSessionId>/subagents/workflows/wf_<runId>/agent-*.jsonl`),
  * return a human-readable label by correlating the child's first user prompt
  * against the parent's `Agent` tool_use invocations. Falls back to the first
  * sentence of the subagent prompt when the parent can't be found or doesn't
- * carry an exact prompt match.
+ * carry an exact prompt match — always the case for workflow agents, whose
+ * prompts live in the Workflow script rather than in the parent transcript.
  *
  * Returns `undefined` for non-subagent paths or when nothing usable is available.
  */
 export async function resolveSubagentLabel(filePath: string): Promise<string | undefined> {
-  const subagentsDir = dirname(filePath);
+  let subagentsDir = dirname(filePath);
+  // Workflow runs nest two levels deeper: subagents/workflows/wf_<runId>/
+  if (basename(dirname(subagentsDir)) === 'workflows') {
+    subagentsDir = dirname(dirname(subagentsDir));
+  }
   if (basename(subagentsDir) !== 'subagents') return undefined;
 
   const parentSessionDir = dirname(subagentsDir);

@@ -116,6 +116,43 @@ describe('resolveSubagentLabel', () => {
     expect(label!.endsWith('…')).toBe(true);
   });
 
+  test('resolves labels for workflow (ultra mode) agent paths', async () => {
+    const workflowDir = join(projectDir, parentSessionId, 'subagents', 'workflows', 'wf_2ca7ddd8-324');
+    await mkdir(workflowDir, { recursive: true });
+    const workflowAgentPath = join(workflowDir, 'agent-a4f3fba033446cc4f.jsonl');
+    await writeFile(workflowAgentPath, jsonline({
+      type: 'user',
+      message: { role: 'user', content: 'You are a senior engineer writing a plan. Read the spec first.' },
+    }));
+
+    const label = await resolveSubagentLabel(workflowAgentPath);
+    expect(label).toBe('You are a senior engineer writing a plan');
+  });
+
+  test('workflow agents still match parent Agent invocations when present', async () => {
+    const workflowDir = join(projectDir, parentSessionId, 'subagents', 'workflows', 'wf_deadbeef-123');
+    await mkdir(workflowDir, { recursive: true });
+    const workflowAgentPath = join(workflowDir, 'agent-bb11cc22dd33ee44f.jsonl');
+    await writeFile(workflowAgentPath, jsonline({
+      type: 'user',
+      message: { role: 'user', content: 'Audit module Y' },
+    }));
+    await writeFile(parentPath, jsonline({
+      type: 'assistant',
+      message: {
+        role: 'assistant',
+        content: [{
+          type: 'tool_use',
+          name: 'Agent',
+          input: { description: 'Audit Y', prompt: 'Audit module Y' },
+        }],
+      },
+    }));
+
+    const label = await resolveSubagentLabel(workflowAgentPath);
+    expect(label).toBe('Audit Y');
+  });
+
   test('ignores parent Agent invocations with non-matching prompt', async () => {
     await writeFile(subagentPath, jsonline({
       type: 'user',
