@@ -63,6 +63,7 @@ function ensureHaloTexture(scene: Phaser.Scene): void {
 export class HeroSprite {
   readonly id: string;
   readonly heroClass: HeroClass;
+  readonly heroColor: HeroColor;
   private scene: Phaser.Scene;
   private sprite: Phaser.GameObjects.Sprite;
   private nameText: Phaser.GameObjects.Text;
@@ -114,6 +115,7 @@ export class HeroSprite {
     this.scene = scene;
     this.id = id;
     this.heroClass = heroClass;
+    this.heroColor = heroColor;
     this.source = source;
     this.isSubagent = isSubagent;
     this._x = x;

@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, type AgentState } from '../types/agent';
+import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, type AgentState, type HeroClass, type HeroColor } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
+import { HeroLookPicker } from './HeroLookPicker';
 import { SessionReport } from './SessionReport';
 import { configDirLabel } from './configDirLabel';
 import { isPath, resolvePath } from './activityFeedUtils';
@@ -11,6 +12,9 @@ interface DetailPanelProps {
   agent: AgentState;
   onClose: () => void;
   showSourceBadge: boolean;
+  lookIsCustom: boolean;
+  onChangeLook: (look: { heroClass: HeroClass; heroColor: HeroColor }) => void;
+  onResetLook: () => void;
 }
 
 function formatDuration(startMs: number): string {
@@ -37,7 +41,14 @@ function PathValue({ path, cwd, className }: { path: string; cwd: string; classN
   );
 }
 
-export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProps) {
+export function DetailPanel({
+  agent,
+  onClose,
+  showSourceBadge,
+  lookIsCustom,
+  onChangeLook,
+  onResetLook,
+}: DetailPanelProps) {
   // Tick every second so duration-derived values refresh between server pushes.
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -76,7 +87,10 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
 
   return (
     <>
-    <div className="detail-panel">
+    <div
+      className="detail-panel"
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div className="detail-topbar">
         <span className="detail-avatar-wrap">
           <HeroAvatar agent={agent} size={44} />
@@ -125,6 +139,15 @@ export function DetailPanel({ agent, onClose, showSourceBadge }: DetailPanelProp
         <div className="detail-body"><SessionReport agent={agent} /></div>
       ) : (
       <div className="detail-body">
+        <div className="detail-section">
+          <div className="detail-section-title">Hero</div>
+          <HeroLookPicker
+            agent={agent}
+            isCustom={lookIsCustom}
+            onChange={onChangeLook}
+            onReset={onResetLook}
+          />
+        </div>
         <div className="detail-section">
           <div className="detail-section-title">Status</div>
           <div className="detail-row">

@@ -26,6 +26,16 @@ function zoomAroundPointer(cam: Phaser.Cameras.Scene2D.Camera, sx: number, sy: n
   cam.scrollY += before.y - after.y;
 }
 
+/** True when the native event landed on the Phaser canvas, not a React overlay.
+ * Phaser still fires scene `pointerdown` for overlay clicks (window-level
+ * listeners / full-viewport canvas), and an empty hit list would otherwise
+ * look like a map-background click and deselect the open detail panel. */
+function isCanvasPointer(pointer: Phaser.Input.Pointer, canvas: HTMLCanvasElement): boolean {
+  const target = pointer.event?.target;
+  if (!(target instanceof Node)) return true;
+  return target === canvas || canvas.contains(target);
+}
+
 /** Hide agents idle for longer than this from the Phaser scene (kept in PartyBar). */
 const IDLE_HIDE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -36,6 +46,7 @@ const GRID_SPACING_Y = 35;
 export class VillageScene extends Phaser.Scene {
   private buildings: Building[] = [];
   private heroes = new Map<string, HeroSprite>();
+  private selectedHeroId: string | null = null;
   private onAgentsUpdated: ((agents: unknown) => void) | null = null;
   private onCameraFollow: ((agentId: unknown) => void) | null = null;
   private onSelectionChanged: ((agentId: unknown) => void) | null = null;
@@ -328,6 +339,7 @@ export class VillageScene extends Phaser.Scene {
     // Apply outline/tint to the selected hero whenever selection changes.
     this.onSelectionChanged = (agentId: unknown) => {
       const selectedId = typeof agentId === 'string' ? agentId : null;
+      this.selectedHeroId = selectedId;
       for (const [id, hero] of this.heroes) {
         hero.setSelected(id === selectedId);
       }
@@ -340,7 +352,8 @@ export class VillageScene extends Phaser.Scene {
     // meant clicking a building wiped its info panel the moment it opened
     // (App.handleSelectAgent(null) clears `selectedBuildingId` too). Now the
     // building's own pointerdown is responsible for switching selection.
-    this.onBackgroundPointerDown = (_p, hits) => {
+    this.onBackgroundPointerDown = (pointer, hits) => {
+      if (!isCanvasPointer(pointer, this.game.canvas)) return;
       if (hits.length === 0) {
         eventBridge.emit('hero:clicked', null);
       }
@@ -629,6 +642,33 @@ export class VillageScene extends Phaser.Scene {
     }
   }
 
+  private placeHero(agent: AgentState, x: number, y: number): HeroSprite {
+    const hero = new HeroSprite(
+      this,
+      agent.id,
+      agent.name,
+      agent.heroClass,
+      agent.heroColor,
+      x,
+      y,
+      agent.id.startsWith('agent-'),
+      agent.source,
+    );
+    hero.setHeroScale(this.heroScale);
+    hero.setActivity(agent.currentActivity);
+    hero.setStatus(agent.status);
+    hero.setErrorTimestamp(agent.lastErrorAt);
+    hero.updateDetail(agent.currentFile, agent.currentCommand);
+    hero.updateTask(agent.currentTask);
+    hero.setModel(agent.model);
+    hero.setInteractiveForSelection(() => {
+      eventBridge.emit('hero:clicked', agent.id);
+    });
+    hero.setSelected(agent.id === this.selectedHeroId);
+    this.heroes.set(agent.id, hero);
+    return hero;
+  }
+
   // ---------------------------------------------------------------------------
   // Agent update handler
   // ---------------------------------------------------------------------------
@@ -675,33 +715,21 @@ export class VillageScene extends Phaser.Scene {
     const buildingsToReposition = new Set<string>();
 
     for (const agent of visible) {
-      const existing = this.heroes.get(agent.id);
+      let existing = this.heroes.get(agent.id);
       const buildingDef = getBuildingForActivity(agent.currentActivity);
+
+      if (existing !== undefined
+        && (existing.heroClass !== agent.heroClass || existing.heroColor !== agent.heroColor)) {
+        const x = existing.x;
+        const y = existing.y;
+        existing.destroy();
+        this.heroes.delete(agent.id);
+        existing = this.placeHero(agent, x, y);
+      }
 
       if (existing === undefined) {
         // New hero: spawn at configured spawn point then assign to building
-        const hero = new HeroSprite(
-          this,
-          agent.id,
-          agent.name,
-          agent.heroClass,
-          agent.heroColor,
-          this.heroSpawn.x,
-          this.heroSpawn.y,
-          agent.id.startsWith('agent-'),
-          agent.source,
-        );
-        hero.setHeroScale(this.heroScale);
-        hero.setActivity(agent.currentActivity);
-        hero.setStatus(agent.status);
-        hero.setErrorTimestamp(agent.lastErrorAt);
-        hero.updateDetail(agent.currentFile, agent.currentCommand);
-        hero.updateTask(agent.currentTask);
-        hero.setModel(agent.model);
-        this.heroes.set(agent.id, hero);
-        hero.setInteractiveForSelection(() => {
-          eventBridge.emit('hero:clicked', agent.id);
-        });
+        this.placeHero(agent, this.heroSpawn.x, this.heroSpawn.y);
         this.addToSlot(buildingDef.id, agent.id);
         buildingsToReposition.add(buildingDef.id);
       } else {

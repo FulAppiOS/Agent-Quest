@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { PhaserGame } from './game/PhaserGame';
 import { useAgentState } from './hooks/useAgentState';
 import { useSelectedAgent } from './hooks/useSelectedAgent';
@@ -15,10 +15,17 @@ import { Toasts, type ToastItem } from './components/Toasts';
 import type { NotificationEntry } from './components/NotificationMenu';
 import { useSettings } from './hooks/useSettings';
 import { useAgentNotifications, type ToastPayload } from './hooks/useAgentNotifications';
+import { applyHeroLook, heroLookKey } from './heroLooks';
+import { useHeroLooks } from './hooks/useHeroLooks';
 import './App.css';
 
 export default function App() {
   const { agents, activityLog, connected, configDirs } = useAgentState();
+  const [looks, upsertLook] = useHeroLooks();
+  const displayAgents = useMemo(
+    () => agents.map((a) => applyHeroLook(a, looks[heroLookKey(a)])),
+    [agents, looks],
+  );
   const { selectedAgentId, selectAgent } = useSelectedAgent();
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string;
@@ -73,13 +80,13 @@ export default function App() {
   }, []);
 
   const selectedAgent = selectedAgentId !== null
-    ? agents.find((a) => a.id === selectedAgentId) ?? null
+    ? displayAgents.find((a) => a.id === selectedAgentId) ?? null
     : null;
 
   // Only show source badges when both providers have a LIVE agent — completed
   // / error sessions don't count, otherwise the badge would linger after the
   // last Codex hero finishes just because it's still in state.
-  const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
+  const liveAgents = displayAgents.filter((a) => a.status !== 'completed' && a.status !== 'error');
   const showSourceBadge = liveAgents.some((a) => a.source === 'claude')
     && liveAgents.some((a) => a.source === 'codex');
 
@@ -159,8 +166,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    eventBridge.emit('agents:updated', agents);
-  }, [agents]);
+    eventBridge.emit('agents:updated', displayAgents);
+  }, [displayAgents]);
 
   useEffect(() => {
     eventBridge.emit('selection:changed', selectedAgentId);
@@ -180,7 +187,7 @@ export default function App() {
       {villageReady && (
         <div className="overlay">
           <TopBar
-            agents={agents}
+            agents={displayAgents}
             connected={connected}
             notifications={{
               entries: notifications,
@@ -193,25 +200,32 @@ export default function App() {
           />
           <NoInstallBanner configDirs={configDirs} connected={connected} />
           <PartyBar
-            agents={agents}
+            agents={displayAgents}
             selectedAgentId={selectedAgentId}
             onSelectAgent={handleSelectAgent}
             showSourceBadge={showSourceBadge}
           />
           {selectedAgent !== null && (
-            <DetailPanel agent={selectedAgent} onClose={() => handleSelectAgent(null)} showSourceBadge={showSourceBadge} />
+            <DetailPanel
+              agent={selectedAgent}
+              onClose={() => handleSelectAgent(null)}
+              showSourceBadge={showSourceBadge}
+              lookIsCustom={looks[heroLookKey(selectedAgent)] !== undefined}
+              onChangeLook={(look) => upsertLook(heroLookKey(selectedAgent), look)}
+              onResetLook={() => upsertLook(heroLookKey(selectedAgent), null)}
+            />
           )}
           {selectedBuilding !== null && (
             <BuildingInfoPanel
               buildingId={selectedBuilding.id}
               anchor={selectedBuilding.anchor}
-              agents={agents}
+              agents={displayAgents}
               onClose={() => setSelectedBuilding(null)}
             />
           )}
           <ActivityFeed
             log={activityLog}
-            agents={agents}
+            agents={displayAgents}
             selectedAgentId={selectedAgentId}
             onSelectAgent={handleSelectAgent}
             showSourceBadge={showSourceBadge}
