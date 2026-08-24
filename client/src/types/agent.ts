@@ -12,7 +12,7 @@ export const HERO_COLORS = [
 ] as const;
 export type HeroColor = (typeof HERO_COLORS)[number];
 
-export const AGENT_SOURCES = ['claude', 'codex'] as const;
+export const AGENT_SOURCES = ['claude', 'codex', 'cursor'] as const;
 export type AgentSource = (typeof AGENT_SOURCES)[number];
 
 /**
@@ -24,6 +24,7 @@ export type AgentSource = (typeof AGENT_SOURCES)[number];
 export const SOURCE_BADGE_COLOR: Record<AgentSource, string> = {
   claude: '#FF9F4A', // orange
   codex:  '#7ED9CF', // teal
+  cursor: '#7CB8F7', // sky blue
 };
 
 /**

@@ -76,8 +76,8 @@ export function SessionReport({ agent }: { agent: AgentState }) {
         </>
       )}
 
-      {/* Tokens — Claude only. Codex doesn't report usage, so the section is
-          omitted entirely for it (no misleading empty rows). */}
+      {/* Tokens — Claude only. Codex and Cursor don't report usage, so the
+          section is omitted entirely for them (no misleading empty rows). */}
       {r.hasTokens ? (
         <>
           <div className="report-section-title">Tokens</div>

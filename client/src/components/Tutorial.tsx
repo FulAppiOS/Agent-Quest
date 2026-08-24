@@ -33,7 +33,7 @@ export function Tutorial({ onClose }: TutorialProps) {
         <h2 className="tutorial-title">Welcome to Agent Quest</h2>
 
         <div className="tutorial-tagline">
-          Use <strong>Claude Code CLI</strong> or <strong>Codex</strong> as usual — each session auto-spawns a hero on the dashboard, live.
+          Use <strong>Claude Code</strong>, <strong>Codex</strong> or <strong>Cursor</strong> as usual — each session auto-spawns a hero on the dashboard, live.
         </div>
 
         <a
@@ -49,7 +49,7 @@ export function Tutorial({ onClose }: TutorialProps) {
 
         <p className="tutorial-text">
           Agent Quest is a live dashboard that turns your{' '}
-          <strong>Claude Code</strong> and <strong>Codex</strong> sessions into a 2D
+          <strong>Claude Code</strong>, <strong>Codex</strong> and <strong>Cursor</strong> sessions into a 2D
           fantasy village. Every running agent becomes a <strong>hero</strong> who
           walks between buildings based on what it's doing.
         </p>
@@ -70,8 +70,9 @@ export function Tutorial({ onClose }: TutorialProps) {
             rel="noreferrer"
           >Codex</a>
           , reading rollout logs from{' '}
-          <code>~/.codex/sessions/</code>. It doesn't work with the Claude desktop
-          app or claude.ai in the browser, since those don't expose local session files.
+          <code>~/.codex/sessions/</code>. It also works with <strong>Cursor</strong>, reading the
+          IDE's agent-chat transcripts from <code>~/.cursor/projects/</code>. It doesn't work with
+          the Claude desktop app or claude.ai in the browser, since those don't expose local session files.
         </p>
 
         <div className="tutorial-section-label">Activity → Building</div>
@@ -88,14 +89,13 @@ export function Tutorial({ onClose }: TutorialProps) {
         </table>
 
         <p className="tutorial-text">
-          When both Claude Code and Codex have active agents, each hero shows a small{' '}
-          <strong>CLAUDE</strong> or <strong>CODEX</strong> badge so you can tell which
-          CLI it came from.
+          When agents from more than one source are active, each hero shows a small{' '}
+          <strong>CLAUDE</strong>, <strong>CODEX</strong> or <strong>CURSOR</strong> badge so you can tell where it came from.
         </p>
 
         <div className="tutorial-section-label">How to use it</div>
         <p className="tutorial-text">
-          Heroes appear in real time as you spawn new Claude Code or Codex sessions. Click a
+          Heroes appear in real time as you spawn new Claude Code, Codex or Cursor sessions. Click a
           hero in the <em>Party Bar</em> (bottom) to see what it's doing; click any
           building to see which heroes are there. The 🗺️ icon in the top bar opens
           the map editor. Reopen this tutorial any time with the{' '}
@@ -131,7 +131,7 @@ export function Tutorial({ onClose }: TutorialProps) {
         <div className="tutorial-section-label">Privacy</div>
         <p className="tutorial-text">
           Everything runs locally on your machine. Nothing is uploaded, shared or
-          persisted — Agent Quest only reads the logs Claude Code and Codex already
+          persisted — Agent Quest only reads the logs Claude Code, Codex and Cursor already
           keep on your disk.
         </p>
 
@@ -143,7 +143,10 @@ export function Tutorial({ onClose }: TutorialProps) {
           <strong>Codex:</strong> macOS tested. Windows not yet verified.
         </p>
         <p className="tutorial-text">
-          <strong>Linux:</strong> should work for both, but not routinely tested.
+          <strong>Cursor:</strong> tested on macOS. Windows/Linux not yet verified.
+        </p>
+        <p className="tutorial-text">
+          <strong>Linux:</strong> should work for all three, but not routinely tested.
         </p>
 
         <div className="tutorial-section-label">About</div>

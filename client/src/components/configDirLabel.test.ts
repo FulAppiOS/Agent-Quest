@@ -14,6 +14,10 @@ describe('configDirLabel', () => {
     expect(configDirLabel('/Users/foo/.codex')).toBe('codex');
   });
 
+  it('returns "cursor" for ~/.cursor', () => {
+    expect(configDirLabel('/Users/foo/.cursor')).toBe('cursor');
+  });
+
   it('strips .claude- prefix for multi-installs', () => {
     expect(configDirLabel('/Users/foo/.claude-work')).toBe('work');
     expect(configDirLabel('/Users/foo/.claude-personale')).toBe('personale');

@@ -10,6 +10,7 @@ import { registerMapRoutes } from './map/routes';
 import { registerHookRoutes } from './hooks/routes';
 import { ClaudeProvider } from './providers/claude-provider';
 import { CodexProvider } from './providers/codex-provider';
+import { CursorProvider } from './providers/cursor-provider';
 import type { ProviderHandlers, SessionStartPayload, SessionEventsPayload } from './providers/types';
 import type { ParsedEvent } from './parsers/session-parser';
 
@@ -150,6 +151,7 @@ const providerHandlers: ProviderHandlers = {
 
 const claudeProvider = new ClaudeProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
 const codexProvider = new CodexProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
+const cursorProvider = new CursorProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
 
 // Optional Claude Code lifecycle-hook integration (Claude-only — Codex has no
 // hooks). Provides authoritative, low-latency turn-end signals and an opt-in
@@ -162,7 +164,7 @@ registerHookRoutes(app, {
 });
 
 function allConfigDirs(): string[] {
-  return [...claudeProvider.getConfigDirs(), ...codexProvider.getConfigDirs()];
+  return [...claudeProvider.getConfigDirs(), ...codexProvider.getConfigDirs(), ...cursorProvider.getConfigDirs()];
 }
 
 // --- Lifecycle: active → idle (5m) → completed (30m) → removed (2h, keep min 5) ---
@@ -202,12 +204,13 @@ setInterval(() => {
 // CLI install").
 await claudeProvider.start(providerHandlers);
 await codexProvider.start(providerHandlers);
+await cursorProvider.start(providerHandlers);
 
 // If neither provider found anything on disk, emit a single aggregated
 // warning so the user sees one clear diagnostic line instead of per-provider
 // chatter. The client banner shows the equivalent message to the user.
 if (allConfigDirs().length === 0) {
-  console.warn('[Server] WARNING: no Claude Code or Codex install detected. Start a session with either to see heroes here.');
+  console.warn('[Server] WARNING: no Claude Code, Codex or Cursor installation detected. Start a session with any of them to see heroes here.');
 }
 
 // Seed the liveness registry with the same config dirs the watcher just
