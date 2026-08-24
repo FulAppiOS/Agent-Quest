@@ -15,6 +15,12 @@ export interface CursorProviderOptions {
   scanIntervalMs?: number;
   /** Ignore transcript files whose mtime is older than this when first seen. Default 3h. */
   maxAgeMs?: number;
+  /**
+   * Skip spawning a hero for chats whose last event is a turn-end and whose
+   * file mtime is older than this. Default 15 min. Recently finished chats
+   * still appear as waiting; cold finished ones stay silent until they resume.
+   */
+  endedQuietMs?: number;
 }
 
 interface TrackedFile {
@@ -33,6 +39,7 @@ export class CursorProvider implements SessionProvider {
   private readonly cursorRoot: string;
   private readonly scanIntervalMs: number;
   private readonly maxAgeMs: number;
+  private readonly endedQuietMs: number;
   private handlers: ProviderHandlers | null = null;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private tracked = new Map<string, TrackedFile>();
@@ -45,6 +52,7 @@ export class CursorProvider implements SessionProvider {
     this.cursorRoot = opts.cursorRoot ?? join(homedir(), '.cursor');
     this.scanIntervalMs = opts.scanIntervalMs ?? 3000;
     this.maxAgeMs = opts.maxAgeMs ?? 3 * 60 * 60_000;
+    this.endedQuietMs = opts.endedQuietMs ?? 15 * 60_000;
   }
 
   async start(handlers: ProviderHandlers): Promise<void> {
@@ -129,7 +137,18 @@ export class CursorProvider implements SessionProvider {
       const contents = await Bun.file(filePath).text();
       // The session id is the transcript's own uuid — the file basename.
       const sessionId = filePath.split('/').pop()?.replace(/\.jsonl$/, '') ?? 'cursor-session';
-      const events = parseCursorFile(contents, { sessionId, cwd: projectCwd, timestamp: Date.now() });
+      // Stamp with file mtime, not wall-clock: a finished chat whose file is
+      // still inside maxAge would otherwise look "just ended" and stick as waiting.
+      const events = parseCursorFile(contents, { sessionId, cwd: projectCwd, timestamp: s.mtimeMs });
+
+      const last = events[events.length - 1];
+      if (last?.isTurnEnd === true && age > this.endedQuietMs) {
+        // Cold finished chat — remember size so a resume still wakes us, but
+        // don't spawn a waiting hero for a turn that ended long ago.
+        this.tracked.set(filePath, { sessionId: '', sessionCwd: projectCwd, size: s.size });
+        return;
+      }
+
       this.tracked.set(filePath, { sessionId, sessionCwd: projectCwd, size: s.size });
       await handlers.onSessionStart({
         source: this.source,

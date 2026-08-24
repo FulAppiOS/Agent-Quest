@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AgentState } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
 import { NotificationMenu, type NotificationEntry } from './NotificationMenu';
+import { isLiveRosterAgent, isParkedAgent } from '../agentVisibility';
 import './TopBar.css';
 
 interface TopBarNotifications {
@@ -21,9 +22,9 @@ interface TopBarProps {
 
 export function TopBar({ agents, connected, notifications }: TopBarProps) {
   const active = agents.filter((a) => a.status === 'active').length;
-  const waiting = agents.filter((a) => a.status === 'waiting').length;
-  const idle = agents.filter((a) => a.status === 'idle').length;
-  const completed = agents.filter((a) => a.status === 'completed').length;
+  const waiting = agents.filter((a) => a.status === 'waiting' && isLiveRosterAgent(a)).length;
+  const idle = agents.filter((a) => a.status === 'idle' && isLiveRosterAgent(a)).length;
+  const completed = agents.filter((a) => a.status === 'completed' || isParkedAgent(a)).length;
   const errors = agents.filter((a) => a.status === 'error').length;
 
   const [nightOn, setNightOn] = useState(false);

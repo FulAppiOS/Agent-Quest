@@ -15,6 +15,7 @@ import { Toasts, type ToastItem } from './components/Toasts';
 import type { NotificationEntry } from './components/NotificationMenu';
 import { useSettings } from './hooks/useSettings';
 import { useAgentNotifications, type ToastPayload } from './hooks/useAgentNotifications';
+import { isLiveRosterAgent } from './agentVisibility';
 import './App.css';
 
 export default function App() {
@@ -77,9 +78,8 @@ export default function App() {
     : null;
 
   // Only show source badges when two or more providers have a LIVE agent —
-  // completed / error sessions don't count, otherwise the badge would linger
-  // after the last Codex/Cursor hero finishes just because it's still in state.
-  const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
+  // completed / error / parked waiting-idle sessions don't count.
+  const liveAgents = agents.filter((a) => isLiveRosterAgent(a));
   const liveSources = new Set(liveAgents.map((a) => a.source));
   const showSourceBadge = liveSources.size >= 2;
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
 import { usePartyPrefs } from '../hooks/usePartyPrefs';
+import { isLiveRosterAgent, isParkedAgent } from '../agentVisibility';
 import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, type AgentState } from '../types/agent';
 import './PartyBar.css';
 
@@ -117,27 +118,25 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
   );
 }
 
-const LIVE_STATUSES = new Set<AgentState['status']>(['active', 'waiting', 'idle']);
-
 export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBadge }: PartyBarProps) {
   const [prefs, updatePrefs] = usePartyPrefs();
   const mode: 'full' | 'icons' = prefs.foldState;
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // Live roster: active + waiting + idle. 'waiting' must be here — with sticky
-  // waiting on the server a finished-turn agent stays 'waiting', and dropping it
-  // would make heroes vanish from the party the moment they're done.
-  const live = agents.filter((a) => LIVE_STATUSES.has(a.status));
+  // Live roster: active + recent waiting/idle. Sticky waiting stays visible
+  // for a short window so a just-finished turn doesn't vanish, then parks.
+  const live = agents.filter((a) => isLiveRosterAgent(a));
   const sorted = [...live].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
   const activeCount = live.filter((a) => a.status === 'active').length;
   const waitingCount = live.filter((a) => a.status === 'waiting').length;
   const idleCount = live.filter((a) => a.status === 'idle').length;
 
-  // Completed sessions, most recently finished first — shown in a collapsible
-  // section so finished work stays reviewable instead of just disappearing.
-  const completed = agents
-    .filter((a) => a.status === 'completed')
+  // Completed + parked waiting/idle, most recently finished first — collapsible
+  // so finished work stays reviewable instead of disappearing from the roster.
+  const away = agents
+    .filter((a) => a.status === 'completed' || isParkedAgent(a))
     .sort((a, b) => b.lastEvent - a.lastEvent);
+  const awayLabel = away.some((a) => a.status !== 'completed') ? 'Away' : 'Completed';
 
   const headerParts = [`${activeCount} active`];
   if (waitingCount > 0) headerParts.push(`${waitingCount} waiting`);
@@ -181,23 +180,23 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
         ))}
       </div>
 
-      {completed.length > 0 && (
+      {away.length > 0 && (
         <div className="partybar-completed">
           <button
             type="button"
             className="partybar-completed-header"
             aria-expanded={showCompleted}
             onClick={() => setShowCompleted((v) => !v)}
-            title={`${completed.length} completed session${completed.length === 1 ? '' : 's'}`}
+            title={`${away.length} ${awayLabel.toLowerCase()} session${away.length === 1 ? '' : 's'}`}
           >
             <span className="partybar-completed-caret" aria-hidden="true">{showCompleted ? '▾' : '▸'}</span>
             {mode === 'full'
-              ? <span>Completed ({completed.length})</span>
-              : <span className="partybar-completed-count">{completed.length}✓</span>}
+              ? <span>{awayLabel} ({away.length})</span>
+              : <span className="partybar-completed-count">{away.length}✓</span>}
           </button>
           {showCompleted && (
             <div className="partybar-list partybar-completed-list">
-              {completed.map((agent) => (
+              {away.map((agent) => (
                 <PartyRow
                   key={agent.id}
                   agent={agent}
