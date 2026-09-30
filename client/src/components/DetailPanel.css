@@ -10,7 +10,11 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  z-index: 25;
+  /* Above toasts (40) and the activity feed (25). Toasts share this
+   * top-right slot; if they stack on top, empty toast-column space has
+   * pointer-events:none and the click falls through to the Phaser canvas,
+   * which treats it as a map click and closes this panel. */
+  z-index: 45;
   font-family: 'Fira Code', monospace;
 }
 
