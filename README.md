@@ -12,6 +12,10 @@
   <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.shields.io/badge/Buy%20me%20a%20beer-%F0%9F%8D%BA-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a beer" /></a>
 </p>
 
+<p align="center">
+  <a href="https://www.fulvioscichilone.it/agent-quest/">Website</a>
+</p>
+
 ---
 
 > **Use Claude Code CLI or Codex as usual — each agent session auto-spawns a hero on the dashboard, live.**
