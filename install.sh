@@ -88,7 +88,7 @@ semver_ge() {
 
 # ------------------------------------------------------------------ banner
 cat <<BANNER
-${C_BLUE}Agent Quest${C_RESET} — a local dashboard for Claude Code and Codex agents
+${C_BLUE}Agent Quest${C_RESET} — a local dashboard for Claude Code, Codex and Cursor agents
   License: MIT (open source, hobby project)
   Runs entirely on your machine — no API keys, no telemetry, no cloud
   Source: https://github.com/FulAppiOS/Agent-Quest

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agentquest — local dashboard for Claude Code and Codex agents
+# agentquest — local dashboard for Claude Code, Codex and Cursor agents
 # macOS-first; relies on bash 3.2+, git, bun >= 1.1.
 set -euo pipefail
 
@@ -128,7 +128,7 @@ prompt_yn() {
 # ------------------------------------------------------------------ sub-commands
 cmd_help() {
   cat <<USAGE
-agentquest — fantasy village dashboard for Claude Code and Codex agents
+agentquest — fantasy village dashboard for Claude Code, Codex and Cursor agents
 
 USAGE:
   agentquest [start]           Start server + client, open browser

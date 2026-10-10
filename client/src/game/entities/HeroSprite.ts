@@ -404,7 +404,7 @@ export class HeroSprite {
   }
 
   /**
-   * Show or hide the source badge (`CODEX` / `CLAUDE`). Called by the scene
+   * Show or hide the source badge (`CLAUDE` / `CODEX` / `CURSOR`). Called by the scene
    * whenever the fleet's provider makeup changes. Lazily creates the Text
    * object on first reveal. When a subagent marker is already present, the
    * two labels sit side-by-side on the subagent row; otherwise the badge sits

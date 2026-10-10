@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import type { AgentState } from '../types/agent';
+import { isLiveRosterAgent } from '../agentVisibility';
 import { BUILDING_DEFS, VILLAGE_GATE } from '../game/data/building-layout';
 import './Minimap.css';
 
@@ -54,7 +55,9 @@ export function Minimap({ agents }: MinimapProps) {
     ctx.lineWidth = 1;
     ctx.strokeRect((VILLAGE_GATE.x - 15) * sx, (VILLAGE_GATE.y - 8) * sy, 30 * sx, 16 * sy);
 
-    const visible = agents.filter((a) => a.status === 'active' || a.status === 'idle');
+    const visible = agents.filter((a) =>
+      isLiveRosterAgent(a) && (a.status === 'active' || a.status === 'idle'),
+    );
     for (const agent of visible) {
       const building = BUILDING_DEFS.find((b) => b.activity === agent.currentActivity);
       if (building === undefined) continue;

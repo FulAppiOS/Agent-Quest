@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>A fantasy village dashboard for monitoring your Claude Code CLI and Codex agents.</strong>
+  <strong>A fantasy village dashboard for monitoring your Claude Code, Codex and Cursor agents.</strong>
 </p>
 
 <p align="center">
@@ -18,9 +18,9 @@
 
 ---
 
-> **Use Claude Code CLI or Codex as usual — each agent session auto-spawns a hero on the dashboard, live.**
+> **Use Claude Code, Codex or Cursor as usual — each agent session auto-spawns a hero on the dashboard, live.**
 
-Agent Quest is a browser-based monitoring dashboard that visualizes active Claude Code and Codex agent sessions as fantasy heroes in a 2D village. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on.
+Agent Quest is a browser-based monitoring dashboard that visualizes active Claude Code, Codex and Cursor agent sessions as fantasy heroes in a 2D village. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on.
 
 <p align="center">
   <img src="docs/media/day.gif" alt="Agent Quest — main view" width="820" />
@@ -45,21 +45,21 @@ Agent Quest is a browser-based monitoring dashboard that visualizes active Claud
 
 ## Why?
 
-Claude Code and Codex sessions happen in a terminal — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations and `~/.codex`), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
+Claude Code, Codex and Cursor sessions happen in a terminal — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations, `~/.codex` and `~/.cursor`), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
 
 ## Features
 
-- Real-time visualization of active Claude Code and Codex sessions
-- Auto-discovery of every `~/.claude*` directory (supports multiple installations like `~/.claude-work`, `~/.claude-personale`) and of `~/.codex` if present
+- Real-time visualization of active Claude Code, Codex and Cursor sessions
+- Auto-discovery of every `~/.claude*` directory (supports multiple installations like `~/.claude-work`, `~/.claude-personale`), of `~/.codex` and of `~/.cursor` if present
 - Activity feed, party bar, and detail panel alongside the village scene
 - Built-in map editor for customizing the village layout
-- Sub-2s latency via native WebSocket (optional lower-latency path via Claude Code `postToolUse` hooks — Claude Code only; Codex doesn't expose hooks)
+- Sub-2s latency via native WebSocket (optional lower-latency path via Claude Code `postToolUse` hooks — Claude Code only; Codex and Cursor don't expose hooks)
 
 ## Requirements
 
 **Required**
 - [Bun](https://bun.sh) 1.1 or later — the runtime behind both the server and the scripts. If you don't have it: `curl -fsSL https://bun.sh/install | bash`
-- An active Claude Code or Codex installation (one or more `~/.claude*` directories, and/or `~/.codex`, with session logs). Without either, the dashboard still starts, but the village stays empty and a banner tells you so.
+- An active Claude Code, Codex or Cursor installation (one or more `~/.claude*` directories, and/or `~/.codex`, and/or `~/.cursor`, with session logs). Without any of them, the dashboard still starts, but the village stays empty and a banner tells you so.
 - See the [Platform matrix](#platform-matrix) below for OS support per provider.
 
 **Optional**
@@ -148,7 +148,7 @@ lsof -ti:4444,4445 | xargs kill -9
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 ```
 
-**Empty village with a "No Claude Code or Codex installation detected" banner** — expected when no `~/.claude*` or `~/.codex` directory with session logs exists. Start a Claude Code or Codex session and heroes appear automatically (the banner disappears on its own).
+**Empty village with a "No Claude Code, Codex or Cursor installation detected" banner** — expected when no `~/.claude*`, `~/.codex` or `~/.cursor` directory with session logs exists. Start a Claude Code, Codex or Cursor session and heroes appear automatically (the banner disappears on its own).
 
 **Assets look broken or the app blocks at boot with "missing asset" screens** — see [Missing assets](#missing-assets).
 
@@ -228,8 +228,9 @@ Open the UI URL on the other device. The client auto-detects the host so API and
 |-------------|-------|----------------------|-------|
 | Claude Code | ✓     | ✓ (WSL2 recommended) | ✓     |
 | Codex       | ✓     | not yet verified     | not yet verified |
+| Cursor      | ✓     | not yet verified     | not yet verified |
 
-Claude Code is exercised on macOS and Windows (via WSL2). Codex has been tested on macOS only so far — it should work on Windows/Linux the same way (the provider watches `~/.codex/sessions/`), but we haven't confirmed it yet.
+Claude Code is exercised on macOS and Windows (via WSL2). Codex has been tested on macOS only so far — it should work on Windows/Linux the same way (the provider watches `~/.codex/sessions/`), but we haven't confirmed it yet. Cursor support reads the IDE's local agent-chat transcripts (`~/.cursor/projects/`) and has been tested on macOS only so far.
 
 ## Windows
 

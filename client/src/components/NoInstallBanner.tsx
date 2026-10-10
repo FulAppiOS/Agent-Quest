@@ -12,7 +12,7 @@ interface Props {
  * Full-width banner shown when the WebSocket is connected AND the server
  * reported zero config dirs across both providers. Disambiguates the two
  * empty-village states:
- *   - "Neither Claude Code nor Codex is installed"  → this banner
+ *   - "Neither Claude Code, Codex nor Cursor is installed" → this banner
  *   - "At least one provider is installed but idle" → no banner
  * Dismiss is persisted (with one-time migration from the old Claude-only key)
  * so returning users don't see it every load.
@@ -43,10 +43,10 @@ export function NoInstallBanner({ configDirs, connected }: Props) {
     <div className="no-install-banner" role="status">
       <span className="no-install-icon" aria-hidden>⚠</span>
       <div className="no-install-body">
-        <div className="no-install-title">No Claude Code or Codex installation detected</div>
+        <div className="no-install-title">No Claude Code, Codex or Cursor installation detected</div>
         <div className="no-install-text">
-          The server found no <code>~/.claude*</code> or <code>~/.codex</code> directory with session logs.
-          {' '}Start a Claude Code or Codex session to see heroes appear here.
+          The server found no <code>~/.claude*</code>, <code>~/.codex</code> or <code>~/.cursor</code> directory with session logs.
+          {' '}Start a Claude Code, Codex or Cursor session to see heroes appear here.
         </div>
       </div>
       <button

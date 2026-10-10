@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { AgentState } from '../types/agent';
+import { isLiveRosterAgent } from '../agentVisibility';
 import { BUILDING_DEFS } from '../game/data/building-layout';
 import './BuildingInfoPanel.css';
 
@@ -45,7 +46,8 @@ export function BuildingInfoPanel({ buildingId, anchor, agents, onClose }: Build
   if (building === undefined) return null;
 
   const agentsHere = agents.filter(
-    (a) => a.currentActivity === building.activity && (a.status === 'active' || a.status === 'idle'),
+    (a) => a.currentActivity === building.activity && isLiveRosterAgent(a)
+      && (a.status === 'active' || a.status === 'idle'),
   );
 
   const style = position === null

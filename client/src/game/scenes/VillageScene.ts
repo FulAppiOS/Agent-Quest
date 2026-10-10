@@ -13,6 +13,7 @@ import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '.
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
 import { sceneRenderScale } from '../dpr';
+import { isLiveRosterAgent, isVillageVisibleAgent } from '../../agentVisibility';
 
 /** Set `cam.zoom` to `newZoom` while keeping the world point currently
  * under screen coordinates (sx, sy) pinned to the same screen spot.
@@ -25,9 +26,6 @@ function zoomAroundPointer(cam: Phaser.Cameras.Scene2D.Camera, sx: number, sy: n
   cam.scrollX += before.x - after.x;
   cam.scrollY += before.y - after.y;
 }
-
-/** Hide agents idle for longer than this from the Phaser scene (kept in PartyBar). */
-const IDLE_HIDE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /** Grid spacing between heroes at the same building. */
 const GRID_SPACING_X = 40;
@@ -643,21 +641,15 @@ export class VillageScene extends Phaser.Scene {
 
     const now = Date.now();
 
-    // Show active + idle-recent (< 2h), hide completed/error and idle > 2h
-    const visible = agents.filter((a) => {
-      if (a.status === 'completed' || a.status === 'error') return false;
-      if (a.status === 'idle' && now - a.lastEvent > IDLE_HIDE_THRESHOLD_MS) return false;
-      return true;
-    });
+    // Show active + recent waiting/idle; hide completed/error and parked agents.
+    const visible = agents.filter((a) => isVillageVisibleAgent(a, now));
 
-    // Mixed-provider mode: show source badges only when both Claude and Codex
-    // have a LIVE hero. Completed/error sessions don't count, so the badge
-    // disappears the moment the last non-dormant Codex hero finishes. Mirrors
-    // the flag computed in App.tsx — keep these two in sync.
-    const liveAgents = agents.filter((a) => a.status !== 'completed' && a.status !== 'error');
-    const hasClaude = liveAgents.some((a) => a.source === 'claude');
-    const hasCodex = liveAgents.some((a) => a.source === 'codex');
-    const showSourceBadge = hasClaude && hasCodex;
+    // Mixed-provider mode: show source badges only when two or more providers
+    // have a LIVE hero. Completed/error/parked sessions don't count, so the badge
+    // disappears the moment the last non-dormant Codex/Cursor hero finishes.
+    // Mirrors the flag computed in App.tsx — keep these two in sync.
+    const liveAgents = agents.filter((a) => isLiveRosterAgent(a, now));
+    const showSourceBadge = new Set(liveAgents.map((a) => a.source)).size >= 2;
 
     // Remove heroes no longer visible
     for (const [id, hero] of this.heroes) {

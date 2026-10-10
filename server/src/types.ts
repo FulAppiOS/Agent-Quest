@@ -13,7 +13,7 @@ export const HERO_COLORS = [
 export type HeroColor = (typeof HERO_COLORS)[number];
 
 // --- Agent source (which external agent produced this session) ---
-export const AGENT_SOURCES = ['claude', 'codex'] as const;
+export const AGENT_SOURCES = ['claude', 'codex', 'cursor'] as const;
 export type AgentSource = (typeof AGENT_SOURCES)[number];
 
 // --- Agent activity (maps to village buildings) ---
@@ -59,7 +59,7 @@ export interface AgentState {
   cwd: string;            // project working directory
   configDir: string;      // Config dir of the provider that produced the session (e.g. ~/.claude,
                           // ~/.claude-work, ~/.codex) — identifies which installation
-  source: AgentSource;    // 'claude' | 'codex' — which CLI produced this session
+  source: AgentSource;    // 'claude' | 'codex' | 'cursor' — which CLI/client produced this session
   /**
    * Model id as emitted by Claude Code in `message.model` of assistant lines
    * (e.g. `claude-opus-4-6`, `claude-sonnet-4-20250514`). Undefined for Codex
