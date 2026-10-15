@@ -1,5 +1,5 @@
 import { readdir, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { homedir } from 'node:os';
 
 import { parseCodexLine, parseCodexSessionMeta } from '../parsers/codex-parser';
@@ -20,6 +20,10 @@ interface TrackedFile {
   sessionId: string;
   sessionCwd: string;
   size: number;
+  isSubagent?: boolean;
+  parentId?: string;
+  nickname?: string;
+  subagentType?: string;
 }
 
 export class CodexProvider implements SessionProvider {
@@ -124,12 +128,26 @@ export class CodexProvider implements SessionProvider {
         const ev = parseCodexLine(line, meta.id, meta.cwd);
         if (ev !== null) events.push(ev);
       }
-      this.tracked.set(filePath, { sessionId: meta.id, sessionCwd: meta.cwd, size: s.size });
+      const subagentType = meta.agentPath !== undefined ? basename(meta.agentPath) : undefined;
+      this.tracked.set(filePath, {
+        sessionId: meta.id,
+        sessionCwd: meta.cwd,
+        size: s.size,
+        isSubagent: meta.isSubagent,
+        parentId: meta.parentThreadId,
+        nickname: meta.agentNickname,
+        subagentType,
+      });
       await handlers.onSessionStart({
         source: this.source,
         sessionId: meta.id,
         configDir: this.codexRoot,
         events,
+        isSubagent: meta.isSubagent,
+        parentId: meta.parentThreadId,
+        // Codex names its subagents (e.g. "Copernicus"); the main thread keeps the cwd-derived name.
+        nameOverride: meta.agentNickname,
+        subagentType,
       });
       return;
     }
@@ -179,6 +197,10 @@ export class CodexProvider implements SessionProvider {
       sessionId: tracked.sessionId,
       configDir: this.codexRoot,
       events,
+      isSubagent: tracked.isSubagent,
+      parentId: tracked.parentId,
+      nameOverride: tracked.nickname,
+      subagentType: tracked.subagentType,
     });
   }
 }

@@ -1,5 +1,9 @@
 import * as Phaser from 'phaser';
-import { HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState } from '../../types/agent';
+import {
+  CONTEXT_LEVEL_COLOR, HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR,
+  contextLevel, contextPct, modelBadge, skillShortName,
+  type HeroClass, type HeroColor, type AgentActivity, type AgentSource, type AgentState, type ContextUsage,
+} from '../../types/agent';
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
@@ -15,6 +19,13 @@ const RUN_PIXELS_PER_CYCLE = 60;
  * (sprite 96 px → name -50, activity +46, detail +60, task +74).
  */
 const TASK_MAX_CHARS = 28;
+
+/** Subagents render smaller than the session heroes that spawned them. */
+const SUBAGENT_SCALE = 0.8;
+
+/** Context-occupancy bar drawn above the name. */
+const CONTEXT_BAR_W = 36;
+const CONTEXT_BAR_H = 4;
 
 const ACTIVITY_COLOR: Record<AgentActivity, string> = {
   idle:      '#888888',
@@ -32,8 +43,18 @@ const ACTIVITY_COLOR: Record<AgentActivity, string> = {
 const WAITING_COLOR = '#FFD700';
 const ERROR_COLOR = '#FF4444';
 const ERROR_WINDOW_MS = 90 * 1000;
+const SKILL_COLOR = '#7BD4C5';
+const CHILD_BADGE_COLOR = '#FFD27A';
+/** Fixed badge color for the `SUBAGENT` marker — deliberately none of the hero label colors. */
+const SUBAGENT_BADGE_COLOR = '#B8C4D6';
+/** Subagent name labels keep the parent's color but sit back visually. */
+const SUBAGENT_NAME_ALPHA = 0.75;
 
 const HALO_TEXTURE_KEY = 'hero-selection-halo';
+
+function hexToNumber(hex: string): number {
+  return Number.parseInt(hex.replace('#', ''), 16);
+}
 
 /**
  * Lazily build a soft radial-gradient texture we can reuse as the selection
@@ -63,6 +84,7 @@ function ensureHaloTexture(scene: Phaser.Scene): void {
 export class HeroSprite {
   readonly id: string;
   readonly heroClass: HeroClass;
+  readonly heroColor: HeroColor;
   private scene: Phaser.Scene;
   private sprite: Phaser.GameObjects.Sprite;
   private nameText: Phaser.GameObjects.Text;
@@ -76,6 +98,17 @@ export class HeroSprite {
   private modelText: Phaser.GameObjects.Text | null = null;
   private detailText: Phaser.GameObjects.Text;
   private taskText: Phaser.GameObjects.Text;
+  /** Context-occupancy bar (track + fill + percentage), created on the first known sample. */
+  private contextTrack: Phaser.GameObjects.Rectangle | null = null;
+  private contextFill: Phaser.GameObjects.Rectangle | null = null;
+  private contextText: Phaser.GameObjects.Text | null = null;
+  private contextPulse: Phaser.Tweens.Tween | null = null;
+  private contextValue: ContextUsage | undefined;
+  private contextBarsEnabled = true;
+  /** `✦ skill` buff tag above the name while a skill's instructions apply. */
+  private skillText: Phaser.GameObjects.Text | null = null;
+  /** `⚑ N` badge next to the name: live subagents working for this hero. */
+  private childBadge: Phaser.GameObjects.Text | null = null;
   private _x: number;
   private _y: number;
   private moveTween: Phaser.Tweens.Tween | null = null;
@@ -84,11 +117,13 @@ export class HeroSprite {
   private idleKey: string;
   private runKey: string;
   private facesLeft: boolean;
-  private nameOffsetY: number;
-  private subagentOffsetY: number;
-  private activityOffsetY: number;
-  private detailOffsetY: number;
-  private taskOffsetY: number;
+  private nameOffsetY = 0;
+  private subagentOffsetY = 0;
+  private contextOffsetY = 0;
+  private skillOffsetY = 0;
+  private activityOffsetY = 0;
+  private detailOffsetY = 0;
+  private taskOffsetY = 0;
   currentActivity: AgentActivity = 'idle';
   private isWaiting = false;
   private isErrorRecent = false;
@@ -114,6 +149,7 @@ export class HeroSprite {
     this.scene = scene;
     this.id = id;
     this.heroClass = heroClass;
+    this.heroColor = heroColor;
     this.source = source;
     this.isSubagent = isSubagent;
     this._x = x;
@@ -132,7 +168,7 @@ export class HeroSprite {
 
     // Create sprite with idle animation
     this.sprite = scene.add.sprite(x, y, this.idleKey);
-    this.sprite.setScale(theme.heroScale);
+    this.applyScale(theme.heroScale);
     // Flip sprites that natively face left so they face right by default
     this.sprite.setFlipX(this.facesLeft);
     if (cfg.tint !== null) this.sprite.setTint(cfg.tint);
@@ -141,15 +177,7 @@ export class HeroSprite {
     // regardless of which code path later wires up interactivity.
     this.sprite.setData('isHero', true);
 
-    // Label offsets derived from actual sprite height — scale with theme.
-    const halfH = this.sprite.displayHeight / 2;
-    this.nameOffsetY = -(halfH + 2);
-    // Subagent marker sits ~16px below the name (standard "subtitle" placement,
-    // so the name stays the primary anchor for the eye).
-    this.subagentOffsetY = this.nameOffsetY + 16;
-    this.activityOffsetY = halfH - 2;
-    this.detailOffsetY = halfH + 12;
-    this.taskOffsetY = halfH + 26;
+    this.computeOffsets();
 
     // Create idle animation if it doesn't exist yet
     const idleAnimKey = `${this.idleKey}-anim`;
@@ -184,22 +212,27 @@ export class HeroSprite {
 
     const nameColor = HERO_LABEL_COLOR[heroColor] ?? '#DDDDDD';
     this.nameBaseColor = nameColor;
+    // Subagents: smaller, dimmer italic name in the family (parent) color —
+    // the knight (main agent) keeps the bold upright label at full strength.
     this.nameText = addCrispText(scene, x, y + this.nameOffsetY, name, {
-      fontSize: '14px',
+      fontSize: isSubagent ? '12px' : '14px',
       color: nameColor,
       fontFamily: 'monospace',
+      fontStyle: isSubagent ? 'italic' : 'normal',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5);
+    if (isSubagent) this.nameText.setAlpha(SUBAGENT_NAME_ALPHA);
 
-    // Subagent marker: only created for spawned subagents — sits just above
-    // the name to visually distinguish child heroes from parent sessions.
+    // Subagent badge: only created for spawned subagents — sits just below
+    // the name. `setSubagentRole` appends the role (`SUBAGENT · Explore`)
+    // once the scene knows it.
     if (isSubagent) {
-      this.subagentText = addCrispText(scene, x, y + this.subagentOffsetY, 'subagent', {
-        fontSize: '9px',
-        color: '#9AA4B0',
+      this.subagentText = addCrispText(scene, x, y + this.subagentOffsetY, 'SUBAGENT', {
+        fontSize: '8px',
+        color: SUBAGENT_BADGE_COLOR,
         fontFamily: 'monospace',
-        fontStyle: 'italic',
+        fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 2,
       }).setOrigin(0.5);
@@ -242,10 +275,33 @@ export class HeroSprite {
 
   get x(): number { return this._x; }
   get y(): number { return this._y; }
+  /** Ground contact point — the Y the depth sort keys on. */
+  get footY(): number { return this._y + this.sprite.displayHeight * 0.5; }
+
+  private applyScale(scale: number): void {
+    this.sprite.setScale(this.isSubagent ? scale * SUBAGENT_SCALE : scale);
+  }
+
+  /** Label rows derived from the sprite's current display height. */
+  private computeOffsets(): void {
+    const halfH = this.sprite.displayHeight / 2;
+    this.nameOffsetY = -(halfH + 2);
+    // Subagent marker sits ~16px below the name (standard "subtitle" placement,
+    // so the name stays the primary anchor for the eye).
+    this.subagentOffsetY = this.nameOffsetY + 16;
+    // Context bar and skill buff stack upward above the name.
+    this.contextOffsetY = this.nameOffsetY - 11;
+    this.skillOffsetY = this.nameOffsetY - 22;
+    this.activityOffsetY = halfH - 2;
+    this.detailOffsetY = halfH + 12;
+    this.taskOffsetY = halfH + 26;
+  }
 
   /** Override the default hero scale (e.g. from MapConfig settings). */
   setHeroScale(scale: number): void {
-    this.sprite.setScale(scale);
+    this.applyScale(scale);
+    this.computeOffsets();
+    this.layoutAll();
   }
 
   /** Make the sprite respond to pointerdown with the supplied callback. */
@@ -391,7 +447,7 @@ export class HeroSprite {
     // (bottom-anchored, origin 0.5/1) and decorations that sort on their base.
     // Without this, a hero whose feet align with a building's foot would render
     // behind it because his center-y is well above the building's foot-y.
-    const footY = this._y + this.sprite.displayHeight * 0.5;
+    const footY = this.footY;
     this.sprite.setDepth(footY + 0.5);
     this.nameText.setDepth(footY + 0.6);
     if (this.subagentText !== null) this.subagentText.setDepth(footY + 0.6);
@@ -400,6 +456,11 @@ export class HeroSprite {
     if (this.modelText !== null) this.modelText.setDepth(footY + 0.6);
     this.detailText.setDepth(footY + 0.6);
     this.taskText.setDepth(footY + 0.6);
+    if (this.contextTrack !== null) this.contextTrack.setDepth(footY + 0.6);
+    if (this.contextFill !== null) this.contextFill.setDepth(footY + 0.61);
+    if (this.contextText !== null) this.contextText.setDepth(footY + 0.6);
+    if (this.skillText !== null) this.skillText.setDepth(footY + 0.6);
+    if (this.childBadge !== null) this.childBadge.setDepth(footY + 0.6);
     if (this.selectionHalo !== null) this.selectionHalo.setDepth(footY + 0.4);
   }
 
@@ -524,6 +585,178 @@ export class HeroSprite {
     this.modelText.setPosition(leftEdge + widthA + gap, y);
   }
 
+  /**
+   * Context-window occupancy. The bar only appears when the window is known
+   * (Codex reports it; Claude's is configured or inferred) and the user hasn't
+   * hidden context bars. Critical occupancy (≥ 90%) pulses.
+   */
+  setContext(context: ContextUsage | undefined): void {
+    this.contextValue = context;
+    this.refreshContextBar();
+  }
+
+  setContextBarVisible(visible: boolean): void {
+    this.contextBarsEnabled = visible;
+    this.refreshContextBar();
+  }
+
+  private refreshContextBar(): void {
+    const pct = this.contextBarsEnabled ? contextPct(this.contextValue) : null;
+    if (pct === null) {
+      this.destroyContextBar();
+      return;
+    }
+    const level = contextLevel(pct);
+    const color = CONTEXT_LEVEL_COLOR[level];
+    if (this.contextTrack === null || this.contextFill === null || this.contextText === null) {
+      this.destroyContextBar();
+      this.contextTrack = this.scene.add.rectangle(0, 0, CONTEXT_BAR_W, CONTEXT_BAR_H, 0x000000, 0.6).setOrigin(0.5, 0.5);
+      this.contextFill = this.scene.add.rectangle(0, 0, 1, CONTEXT_BAR_H - 1, hexToNumber(color), 1).setOrigin(0, 0.5);
+      this.contextText = addCrispText(this.scene, 0, 0, '', {
+        fontSize: '9px',
+        color,
+        fontFamily: 'monospace',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0, 0.5);
+    }
+    const fill = Math.max(1, Math.min(CONTEXT_BAR_W, (CONTEXT_BAR_W * pct) / 100));
+    this.contextFill.setSize(fill, CONTEXT_BAR_H - 1);
+    this.contextFill.setFillStyle(hexToNumber(color), 1);
+    this.contextText.setText(`${Math.round(pct)}%`);
+    this.contextText.setColor(color);
+    if (level === 'critical') {
+      if (this.contextPulse === null) {
+        this.contextPulse = this.scene.tweens.add({
+          targets: [this.contextFill, this.contextText],
+          alpha: { from: 1, to: 0.4 },
+          duration: 500,
+          ease: 'Sine.easeInOut',
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+    } else if (this.contextPulse !== null) {
+      this.contextPulse.stop();
+      this.contextPulse = null;
+      this.contextFill.setAlpha(1);
+      this.contextText.setAlpha(1);
+    }
+    this.layoutContextBar();
+    this.updateDepth();
+  }
+
+  private destroyContextBar(): void {
+    if (this.contextPulse !== null) {
+      this.contextPulse.stop();
+      this.contextPulse = null;
+    }
+    this.contextTrack?.destroy();
+    this.contextFill?.destroy();
+    this.contextText?.destroy();
+    this.contextTrack = null;
+    this.contextFill = null;
+    this.contextText = null;
+  }
+
+  private layoutContextBar(): void {
+    if (this.contextTrack === null || this.contextFill === null || this.contextText === null) return;
+    const y = this._y + this.contextOffsetY;
+    this.contextTrack.setPosition(this._x, y);
+    this.contextFill.setPosition(this._x - CONTEXT_BAR_W / 2, y);
+    this.contextText.setPosition(this._x + CONTEXT_BAR_W / 2 + 3, y);
+  }
+
+  /** `✦ brainstorming` buff tag while a skill's instructions apply; `undefined` clears it. */
+  setActiveSkill(name: string | undefined): void {
+    if (name === undefined || name.length === 0) {
+      if (this.skillText !== null) {
+        this.skillText.destroy();
+        this.skillText = null;
+      }
+      return;
+    }
+    const label = `✦ ${skillShortName(name)}`;
+    if (this.skillText === null) {
+      this.skillText = addCrispText(this.scene, this._x, this._y + this.skillOffsetY, label, {
+        fontSize: '9px',
+        color: SKILL_COLOR,
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0.5);
+      this.updateDepth();
+    } else {
+      this.skillText.setText(label);
+      this.skillText.setPosition(this._x, this._y + this.skillOffsetY);
+    }
+  }
+
+  /**
+   * Complete the `SUBAGENT` badge with the role (`SUBAGENT · Explore`). The
+   * badge keeps its fixed color: the family is read from the name label,
+   * which wears the parent's color.
+   */
+  setSubagentRole(role: string | undefined): void {
+    if (this.subagentText === null) return;
+    const label = role !== undefined && role.length > 0 ? `SUBAGENT · ${role}` : 'SUBAGENT';
+    // setText is guarded upstream, but skip the layout pass too when nothing changed.
+    if (this.subagentText.text === label) return;
+    this.subagentText.setText(label);
+    this.layoutSubagentAndSource();
+  }
+
+  /** `⚑ N` next to the name: how many live subagents work for this hero. 0 hides it. */
+  setChildCount(count: number): void {
+    if (count <= 0) {
+      if (this.childBadge !== null) {
+        this.childBadge.destroy();
+        this.childBadge = null;
+      }
+      return;
+    }
+    const label = `⚑ ${count}`;
+    if (this.childBadge === null) {
+      this.childBadge = addCrispText(this.scene, this._x, this._y + this.nameOffsetY, label, {
+        fontSize: '10px',
+        color: CHILD_BADGE_COLOR,
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2,
+      }).setOrigin(0, 0.5);
+      this.updateDepth();
+    } else {
+      this.childBadge.setText(label);
+    }
+    this.layoutNameRow();
+  }
+
+  /** Name centered on the hero; the child badge hangs off its right edge. */
+  private layoutNameRow(): void {
+    const y = this._y + this.nameOffsetY;
+    this.nameText.setPosition(this._x, y);
+    if (this.childBadge !== null) {
+      this.childBadge.setPosition(this._x + this.nameText.displayWidth / 2 + 4, y);
+    }
+  }
+
+  /** Re-place every label relative to the current position. */
+  private layoutAll(): void {
+    this.layoutNameRow();
+    this.layoutSubagentAndSource();
+    this.layoutActivityAndModel();
+    this.layoutContextBar();
+    if (this.skillText !== null) this.skillText.setPosition(this._x, this._y + this.skillOffsetY);
+    this.detailText.setPosition(this._x, this._y + this.detailOffsetY);
+    this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
+    if (this.selectionHalo !== null) {
+      this.selectionHalo.setPosition(this._x, this._y);
+    }
+    this.updateDepth();
+  }
+
   /** Update the truncated task line shown below the detail. */
   updateTask(task?: string): void {
     if (task === undefined || task.length === 0) {
@@ -532,7 +765,7 @@ export class HeroSprite {
     }
     const single = task.replace(/\s+/g, ' ').trim();
     const text = single.length > TASK_MAX_CHARS
-      ? single.slice(0, TASK_MAX_CHARS - 1) + '\u2026'
+      ? single.slice(0, TASK_MAX_CHARS - 1) + '…'
       : single;
     this.taskText.setText(text);
   }
@@ -545,7 +778,7 @@ export class HeroSprite {
       const parts = file.split('/');
       detail = parts[parts.length - 1] ?? file;
     } else if (command) {
-      detail = command.length > 25 ? command.slice(0, 24) + '\u2026' : command;
+      detail = command.length > 25 ? command.slice(0, 24) + '…' : command;
     }
     this.detailText.setText(detail);
   }
@@ -615,15 +848,7 @@ export class HeroSprite {
         this._x = target.x;
         this._y = target.y;
         this.sprite.setPosition(this._x, this._y);
-        this.nameText.setPosition(this._x, this._y + this.nameOffsetY);
-        this.layoutSubagentAndSource();
-        this.layoutActivityAndModel();
-        this.detailText.setPosition(this._x, this._y + this.detailOffsetY);
-        this.taskText.setPosition(this._x, this._y + this.taskOffsetY);
-        if (this.selectionHalo !== null) {
-          this.selectionHalo.setPosition(this._x, this._y);
-        }
-        this.updateDepth();
+        this.layoutAll();
       },
       onComplete: () => {
         this._x = next.x;
@@ -655,12 +880,15 @@ export class HeroSprite {
       this.selectionHalo.destroy();
       this.selectionHalo = null;
     }
+    this.destroyContextBar();
     this.sprite.destroy();
     this.nameText.destroy();
     if (this.subagentText !== null) this.subagentText.destroy();
     if (this.sourceText !== null) this.sourceText.destroy();
     this.activityText.destroy();
     if (this.modelText !== null) this.modelText.destroy();
+    if (this.skillText !== null) this.skillText.destroy();
+    if (this.childBadge !== null) this.childBadge.destroy();
     this.detailText.destroy();
     this.taskText.destroy();
   }

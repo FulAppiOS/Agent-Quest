@@ -1,4 +1,5 @@
-import type { AgentActivity, AgentState } from '../types/agent';
+import type { AgentActivity, AgentState, PluginUsage, SkillUsage } from '../types/agent';
+import { contextPct } from '../types/agent';
 
 /**
  * Per-session "report card" derived purely from an AgentState. Kept as a pure
@@ -17,6 +18,27 @@ export interface ActivitySlice {
   pct: number; // 0..100 of total tool calls
 }
 
+export interface ContextSummary {
+  used: number;
+  peak: number;
+  window: number | null;
+  /** Percentage of the window in use, null when the window is unknown. */
+  pct: number | null;
+  compactions: number;
+}
+
+/** What this session's subagents did out of its sight. */
+export interface DelegationSummary {
+  count: number;
+  live: number;
+  /** Sum of the children's context peaks: what they processed. */
+  childPeakTokens: number;
+  /** Sum of what their final results pushed back into this context. */
+  returnedTokens: number;
+  /** childPeakTokens − returnedTokens: context delegation kept out of this session. */
+  keptOutTokens: number;
+}
+
 export interface SessionReport {
   durationMs: number;
   toolTotal: number;
@@ -28,6 +50,13 @@ export interface SessionReport {
   tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number };
   source: AgentState['source'];
   model?: string;
+  context?: ContextSummary;
+  /** Skills loaded this session, biggest context cost first. */
+  skills: SkillUsage[];
+  /** Plugins / MCP servers called this session, most calls first. */
+  plugins: PluginUsage[];
+  /** Present only when the session spawned subagents (`children` non-empty). */
+  delegation?: DelegationSummary;
 }
 
 const TOOL_ACTIVITY_MAP: Record<string, AgentActivity> = {
@@ -41,7 +70,37 @@ function toolToActivity(name: string): AgentActivity {
   return TOOL_ACTIVITY_MAP[name] ?? 'thinking';
 }
 
-export function computeSessionReport(agent: AgentState): SessionReport {
+const LIVE_STATUSES = new Set<AgentState['status']>(['active', 'waiting', 'idle']);
+
+function summarizeContext(agent: AgentState): ContextSummary | undefined {
+  const c = agent.context;
+  if (c === undefined) return undefined;
+  return { used: c.used, peak: c.peak, window: c.window, pct: contextPct(c), compactions: c.compactions };
+}
+
+function summarizeDelegation(children: AgentState[]): DelegationSummary | undefined {
+  if (children.length === 0) return undefined;
+  let childPeakTokens = 0;
+  let returnedTokens = 0;
+  let live = 0;
+  for (const c of children) {
+    childPeakTokens += c.context?.peak ?? 0;
+    returnedTokens += c.returnedTokens ?? 0;
+    if (LIVE_STATUSES.has(c.status)) live += 1;
+  }
+  return {
+    count: children.length,
+    live,
+    childPeakTokens,
+    returnedTokens,
+    keptOutTokens: Math.max(0, childPeakTokens - returnedTokens),
+  };
+}
+
+/**
+ * @param children the session's subagents (any status), for the delegation summary.
+ */
+export function computeSessionReport(agent: AgentState, children: AgentState[] = []): SessionReport {
   const durationMs = Math.max(0, agent.lastEvent - agent.sessionStart);
 
   const activityCounts = new Map<AgentActivity, number>();
@@ -76,5 +135,9 @@ export function computeSessionReport(agent: AgentState): SessionReport {
     tokens: { input: tu.input, output: tu.output, cacheRead: tu.cacheRead, cacheWrite: tu.cacheWrite, total },
     source: agent.source,
     model: agent.model,
+    context: summarizeContext(agent),
+    skills: [...(agent.skills ?? [])].sort((a, b) => b.loadTokens - a.loadTokens),
+    plugins: [...(agent.plugins ?? [])].sort((a, b) => b.calls - a.calls),
+    delegation: summarizeDelegation(children),
   };
 }

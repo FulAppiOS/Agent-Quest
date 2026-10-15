@@ -11,6 +11,7 @@ import { BuildingInfoPanel } from './components/BuildingInfoPanel';
 import { Tutorial } from './components/Tutorial';
 import { NoInstallBanner } from './components/NoInstallBanner';
 import { SettingsPanel } from './components/SettingsPanel';
+import { SkillsPanel } from './components/SkillsPanel';
 import { Toasts, type ToastItem } from './components/Toasts';
 import type { NotificationEntry } from './components/NotificationMenu';
 import { useSettings } from './hooks/useSettings';
@@ -18,7 +19,7 @@ import { useAgentNotifications, type ToastPayload } from './hooks/useAgentNotifi
 import './App.css';
 
 export default function App() {
-  const { agents, activityLog, connected, configDirs } = useAgentState();
+  const { agents, activityLog, connected, configDirs, skillInventory } = useAgentState();
   const { selectedAgentId, selectAgent } = useSelectedAgent();
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string;
@@ -27,6 +28,7 @@ export default function App() {
   const [villageReady, setVillageReady] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const [settings, updateSettings] = useSettings();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
@@ -159,8 +161,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onOpen = () => setSkillsOpen(true);
+    eventBridge.on('skills:open', onOpen);
+    return () => eventBridge.off('skills:open', onOpen);
+  }, []);
+
+  useEffect(() => {
     eventBridge.emit('agents:updated', agents);
   }, [agents]);
+
+  // Display preferences the Phaser scene renders (context bars, subagent links).
+  useEffect(() => {
+    eventBridge.emit('settings:updated', settings);
+  }, [settings]);
 
   useEffect(() => {
     eventBridge.emit('selection:changed', selectedAgentId);
@@ -199,7 +212,14 @@ export default function App() {
             showSourceBadge={showSourceBadge}
           />
           {selectedAgent !== null && (
-            <DetailPanel agent={selectedAgent} onClose={() => handleSelectAgent(null)} showSourceBadge={showSourceBadge} />
+            <DetailPanel
+              agent={selectedAgent}
+              agents={agents}
+              skillInventory={skillInventory}
+              onClose={() => handleSelectAgent(null)}
+              onSelectAgent={handleSelectAgent}
+              showSourceBadge={showSourceBadge}
+            />
           )}
           {selectedBuilding !== null && (
             <BuildingInfoPanel
@@ -225,6 +245,14 @@ export default function App() {
           settings={settings}
           onChange={updateSettings}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {skillsOpen && (
+        <SkillsPanel
+          agents={agents}
+          skillInventory={skillInventory}
+          onClose={() => setSkillsOpen(false)}
+          onSelectAgent={(id) => { handleSelectAgent(id); setSkillsOpen(false); }}
         />
       )}
     </div>

@@ -533,6 +533,7 @@
 .feed-entry.is-highlighted.hl-reads    { border-left-color: #9a7ac4;                  background: rgba(154, 122, 196, 0.08); }
 .feed-entry.is-highlighted.hl-messages { border-left-color: #e08a3f;                  background: rgba(224, 138, 63, 0.08); }
 .feed-entry.is-highlighted.hl-agent    { border-left-color: #7ac49a;                  background: rgba(122, 196, 154, 0.08); }
+.feed-entry.is-highlighted.hl-skills   { border-left-color: #7BD4C5;                  background: rgba(123, 212, 197, 0.08); }
 .feed-entry.is-highlighted.hl-other    { border-left-color: #888;                     background: rgba(136, 136, 136, 0.06); }
 
 /* Selection feedback on the feed cell is intentionally absent — the hero
@@ -545,6 +546,8 @@
 .feed-pill.messages.on { background: rgba(224, 138, 63, 0.35); color: #fff;    border-color: #e08a3f; }
 .feed-pill.agent       { background: rgba(122, 196, 154, 0.15); color: #9eddbb; border-color: rgba(122, 196, 154, 0.4); }
 .feed-pill.agent.on    { background: rgba(122, 196, 154, 0.35); color: #fff;    border-color: #7ac49a; }
+.feed-pill.skills      { background: rgba(123, 212, 197, 0.15); color: #a9e6dc; border-color: rgba(123, 212, 197, 0.4); }
+.feed-pill.skills.on   { background: rgba(123, 212, 197, 0.35); color: #fff;    border-color: #7BD4C5; }
 .feed-pill.other       { background: rgba(136, 136, 136, 0.15); color: #bbb;    border-color: rgba(136, 136, 136, 0.4); }
 .feed-pill.other.on    { background: rgba(136, 136, 136, 0.35); color: #fff;    border-color: #aaa; }
 .feed-pill.reads       { background: rgba(154, 122, 196, 0.15); color: #bda5dc; border-color: rgba(154, 122, 196, 0.4); }

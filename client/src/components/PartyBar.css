@@ -293,3 +293,87 @@
   .partybar.mode-full .partybar-row-body,
   .partybar.mode-full .partybar-title { display: none; }
 }
+
+/* === Subagent tree === */
+.partybar-group { display: flex; flex-direction: column; }
+.partybar-agent--child {
+  padding-left: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.partybar-agent--child.selected { padding-left: 15px; }
+.partybar.mode-icons .partybar-agent--child { padding-left: 0; }
+.partybar.mode-icons .partybar-agent--child .partybar-avatar-wrap { transform: scale(0.8); }
+.partybar-child-connector {
+  color: rgba(196, 163, 90, 0.45);
+  font-size: 12px;
+  margin-right: -4px;
+  flex-shrink: 0;
+}
+.partybar.mode-icons .partybar-child-connector { display: none; }
+.partybar-role {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #9AA4B0;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+}
+.partybar-role-name { overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
+.partybar-sub-badge {
+  font-family: 'Fira Code', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #B8C4D6;
+  border: 1px solid rgba(184, 196, 214, 0.5);
+  background: rgba(184, 196, 214, 0.12);
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.partybar-child-badge {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #FFD27A;
+  background: rgba(255, 210, 122, 0.14);
+  border: 1px solid rgba(255, 210, 122, 0.45);
+  border-radius: 8px;
+  padding: 0 5px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+/* === Skill chip + context meter === */
+.partybar-skill-chip {
+  font-family: 'Fira Code', monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #7BD4C5;
+  background: rgba(123, 212, 197, 0.12);
+  border: 1px solid rgba(123, 212, 197, 0.45);
+  border-radius: 3px;
+  padding: 1px 5px;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.partybar-row-body > .ctx-meter { margin-top: 1px; }
+.partybar-ctx-micro {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  display: block;
+  line-height: 0;
+}
+
+/* Subagent rows: italic name, like the label on the map. */
+.partybar-agent--child .partybar-agent-name { font-style: italic; font-weight: 600; font-size: 13px; opacity: 0.92; }

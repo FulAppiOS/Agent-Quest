@@ -1,6 +1,11 @@
 import type { AgentState } from '../types/agent';
-import { isSubagentAgent } from '../types/agent';
+import { contextPct, isSubagentAgent } from '../types/agent';
 import type { ChimeKind } from './sound';
+
+/** Context occupancy that raises the "nearly full" alert… */
+export const CONTEXT_ALERT_PCT = 85;
+/** …and the level it has to fall back under before it can fire again. */
+export const CONTEXT_REARM_PCT = 70;
 
 /**
  * Per-agent snapshot we diff against to detect notification-worthy transitions.
@@ -9,6 +14,10 @@ import type { ChimeKind } from './sound';
 export interface AgentSnapshot {
   status: AgentState['status'];
   lastErrorAt: number | undefined;
+  /** Context occupancy (% of the window), null when the window is unknown. */
+  contextPct: number | null;
+  /** True once the context alert fired and the occupancy hasn't dropped under the re-arm level since. */
+  contextAlerted: boolean;
 }
 
 export interface AgentAlert {
@@ -18,8 +27,15 @@ export interface AgentAlert {
   category: ChimeKind;
 }
 
-export function snapshotOf(a: AgentState): AgentSnapshot {
-  return { status: a.status, lastErrorAt: a.lastErrorAt };
+export function snapshotOf(a: AgentState, before?: AgentSnapshot): AgentSnapshot {
+  const pct = contextPct(a.context);
+  // Hysteresis: stay "alerted" until the occupancy drops under the re-arm level.
+  // First sight seeds the flag from the current value so a reconnect never
+  // fires for sessions that were already saturated.
+  let contextAlerted = before?.contextAlerted ?? (pct !== null && pct >= CONTEXT_ALERT_PCT);
+  if (pct === null || pct < CONTEXT_REARM_PCT) contextAlerted = false;
+  else if (pct >= CONTEXT_ALERT_PCT) contextAlerted = true;
+  return { status: a.status, lastErrorAt: a.lastErrorAt, contextPct: pct, contextAlerted };
 }
 
 /**
@@ -30,6 +46,8 @@ export function snapshotOf(a: AgentState): AgentSnapshot {
  * never alert, so the Task-tool fan-out doesn't spam):
  *   - waiting   — status entered 'waiting' ("turn finished, your move")
  *   - completed — status entered 'completed' (session ended)
+ *   - context   — context occupancy crossed CONTEXT_ALERT_PCT (once per
+ *                 saturation episode; re-arms under CONTEXT_REARM_PCT)
  *
  * Mid-turn errors are deliberately NOT a transition here: a failed tool call is
  * usually recovered from within the same turn, so it isn't task completion. The
@@ -50,12 +68,11 @@ export function computeAlerts(
   const alerts: AgentAlert[] = [];
 
   for (const a of agents) {
-    const cur = snapshotOf(a);
+    const before = prev.get(a.id);
+    const cur = snapshotOf(a, before);
     next.set(a.id, cur);
 
     if (isSubagentAgent(a)) continue;
-
-    const before = prev.get(a.id);
     if (before === undefined) continue; // first sight → baseline only
 
     const enteredWaiting = before.status !== 'waiting' && cur.status === 'waiting';
@@ -67,6 +84,11 @@ export function computeAlerts(
 
     if (category !== null) {
       alerts.push({ agentId: a.id, name: a.name, category });
+    }
+
+    // Context saturation is independent of the lifecycle transitions above.
+    if (!before.contextAlerted && cur.contextAlerted) {
+      alerts.push({ agentId: a.id, name: a.name, category: 'context' });
     }
   }
 

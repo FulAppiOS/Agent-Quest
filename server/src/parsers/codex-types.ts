@@ -3,10 +3,14 @@
 /**
  * Wrapper shape. Every line in a Codex rollout-*.jsonl file matches this top level.
  * `payload` shape depends on `type` — we only narrow the payloads we care about.
+ *
+ * Top-level `type` values seen across Codex versions:
+ *   'session_meta' | 'event_msg' | 'response_item' | 'turn_context' | 'compacted'
+ *   | 'token_usage_record' | 'world_state' | ...
  */
 export interface CodexRawLine {
   timestamp: string;
-  type: string; // 'session_meta' | 'event_msg' | 'response_item' | 'token_count' | 'turn_context' | ...
+  type: string;
   payload?: unknown;
 }
 
@@ -16,8 +20,15 @@ export interface CodexSessionMetaPayload {
   cwd: string;
   originator: string;
   cli_version: string;
-  source: string; // e.g. 'vscode'
+  /** Legacy: a plain string ('vscode'); ≥ 0.150: an object, e.g. `{ subagent: { thread_spawn: {...} } }`. */
+  source: unknown;
   model_provider: string;
+  /** 'user' | 'subagent' | 'voice_chat' (≥ 0.150). */
+  thread_source?: string;
+  /** Parent rollout id for subagent threads (≥ 0.150). */
+  parent_thread_id?: string;
+  agent_nickname?: string;
+  agent_path?: string;
   // base_instructions/dynamic_tools intentionally omitted — huge, irrelevant
 }
 
@@ -65,6 +76,8 @@ export interface CodexAgentMessage {
 export interface CodexTaskStarted {
   type: 'task_started';
   turn_id?: string;
+  /** Model context window in tokens (≥ 0.120). */
+  model_context_window?: number;
 }
 
 export interface CodexTaskComplete {
@@ -97,6 +110,42 @@ export interface CodexThreadNameUpdated {
   name?: string;
 }
 
+/** Per-response token accounting; `info` is null on rate-limit-only updates. */
+export interface CodexTokenCount {
+  type: 'token_count';
+  info?: {
+    total_token_usage?: CodexTokenUsage;
+    last_token_usage?: CodexTokenUsage;
+    model_context_window?: number;
+  } | null;
+  rate_limits?: unknown;
+}
+
+export interface CodexTokenUsage {
+  input_tokens?: number;
+  cached_input_tokens?: number;
+  cache_write_input_tokens?: number;
+  output_tokens?: number;
+  reasoning_output_tokens?: number;
+  total_tokens?: number;
+}
+
+/**
+ * Codex ≥ 0.160 wraps every completed item (user message, command, file change,
+ * MCP call, …) in this event; the legacy per-kind events above no longer appear.
+ * `item.type` is one of: UserMessage | AgentMessage | Reasoning | CommandExecution
+ * | FileChange | WebSearch | Extension | McpToolCall | ImageView | SubAgentActivity
+ * | CollabAgentToolCall | ContextCompaction | FunctionCallOutput.
+ */
+export interface CodexItemCompleted {
+  type: 'item_completed';
+  thread_id?: string;
+  turn_id?: string;
+  item?: unknown;
+  started_at_ms?: number;
+  completed_at_ms?: number;
+}
+
 export type CodexEventMsgPayload =
   | CodexUserMessage
   | CodexAgentMessage
@@ -108,4 +157,6 @@ export type CodexEventMsgPayload =
   | CodexWebSearchEnd
   | CodexReasoning
   | CodexThreadNameUpdated
+  | CodexTokenCount
+  | CodexItemCompleted
   | { type: string; [key: string]: unknown }; // unknown event types pass through

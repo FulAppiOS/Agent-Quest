@@ -255,7 +255,22 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
             disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyCompleted: v })}
           />
+          <Toggle
+            label="Context nearly full"
+            hint="Main agent's context window passed 85% — a compaction is coming"
+            checked={settings.notifyContext}
+            disabled={!anyChannel}
+            onToggle={(v) => onChange({ notifyContext: v })}
+          />
         </div>
+
+        <div className="settings-section-label">Map</div>
+        <Toggle
+          label="Context bars"
+          hint="Show each hero's context-window occupancy above its name"
+          checked={settings.showContextBars}
+          onToggle={(v) => onChange({ showContextBars: v })}
+        />
 
         <div className="settings-section-label">Sound</div>
         <Toggle

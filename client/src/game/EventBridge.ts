@@ -1,7 +1,7 @@
 type Listener = (...args: unknown[]) => void;
 
 /** Events whose last payload is replayed to new subscribers (fixes React↔Phaser boot race). */
-const STICKY_EVENTS = new Set(['ws:connected', 'ws:disconnected', 'agents:updated']);
+const STICKY_EVENTS = new Set(['ws:connected', 'ws:disconnected', 'agents:updated', 'settings:updated']);
 
 class EventBridge {
   private listeners = new Map<string, Set<Listener>>();

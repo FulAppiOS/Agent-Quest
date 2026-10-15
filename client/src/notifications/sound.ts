@@ -11,7 +11,7 @@
  * can't play (e.g. before any interaction) is simply silent rather than throwing.
  */
 
-export type ChimeKind = 'waiting' | 'completed' | 'error';
+export type ChimeKind = 'waiting' | 'completed' | 'error' | 'context';
 
 interface Note {
   /** Frequency in Hz. */
@@ -36,6 +36,12 @@ const MOTIFS: Record<ChimeKind, Note[]> = {
   error: [
     { freq: 196, at: 0,    dur: 0.16, type: 'square' },
     { freq: 165, at: 0.18, dur: 0.20, type: 'square' },
+  ],
+  // Context nearly full: a softer two-note warning, rising so it reads as
+  // "heads up" rather than the error motif's "something broke".
+  context: [
+    { freq: 440, at: 0,    dur: 0.12, type: 'triangle' },
+    { freq: 554, at: 0.14, dur: 0.18, type: 'triangle' },
   ],
 };
 

@@ -18,6 +18,7 @@ function categoryEnabled(s: AppSettings, c: ChimeKind): boolean {
     case 'waiting': return s.notifyWaiting;
     case 'error': return s.notifyError;
     case 'completed': return s.notifyCompleted;
+    case 'context': return s.notifyContext;
   }
 }
 
@@ -26,6 +27,7 @@ function titleFor(a: AgentAlert): string {
     case 'waiting': return `${a.name} — your turn`;
     case 'error': return `${a.name} — error`;
     case 'completed': return `${a.name} — done`;
+    case 'context': return `${a.name} — context nearly full`;
   }
 }
 
@@ -34,6 +36,7 @@ function bodyFor(a: AgentAlert): string {
     case 'waiting': return 'Finished its turn and is waiting for you.';
     case 'error': return 'Hit an error.';
     case 'completed': return 'Session completed.';
+    case 'context': return 'Context window is above 85% — expect a compaction soon.';
   }
 }
 
@@ -146,8 +149,9 @@ export function useAgentNotifications(
     }
 
     for (const alert of alerts) {
-      if (alert.category === 'completed') {
-        // Completed is terminal and authoritative — fire right away.
+      if (alert.category === 'completed' || alert.category === 'context') {
+        // Completed is terminal and authoritative; context saturation is a
+        // measured value, not an inference — both fire right away.
         fire(alert);
         continue;
       }

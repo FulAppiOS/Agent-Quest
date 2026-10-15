@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { resolveSubagentLabel } from './subagent-label';
+import { resolveSubagentLabel, resolveSubagentInfo } from './subagent-label';
 
 let root: string;
 let projectDir: string;
@@ -229,5 +229,42 @@ describe('resolveSubagentLabel', () => {
 
     const label = await resolveSubagentLabel(subagentPath);
     expect(label).toBe('my actual prompt');
+  });
+});
+
+describe('resolveSubagentInfo', () => {
+  test('returns parent id, agent type and tool-use id from the sibling meta.json', async () => {
+    await writeFile(subagentPath, jsonline({ type: 'user', message: { role: 'user', content: 'Review the notes' } }));
+    await writeFile(
+      subagentPath.replace(/\.jsonl$/, '.meta.json'),
+      JSON.stringify({ agentType: 'general-purpose', description: 'Review notes', toolUseId: 'toolu_01X', spawnDepth: 1 }),
+    );
+    const info = await resolveSubagentInfo(subagentPath);
+    expect(info).toEqual({
+      label: 'Review notes',
+      parentId: 'abc123',
+      agentType: 'general-purpose',
+      toolUseId: 'toolu_01X',
+      isWorkflow: false,
+    });
+  });
+
+  test('derives the parent id for workflow subagents and tolerates a missing meta.json', async () => {
+    const wfDir = join(projectDir, parentSessionId, 'subagents', 'workflows', 'wf_123');
+    await mkdir(wfDir, { recursive: true });
+    const wfPath = join(wfDir, 'agent-0123456789abcdef.jsonl');
+    await writeFile(wfPath, jsonline({ type: 'user', message: { role: 'user', content: 'Verify finding one. Then stop.' } }));
+    const info = await resolveSubagentInfo(wfPath);
+    expect(info?.parentId).toBe('abc123');
+    expect(info?.isWorkflow).toBe(true);
+    expect(info?.agentType).toBeUndefined();
+    expect(info?.toolUseId).toBeUndefined();
+    expect(info?.label).toBe('Verify finding one');
+  });
+
+  test('returns undefined for non-subagent paths', async () => {
+    const plain = join(projectDir, 'session.jsonl');
+    await writeFile(plain, '');
+    expect(await resolveSubagentInfo(plain)).toBeUndefined();
   });
 });

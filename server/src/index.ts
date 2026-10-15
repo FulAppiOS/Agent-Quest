@@ -2,6 +2,7 @@ import { networkInterfaces } from 'node:os';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { AgentStateManager } from './state/agent-state-manager';
+import type { SessionMeta } from './state/agent-state-manager';
 import { SessionRegistry } from './session-registry';
 import { WebSocketServer } from './ws/websocket-server';
 import type { WsClient } from './ws/websocket-server';
@@ -12,6 +13,8 @@ import { ClaudeProvider } from './providers/claude-provider';
 import { CodexProvider } from './providers/codex-provider';
 import type { ProviderHandlers, SessionStartPayload, SessionEventsPayload } from './providers/types';
 import type { ParsedEvent } from './parsers/session-parser';
+import type { AgentSource, AgentState, SkillInventory } from './types';
+import { claudeSkillRoots, codexSkillRoots, scanSkillInventory } from './skills/skill-inventory';
 
 /** Return IPv4 addresses bound to non-internal, non-link-local interfaces. */
 function listLanAddresses(): string[] {
@@ -54,6 +57,8 @@ const stateManager = new AgentStateManager({
   subagentCompletedThresholdMs: SUBAGENT_COMPLETED_THRESHOLD_MS,
   subagentBusyCompletedThresholdMs: SUBAGENT_BUSY_COMPLETED_THRESHOLD_MS,
   livenessOracle: sessionRegistry,
+  // Optional escape hatch for installs whose settings.json doesn't reveal the window.
+  claudeContextWindowOverride: process.env.AGENT_QUEST_CLAUDE_CONTEXT_WINDOW,
 });
 const wsServer = new WebSocketServer();
 const mapStorage = new MapStorage();
@@ -79,11 +84,27 @@ app.get('/api/agents', (c) => c.json(stateManager.getAll()));
 registerMapRoutes(app, mapStorage);
 
 // --- Provider handlers: shared logic that every SessionProvider feeds into ---
-function broadcastAgentEventSideEffects(event: ParsedEvent): void {
-  // Broadcast activity log for tool calls
+function broadcastAgentEventSideEffects(event: ParsedEvent, agent: AgentState): void {
+  // Broadcast activity log for tool calls. Skill rows show the skill name —
+  // the tool has no file/command to show otherwise.
   for (const tc of event.toolCalls) {
-    const detail = event.file ?? event.command ?? '';
+    const skill = tc.name === 'Skill' && typeof tc.input['skill'] === 'string' ? tc.input['skill'] : undefined;
+    const detail = skill ?? event.file ?? event.command ?? '';
     wsServer.broadcastActivityLog(event.sessionId, tc.name, detail, tc.timestamp);
+  }
+
+  // Codex loads skills by reading SKILL.md through the shell — there is no
+  // Skill tool call to show, so synthesize the same feed row Claude gets.
+  if (event.skillInvocations !== undefined && !event.toolCalls.some((tc) => tc.name === 'Skill')) {
+    for (const name of event.skillInvocations) {
+      wsServer.broadcastActivityLog(event.sessionId, 'Skill', name, event.timestamp);
+    }
+  }
+
+  // Context compaction: the conversation was summarized to make room.
+  if (event.isCompaction === true) {
+    const n = agent.context?.compactions ?? 1;
+    wsServer.broadcastActivityLog(event.sessionId, 'Compact', `context compacted (#${n})`, event.timestamp);
   }
 
   // User prompts: feed shows the message that kicked off the turn.
@@ -93,7 +114,7 @@ function broadcastAgentEventSideEffects(event: ParsedEvent): void {
     event.kind === 'task' &&
     event.currentTask !== undefined &&
     event.isResumeHint !== true &&
-    !event.sessionId.startsWith('agent-')
+    !agent.isSubagent
   ) {
     const detail = event.currentTask.length > 500
       ? `${event.currentTask.slice(0, 500)}…`
@@ -112,17 +133,34 @@ function broadcastAgentEventSideEffects(event: ParsedEvent): void {
   }
 }
 
+function sessionMetaOf(payload: SessionStartPayload | SessionEventsPayload): SessionMeta {
+  return {
+    configDir: payload.configDir,
+    source: payload.source,
+    nameOverride: payload.nameOverride,
+    isSubagent: payload.isSubagent,
+    parentId: payload.parentId,
+    subagentType: payload.subagentType,
+    isWorkflow: payload.isWorkflow,
+    spawnToolUseId: payload.spawnToolUseId,
+    configuredModel: payload.configuredModel,
+  };
+}
+
 const providerHandlers: ProviderHandlers = {
   onSessionStart: async (payload: SessionStartPayload) => {
     console.log(`[Server] new session: ${payload.sessionId} (${payload.source}, ${payload.configDir})`);
+    const meta = sessionMetaOf(payload);
     for (const event of payload.events) {
       // Subagent JSONL lines carry the PARENT's sessionId — rekey on the
       // filename-derived id so each subagent becomes its own hero instead
       // of being folded into the parent agent.
       event.sessionId = payload.sessionId;
-      const result = stateManager.processEvent(event, payload.configDir, payload.source, payload.nameOverride);
+      const result = stateManager.processEvent(event, meta);
       if (result !== null && result.isNew) {
         wsServer.broadcastNewAgent(result.agent);
+        // A parent discovered after its subagents recolors them.
+        for (const other of result.alsoChanged ?? []) wsServer.broadcastAgentUpdate(other);
       }
     }
     // Broadcast final state after processing all events
@@ -131,19 +169,23 @@ const providerHandlers: ProviderHandlers = {
   },
 
   onSessionEvents: (payload: SessionEventsPayload) => {
+    const meta = sessionMetaOf(payload);
     for (const event of payload.events) {
       // See note in onSessionStart: rekey to filename-derived id for subagents.
       event.sessionId = payload.sessionId;
-      const result = stateManager.processEvent(event, payload.configDir, payload.source);
-      if (result === null) continue; // resume-hint dump, no state change
+      const result = stateManager.processEvent(event, meta);
+      if (result === null) continue; // resume-hint dump or telemetry with no visible change
 
       if (result.isNew) {
         wsServer.broadcastNewAgent(result.agent);
       } else {
         wsServer.broadcastAgentUpdate(result.agent);
       }
+      for (const other of result.alsoChanged ?? []) {
+        wsServer.broadcastAgentUpdate(other);
+      }
 
-      broadcastAgentEventSideEffects(event);
+      broadcastAgentEventSideEffects(event, result.agent);
     }
   },
 };
@@ -157,12 +199,26 @@ const codexProvider = new CodexProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
 registerHookRoutes(app, {
   stateManager,
   wsServer,
-  getClaudeConfigDirs: () => claudeProvider.getConfigDirs(),
+  getClaudeConfigDirs: () => [...claudeProvider.getConfigDirs()],
   hookUrl: `http://localhost:${PORT}/api/hooks/claude`,
 });
 
 function allConfigDirs(): string[] {
   return [...claudeProvider.getConfigDirs(), ...codexProvider.getConfigDirs()];
+}
+
+// --- Skill inventory: what every installed skill would cost if always loaded ---
+// Shown next to the per-session skill loads so the saving of on-demand loading
+// is visible. Cheap (one stat per SKILL.md), refreshed every 10 minutes.
+const SKILL_INVENTORY_REFRESH_MS = 10 * 60_000;
+const skillInventory: Partial<Record<AgentSource, SkillInventory>> = {};
+
+async function refreshSkillInventory(): Promise<void> {
+  const claudeRoots: string[] = [];
+  for (const dir of claudeProvider.getConfigDirs()) claudeRoots.push(...await claudeSkillRoots(dir));
+  if (claudeRoots.length > 0) skillInventory.claude = await scanSkillInventory(claudeRoots);
+  const codexRoot = codexProvider.getConfigDirs()[0];
+  if (codexRoot !== undefined) skillInventory.codex = await scanSkillInventory(codexSkillRoots(codexRoot));
 }
 
 // --- Lifecycle: active → idle (5m) → completed (30m) → removed (2h, keep min 5) ---
@@ -202,6 +258,11 @@ setInterval(() => {
 // CLI install").
 await claudeProvider.start(providerHandlers);
 await codexProvider.start(providerHandlers);
+
+await refreshSkillInventory().catch((err) => console.error('[Server] skill inventory scan failed:', err));
+setInterval(() => {
+  refreshSkillInventory().catch((err) => console.error('[Server] skill inventory scan failed:', err));
+}, SKILL_INVENTORY_REFRESH_MS);
 
 // If neither provider found anything on disk, emit a single aggregated
 // warning so the user sees one clear diagnostic line instead of per-provider
@@ -248,7 +309,7 @@ const server = Bun.serve({
   websocket: {
     open(ws: WsClient) {
       wsServer.handleOpen(ws);
-      wsServer.sendSnapshot(ws, stateManager.getAll(), allConfigDirs());
+      wsServer.sendSnapshot(ws, stateManager.getAll(), allConfigDirs(), skillInventory);
     },
     close(ws: WsClient) {
       wsServer.handleClose(ws);

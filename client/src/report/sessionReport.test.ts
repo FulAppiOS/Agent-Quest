@@ -57,3 +57,38 @@ describe('computeSessionReport', () => {
     expect(r.hasTokens).toBe(false);
   });
 });
+
+describe('computeSessionReport context, skills, plugins and delegation', () => {
+  const ctx = { used: 150_000, peak: 180_000, window: 200_000, windowSource: 'default' as const, compactions: 1, updatedAt: 0 };
+
+  it('reports context occupancy with the percentage of the window', () => {
+    const r = computeSessionReport(makeAgent({ context: ctx }));
+    expect(r.context).toEqual({ used: 150_000, peak: 180_000, window: 200_000, pct: 75, compactions: 1 });
+    expect(computeSessionReport(makeAgent()).context).toBeUndefined();
+  });
+
+  it('passes skills and plugins through, most used first', () => {
+    const skills = [
+      { name: 'a', loads: 1, loadTokens: 100, attributedMessages: 0, attributedOutputTokens: 0, firstUsedAt: 0, lastUsedAt: 0 },
+      { name: 'b', loads: 2, loadTokens: 900, attributedMessages: 0, attributedOutputTokens: 0, firstUsedAt: 0, lastUsedAt: 0 },
+    ];
+    const plugins = [
+      { name: 'p', kind: 'plugin' as const, calls: 1, resultTokens: 10, lastUsedAt: 0 },
+      { name: 'q', kind: 'mcp' as const, calls: 5, resultTokens: 50, lastUsedAt: 0 },
+    ];
+    const r = computeSessionReport(makeAgent({ skills, plugins }));
+    expect(r.skills.map((s) => s.name)).toEqual(['b', 'a']);
+    expect(r.plugins.map((p) => p.name)).toEqual(['q', 'p']);
+    expect(computeSessionReport(makeAgent()).skills).toEqual([]);
+  });
+
+  it('sums the children context peaks and what they returned into a delegation summary', () => {
+    const children = [
+      makeAgent({ id: 'c1', status: 'active', parentId: 's', context: { ...ctx, peak: 100_000 }, returnedTokens: 1_000 }),
+      makeAgent({ id: 'c2', status: 'completed', parentId: 's', context: { ...ctx, peak: 50_000 } }),
+    ];
+    const r = computeSessionReport(makeAgent(), children);
+    expect(r.delegation).toEqual({ count: 2, live: 1, childPeakTokens: 150_000, returnedTokens: 1_000, keptOutTokens: 149_000 });
+    expect(computeSessionReport(makeAgent()).delegation).toBeUndefined();
+  });
+});

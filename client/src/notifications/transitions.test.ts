@@ -100,3 +100,38 @@ describe('computeAlerts', () => {
     expect(r.alerts).toHaveLength(1);
   });
 });
+
+describe('context saturation alerts', () => {
+  const withCtx = (pct: number, over: Partial<AgentState> = {}): AgentState => makeAgent({
+    context: { used: pct * 1000, peak: pct * 1000, window: 100_000, windowSource: 'reported', compactions: 0, updatedAt: 0 },
+    ...over,
+  });
+
+  it('alerts once when a main agent crosses 85% of its window', () => {
+    const prev = snap([withCtx(70)]);
+    const { alerts, next } = computeAlerts(prev, [withCtx(86)]);
+    expect(alerts).toEqual([{ agentId: 'sess-1', name: 'hero', category: 'context' }]);
+    const again = computeAlerts(next, [withCtx(88)]);
+    expect(again.alerts).toEqual([]);
+  });
+
+  it('re-arms only after the context drops below 70%', () => {
+    let state = snap([withCtx(86)]); // first sight above threshold: baseline, no alert
+    let r = computeAlerts(state, [withCtx(80)]);
+    expect(r.alerts).toEqual([]);
+    r = computeAlerts(r.next, [withCtx(60)]);
+    expect(r.alerts).toEqual([]);
+    r = computeAlerts(r.next, [withCtx(86)]);
+    expect(r.alerts.map((a) => a.category)).toEqual(['context']);
+    state = r.next;
+    expect(computeAlerts(state, [withCtx(95)]).alerts).toEqual([]);
+  });
+
+  it('never alerts for subagents or when the window is unknown', () => {
+    const sub = snap([withCtx(10, { id: 'agent-x', isSubagent: true })]);
+    expect(computeAlerts(sub, [withCtx(90, { id: 'agent-x', isSubagent: true })]).alerts).toEqual([]);
+    const prev = snap([makeAgent()]);
+    const unknown = makeAgent({ context: { used: 900_000, peak: 900_000, window: null, windowSource: 'default', compactions: 0, updatedAt: 0 } });
+    expect(computeAlerts(prev, [unknown]).alerts).toEqual([]);
+  });
+});

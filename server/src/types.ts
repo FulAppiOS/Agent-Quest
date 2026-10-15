@@ -35,6 +35,66 @@ export interface ToolCall {
   input: Record<string, unknown>;
 }
 
+// --- Context / skill / plugin telemetry ---
+// Kept in sync with client/src/types/agent.ts.
+
+/** Occupancy of the model's context window after the latest response. */
+export interface ContextUsage {
+  /** Tokens in the context after the latest response (prompt + output). */
+  used: number;
+  /** Highest `used` observed during the session (survives compactions). */
+  peak: number;
+  /** Model context window in tokens; null when unknown. */
+  window: number | null;
+  /** How `window` was determined. */
+  windowSource: 'reported' | 'configured' | 'inferred' | 'default';
+  /** Context compactions detected (explicit marker or a large drop). */
+  compactions: number;
+  lastCompactionAt?: number;
+  /** Timestamp (ms) of the sample `used` comes from. */
+  updatedAt: number;
+}
+
+/** A skill whose instructions were loaded into the agent's context. */
+export interface SkillUsage {
+  /** Canonical name, e.g. `superpowers:brainstorming` or `pdf`. */
+  name: string;
+  /** Owning plugin when known (e.g. `superpowers`). */
+  plugin?: string;
+  /** How many times the skill body entered the context. */
+  loads: number;
+  /** Estimated tokens the skill bodies injected (chars / 4). */
+  loadTokens: number;
+  /** Assistant messages Claude Code attributed to this skill. */
+  attributedMessages: number;
+  /** Output tokens of those attributed messages. */
+  attributedOutputTokens: number;
+  firstUsedAt: number;
+  lastUsedAt: number;
+}
+
+/** A plugin or MCP server the agent called tools through. */
+export interface PluginUsage {
+  /** Plugin id (`chrome-devtools-mcp`) or MCP server name. */
+  name: string;
+  kind: 'plugin' | 'mcp';
+  calls: number;
+  /** Estimated tokens its tool results pushed into the context (chars / 4). */
+  resultTokens: number;
+  lastUsedAt: number;
+}
+
+/** Skills installed on disk for one provider: how much context they would cost if always loaded. */
+export interface SkillInventory {
+  count: number;
+  tokens: number;
+}
+
+/** Estimated token count for a text of `chars` characters (≈ 4 chars per token, rounded up). */
+export function estimateTokens(chars: number): number {
+  return chars > 0 ? Math.ceil(chars / 4) : 0;
+}
+
 // --- Core agent state ---
 export interface AgentState {
   id: string;          // sessionId
@@ -67,11 +127,26 @@ export interface AgentState {
    */
   model?: string;
   /**
-   * True for Claude Code subagents (spawned via the Task tool — their session
-   * id is filename-derived with an `agent-` prefix). The client uses this to
-   * suppress per-subagent notifications. Always false for Codex (no subagents).
+   * True for subagents: Claude Code ones spawned via the Agent/Task tool
+   * (filename-derived `agent-` id) and Codex ones spawned via `spawn_agent`
+   * (rollouts with `thread_source: 'subagent'`). Drives the subagent lifecycle
+   * and lets the client suppress per-subagent notifications.
    */
   isSubagent: boolean;
+  /** Context-window occupancy; undefined until the first usage sample. */
+  context?: ContextUsage;
+  /** Skills loaded this session, most recently used last. */
+  skills: SkillUsage[];
+  /** Plugins / MCP servers called this session. */
+  plugins: PluginUsage[];
+  /** Skill the latest assistant message was attributed to (Claude) or the last one loaded in the turn (Codex). */
+  activeSkill?: string;
+  /** Session id of the parent agent, for subagents. */
+  parentId?: string;
+  /** Subagent role, e.g. `Explore`, `general-purpose`, or a Codex agent path basename. */
+  subagentType?: string;
+  /** Estimated tokens the subagent's final result pushed into the parent context. */
+  returnedTokens?: number;
 }
 
 // --- Session metadata from ~/.claude/sessions/<pid>.json
@@ -112,11 +187,21 @@ export interface JsonlLine {
   message?: {
     role: 'user' | 'assistant' | 'system';
     content: string | Array<JsonlToolUse | JsonlToolResult | { type: string; text?: string }>;
+    /** API message id — present on assistant lines; one id spans several JSONL lines. */
+    id?: string;
     /** Model id — present on `type: 'assistant'` lines produced by Claude Code. */
     model?: string;
     /** Token usage — present on Claude assistant lines. Shape is read defensively. */
     usage?: unknown;
   };
+  /** Skill Claude Code attributes this assistant line to (e.g. `superpowers:brainstorming`). */
+  attributionSkill?: string;
+  /** Plugin Claude Code attributes this assistant line to (e.g. `superpowers`). */
+  attributionPlugin?: string;
+  /** True on the user line that carries the post-compaction summary. */
+  isCompactSummary?: boolean;
+  /** True on synthetic user lines injected by Claude Code (skill bodies, reminders). */
+  isMeta?: boolean;
 }
 
 // --- WebSocket event types ---
@@ -125,4 +210,10 @@ export type WsEvent =
   | { type: 'agent:new'; agent: AgentState }
   | { type: 'agent:complete'; id: string }
   | { type: 'activity:log'; agentId: string; action: string; detail: string; timestamp: number }
-  | { type: 'snapshot'; agents: AgentState[]; configDirs: string[] };
+  | {
+      type: 'snapshot';
+      agents: AgentState[];
+      configDirs: string[];
+      /** Skills installed on disk per provider (what they would cost if always loaded). */
+      skillInventory?: Partial<Record<AgentSource, SkillInventory>>;
+    };

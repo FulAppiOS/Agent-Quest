@@ -241,3 +241,34 @@ test('CodexProvider holds back partial trailing line until it is completed', asy
 
   p.stop();
 });
+
+test('CodexProvider flags subagent rollouts with their parent, nickname and role', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'codex-test-'));
+  const day = join(root, 'sessions', '2026', '10', '15');
+  mkdirSync(day, { recursive: true });
+  const meta = JSON.stringify({
+    timestamp: '2026-10-15T09:00:00Z',
+    type: 'session_meta',
+    payload: {
+      id: 'child-1', timestamp: '2026-10-15T09:00:00Z', cwd: '/proj', originator: 'Codex', cli_version: '0.160.0',
+      model_provider: 'openai', thread_source: 'subagent', parent_thread_id: 'parent-1',
+      agent_nickname: 'Copernicus', agent_path: '/root/audit_docs',
+      source: { subagent: { thread_spawn: { parent_thread_id: 'parent-1', depth: 1, agent_path: '/root/audit_docs' } } },
+    },
+  });
+  writeFileSync(join(day, 'rollout-2026-10-15T09-00-00-child-1.jsonl'), meta + '\n' + makeUserMessage('audit') + '\n');
+
+  const starts: unknown[] = [];
+  const p = new CodexProvider({ codexRoot: root, scanIntervalMs: 60_000 });
+  await p.start({ onSessionStart: (payload) => { starts.push(payload); }, onSessionEvents: () => {} });
+  p.stop();
+
+  expect(starts.length).toBe(1);
+  expect(starts[0]).toMatchObject({
+    sessionId: 'child-1',
+    isSubagent: true,
+    parentId: 'parent-1',
+    nameOverride: 'Copernicus',
+    subagentType: 'audit_docs',
+  });
+});
