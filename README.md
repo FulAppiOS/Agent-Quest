@@ -43,21 +43,20 @@ Agent Quest is a browser-based monitoring dashboard that visualizes active Claud
   </tr>
 </table>
 
-<p align="center">
-  <img src="docs/media/skills-plugins-panel.png" alt="Skills & Plugins fleet panel" width="820" />
-  <br/>
-  <sub><em>Skills &amp; Plugins — what every agent loaded, what it cost in context, and the export for AI review.</em></sub>
-</p>
-
 <table align="center">
   <tr>
-    <td align="center" width="50%">
-      <img src="docs/media/detail-panel-delegation.png" alt="Detail panel of a main agent: context window, skills and delegation" width="300" />
+    <td align="center" valign="top" width="54%">
+      <img src="docs/media/skills-plugins-panel.png" alt="Skills & Plugins fleet panel" width="420" />
       <br/>
-      <sub><em>Main agent — context gauge, skills, delegation</em></sub>
+      <sub><em>Skills &amp; Plugins — fleet view and AI-review export</em></sub>
     </td>
-    <td align="center" width="50%">
-      <img src="docs/media/detail-panel-subagent.png" alt="Detail panel of a subagent with its parent and returned tokens" width="300" />
+    <td align="center" valign="top" width="23%">
+      <img src="docs/media/detail-panel-delegation.png" alt="Detail panel of a main agent: context window, skills and delegation" width="180" />
+      <br/>
+      <sub><em>Main agent — context, skills, delegation</em></sub>
+    </td>
+    <td align="center" valign="top" width="23%">
+      <img src="docs/media/detail-panel-subagent.png" alt="Detail panel of a subagent with its parent and returned tokens" width="180" />
       <br/>
       <sub><em>Subagent — role badge, parent, context kept out</em></sub>
     </td>
