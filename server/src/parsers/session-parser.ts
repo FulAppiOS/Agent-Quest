@@ -1,4 +1,11 @@
-import type { AgentActivity, JsonlLine, JsonlToolUse, ToolCall } from '../types';
+import type { AgentActivity, JsonlLine, JsonlToolResult, JsonlToolUse, ToolCall } from '../types';
+import { parsePluginTool } from './plugin-tool';
+
+/**
+ * First line of the synthetic user message Claude Code injects right after a
+ * `Skill` tool call: the skill body that actually enters the context.
+ */
+export const SKILL_BODY_PREFIX = 'Base directory for this skill: ';
 
 const TOOL_ACTIVITY_MAP: Record<string, AgentActivity> = {
   Read: 'reading',
@@ -69,8 +76,29 @@ export interface ParsedEvent {
   command: string | undefined;
   cwd: string | undefined;
   lastMessage?: string;
-  /** Discriminator: 'tool' from assistant tool_use, 'task' from last-prompt updates. */
-  kind?: 'tool' | 'task';
+  /**
+   * Discriminator: 'tool' from assistant tool_use, 'task' from user prompts /
+   * last-prompt updates, 'telemetry' for lines that only carry accounting data
+   * (tool results, skill bodies, token counts, compaction markers). Telemetry
+   * events never touch status, activity or lifecycle timers.
+   */
+  kind?: 'tool' | 'task' | 'telemetry';
+  /** Skill/plugin Claude Code attributes this assistant line to. */
+  attribution?: { skill?: string; plugin?: string };
+  /** Skills invoked on this line (Claude `Skill` tool, Codex `SKILL.md` reads). */
+  skillInvocations?: string[];
+  /** A skill body that entered the context: its on-disk path (when known) and size. */
+  skillLoad?: { name?: string; path?: string; chars: number };
+  /** Plugin / MCP tool calls on this line; `resultChars` when the result is already known (Codex). */
+  pluginCalls?: Array<{ name: string; kind: 'plugin' | 'mcp'; toolUseId?: string; resultChars?: number }>;
+  /** Tool results carried by a user line, with their text size in characters. */
+  toolResults?: Array<{ toolUseId: string; chars: number }>;
+  /** Context-window sample: tokens in use and/or the model's window size. */
+  contextSample?: { used?: number; window?: number };
+  /** True when this line marks a context compaction. */
+  isCompaction?: boolean;
+  /** Result of a background subagent delivered to the parent as a task-notification. */
+  taskNotification?: { toolUseId: string; resultChars: number };
   /** Current user prompt — populated on 'task' events only. */
   currentTask?: string;
   /** True when assistant message has only text blocks (turn ended, awaiting user). */
@@ -116,6 +144,49 @@ function isSlashCommandArtefact(content: string): boolean {
   return content.startsWith('<command-') || content.startsWith('<local-command-');
 }
 
+const TASK_NOTIFICATION_PREFIX = '<task-notification>';
+
+/**
+ * Parse the `<task-notification>` block Claude Code enqueues as a user message
+ * when a background subagent finishes. Returns the parent's `Agent` tool_use id
+ * and the size of the `<result>` text (what re-enters the parent context).
+ */
+export function parseTaskNotification(text: string): { toolUseId: string; resultChars: number } | null {
+  if (!text.startsWith(TASK_NOTIFICATION_PREFIX)) return null;
+  const idMatch = text.match(/<tool-use-id>([^<]+)<\/tool-use-id>/);
+  if (idMatch === null || idMatch[1] === undefined) return null;
+  const resultMatch = text.match(/<result>([\s\S]*?)<\/result>/);
+  const resultChars = resultMatch?.[1]?.length ?? 0;
+  return { toolUseId: idMatch[1], resultChars };
+}
+
+/** Size in characters of a tool_result's text content (image/other blocks don't count). */
+function toolResultChars(content: JsonlToolResult['content']): number {
+  if (typeof content === 'string') return content.length;
+  if (!Array.isArray(content)) return 0;
+  let total = 0;
+  for (const block of content) {
+    if (typeof block === 'object' && block !== null && typeof block.text === 'string') total += block.text.length;
+  }
+  return total;
+}
+
+/** Build an event that carries only accounting data (see `ParsedEvent.kind`). */
+function telemetryEvent(line: JsonlLine, extra: Partial<ParsedEvent>): ParsedEvent {
+  return {
+    sessionId: line.sessionId,
+    slug: line.slug,
+    timestamp: new Date(line.timestamp).getTime(),
+    activity: 'idle',
+    toolCalls: [],
+    file: undefined,
+    command: undefined,
+    cwd: line.cwd,
+    kind: 'telemetry',
+    ...extra,
+  };
+}
+
 export function parseJsonlLine(raw: string): ParsedEvent | null {
   let parsed: JsonlLine | LastPromptLine;
   try {
@@ -146,7 +217,16 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     };
   }
 
-  const userLine = parsed as JsonlLine & { isMeta?: boolean };
+  const userLine = parsed as JsonlLine;
+
+  // Compaction markers: the system boundary line and the user line carrying the
+  // post-compaction summary. Neither is activity — the summary text is not a prompt.
+  if (userLine.type === 'system') {
+    return userLine.subtype === 'compact_boundary' ? telemetryEvent(userLine, { isCompaction: true }) : null;
+  }
+  if (userLine.type === 'user' && userLine.isCompactSummary === true) {
+    return telemetryEvent(userLine, { isCompaction: true });
+  }
 
   // User-typed prompts (string content). Surfacing these lets the hero react the
   // moment the user hits Enter, instead of waiting for the first assistant
@@ -155,6 +235,12 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     const content = userLine.message.content;
     if (userLine.isMeta === true || content.length === 0 || isSlashCommandArtefact(content)) {
       return null;
+    }
+    // A background subagent finishing is delivered as a user message: accounting
+    // data for the parent, not something the user typed.
+    const notification = parseTaskNotification(content);
+    if (notification !== null) {
+      return telemetryEvent(userLine, { taskNotification: notification });
     }
     return {
       sessionId: userLine.sessionId,
@@ -170,27 +256,46 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     };
   }
 
-  // User-role messages may carry tool_result blocks that signal tool errors.
+  // User-role messages with block content: tool results (sizes feed plugin and
+  // subagent accounting; errors flag debugging) or a synthetic skill body.
   if (userLine.type === 'user' && userLine.message?.role === 'user' && Array.isArray(userLine.message.content)) {
-    const hasError = userLine.message.content.some((b) => {
-      if (typeof b !== 'object' || b === null) return false;
-      if (b.type !== 'tool_result') return false;
-      const r = b as { is_error?: boolean };
-      return r.is_error === true;
-    });
-    if (!hasError) return null;
-    return {
-      sessionId: userLine.sessionId,
-      slug: userLine.slug,
-      timestamp: new Date(userLine.timestamp).getTime(),
-      activity: 'debugging',
-      toolCalls: [],
-      file: undefined,
-      command: undefined,
-      cwd: userLine.cwd,
-      kind: 'tool',
-      hasError: true,
-    };
+    const blocks = userLine.message.content;
+    const toolResults: Array<{ toolUseId: string; chars: number }> = [];
+    let hasError = false;
+    for (const b of blocks) {
+      if (typeof b !== 'object' || b === null || b.type !== 'tool_result') continue;
+      const r = b as JsonlToolResult & { is_error?: boolean };
+      if (r.is_error === true) hasError = true;
+      toolResults.push({ toolUseId: r.tool_use_id, chars: toolResultChars(r.content) });
+    }
+    if (hasError) {
+      return {
+        sessionId: userLine.sessionId,
+        slug: userLine.slug,
+        timestamp: new Date(userLine.timestamp).getTime(),
+        activity: 'debugging',
+        toolCalls: [],
+        file: undefined,
+        command: undefined,
+        cwd: userLine.cwd,
+        kind: 'tool',
+        hasError: true,
+        toolResults,
+      };
+    }
+    if (toolResults.length > 0) {
+      return telemetryEvent(userLine, { toolResults });
+    }
+    if (userLine.isMeta === true) {
+      const first = blocks[0] as { type?: string; text?: unknown } | undefined;
+      const text = first !== undefined && typeof first.text === 'string' ? first.text : undefined;
+      if (text !== undefined && text.startsWith(SKILL_BODY_PREFIX)) {
+        const pathEnd = text.indexOf('\n');
+        const path = text.slice(SKILL_BODY_PREFIX.length, pathEnd === -1 ? undefined : pathEnd).trim();
+        return telemetryEvent(userLine, { skillLoad: { path, chars: text.length } });
+      }
+    }
+    return null;
   }
 
   const asst = parsed as JsonlLine;
@@ -204,6 +309,8 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
   }
 
   const toolCalls: ToolCall[] = [];
+  const skillInvocations: string[] = [];
+  const pluginCalls: NonNullable<ParsedEvent['pluginCalls']> = [];
   let activity: AgentActivity = 'thinking';
   let file: string | undefined;
   let command: string | undefined;
@@ -230,6 +337,14 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
         timestamp: ts,
         input: tu.input,
       });
+
+      if (tu.name === 'Skill' && typeof tu.input['skill'] === 'string' && tu.input['skill'].length > 0) {
+        skillInvocations.push(tu.input['skill']);
+      }
+      const plugin = parsePluginTool(tu.name);
+      if (plugin !== null) {
+        pluginCalls.push({ name: plugin.name, kind: plugin.kind, toolUseId: tu.id });
+      }
 
       // Determine activity — git detection overrides Bash
       if (
@@ -266,8 +381,18 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     : undefined;
 
   const usage = parseUsage(asst.message.usage);
-  const usageMessageId = typeof (asst.message as { id?: unknown }).id === 'string'
-    ? (asst.message as { id: string }).id
+  const usageMessageId = typeof asst.message.id === 'string' && asst.message.id.length > 0
+    ? asst.message.id
+    : undefined;
+
+  const attributionSkill = typeof asst.attributionSkill === 'string' && asst.attributionSkill.length > 0
+    ? asst.attributionSkill
+    : undefined;
+  const attributionPlugin = typeof asst.attributionPlugin === 'string' && asst.attributionPlugin.length > 0
+    ? asst.attributionPlugin
+    : undefined;
+  const attribution = attributionSkill !== undefined || attributionPlugin !== undefined
+    ? { skill: attributionSkill, plugin: attributionPlugin }
     : undefined;
 
   return {
@@ -285,6 +410,9 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
     model,
     usage,
     usageMessageId,
+    attribution,
+    skillInvocations: skillInvocations.length > 0 ? skillInvocations : undefined,
+    pluginCalls: pluginCalls.length > 0 ? pluginCalls : undefined,
   };
 }
 

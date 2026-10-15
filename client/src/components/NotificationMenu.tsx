@@ -22,6 +22,7 @@ const CATEGORY_ICON: Record<ToastPayload['category'], string> = {
   waiting: '\u{1F514}',
   error: '\u{26A0}\u{FE0F}',
   completed: '\u{2705}',
+  context: '\u{1F9E0}',
 };
 
 function relativeTime(ts: number): string {

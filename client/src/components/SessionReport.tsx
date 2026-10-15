@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import type { AgentActivity, AgentState } from '../types/agent';
+import { formatTokens, skillShortName, type AgentActivity, type AgentState } from '../types/agent';
 import { computeSessionReport } from '../report/sessionReport';
 import { configDirLabel } from './configDirLabel';
+import { ContextMeter } from './ContextMeter';
 import './SessionReport.css';
 
 const ACTIVITY_COLOR: Record<AgentActivity, string> = {
@@ -19,19 +20,19 @@ function formatDuration(ms: number): string {
   return `${sec}s`;
 }
 
-function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
-}
-
 function cwdBasename(cwd: string): string {
   const parts = cwd.split('/').filter((p) => p.length > 0);
   return parts[parts.length - 1] ?? cwd;
 }
 
-export function SessionReport({ agent }: { agent: AgentState }) {
-  const r = useMemo(() => computeSessionReport(agent), [agent]);
+interface SessionReportProps {
+  agent: AgentState;
+  /** The session's subagents (any status), for the delegation block. */
+  subagents?: AgentState[];
+}
+
+export function SessionReport({ agent, subagents = [] }: SessionReportProps) {
+  const r = useMemo(() => computeSessionReport(agent, subagents), [agent, subagents]);
 
   return (
     <div className="report">
@@ -76,17 +77,71 @@ export function SessionReport({ agent }: { agent: AgentState }) {
         </>
       )}
 
-      {/* Tokens — Claude only. Codex doesn't report usage, so the section is
-          omitted entirely for it (no misleading empty rows). */}
+      {r.context !== undefined && (
+        <>
+          <div className="report-section-title">Context window</div>
+          <ContextMeter context={agent.context} />
+          <div className="report-econ report-econ--spaced">
+            <div className="report-econ-row"><span>In use</span><span>{formatTokens(r.context.used)}{r.context.window !== null ? ` / ${formatTokens(r.context.window)}` : ''}</span></div>
+            <div className="report-econ-row"><span>Peak</span><span>{formatTokens(r.context.peak)}</span></div>
+            <div className="report-econ-row"><span>Compactions</span><span>{r.context.compactions}</span></div>
+          </div>
+        </>
+      )}
+
+      {r.skills.length > 0 && (
+        <>
+          <div className="report-section-title">Skills loaded</div>
+          <div className="report-econ">
+            {r.skills.map((s) => (
+              <div className="report-econ-row" key={s.name} title={s.name}>
+                <span>{'✦'} {skillShortName(s.name)}{s.plugin !== undefined ? <span className="report-est"> {s.plugin}</span> : null}</span>
+                <span>{s.loads}× · ~{formatTokens(s.loadTokens)}{s.attributedMessages > 0 ? ` · ${s.attributedMessages} msg` : ''}</span>
+              </div>
+            ))}
+          </div>
+          <div className="report-muted report-tokens-note">~tokens = skill text that entered the context (chars ÷ 4).</div>
+        </>
+      )}
+
+      {r.plugins.length > 0 && (
+        <>
+          <div className="report-section-title">Plugins &amp; MCP</div>
+          <div className="report-econ">
+            {r.plugins.map((p) => (
+              <div className="report-econ-row" key={`${p.kind}:${p.name}`} title={`${p.kind}: ${p.name}`}>
+                <span>{'⚙'} {p.name} <span className="report-est">{p.kind}</span></span>
+                <span>{p.calls} call{p.calls === 1 ? '' : 's'} · ~{formatTokens(p.resultTokens)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="report-muted report-tokens-note">~tokens = tool results that entered the context.</div>
+        </>
+      )}
+
+      {r.delegation !== undefined && (
+        <>
+          <div className="report-section-title">Delegation</div>
+          <div className="report-econ">
+            <div className="report-econ-row"><span>Subagents</span><span>{r.delegation.live} live / {r.delegation.count}</span></div>
+            <div className="report-econ-row"><span>Processed by them</span><span>~{formatTokens(r.delegation.childPeakTokens)}</span></div>
+            <div className="report-econ-row"><span>Returned here</span><span>~{formatTokens(r.delegation.returnedTokens)}</span></div>
+            <div className="report-econ-row report-econ-total"><span>Kept out of this context</span><span>~{formatTokens(r.delegation.keptOutTokens)}</span></div>
+          </div>
+        </>
+      )}
+
+      {/* Tokens — Claude only. Codex doesn't report per-message usage, so the
+          section is omitted entirely for it (no misleading empty rows). */}
       {r.hasTokens ? (
         <>
           <div className="report-section-title">Tokens</div>
           <div className="report-econ">
-            <div className="report-econ-row"><span>Input</span><span>{formatNum(r.tokens.input)}</span></div>
-            <div className="report-econ-row"><span>Output</span><span>{formatNum(r.tokens.output)}</span></div>
-            <div className="report-econ-row"><span>Cache read</span><span>{formatNum(r.tokens.cacheRead)}</span></div>
-            <div className="report-econ-row"><span>Cache write</span><span>{formatNum(r.tokens.cacheWrite)}</span></div>
-            <div className="report-econ-row report-econ-total"><span>Total tokens</span><span>{formatNum(r.tokens.total)}</span></div>
+            <div className="report-econ-row"><span>Input</span><span>{formatTokens(r.tokens.input)}</span></div>
+            <div className="report-econ-row"><span>Output</span><span>{formatTokens(r.tokens.output)}</span></div>
+            <div className="report-econ-row"><span>Cache read</span><span>{formatTokens(r.tokens.cacheRead)}</span></div>
+            <div className="report-econ-row"><span>Cache write</span><span>{formatTokens(r.tokens.cacheWrite)}</span></div>
+            <div className="report-econ-row report-econ-total"><span>Total tokens</span><span>{formatTokens(r.tokens.total)}</span></div>
           </div>
           <div className="report-muted report-tokens-note">Tokens for this session only — its subagents are tracked separately.</div>
         </>

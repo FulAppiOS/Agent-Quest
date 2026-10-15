@@ -1,8 +1,21 @@
-import type { AgentSource, AgentState, HeroClass, HeroColor } from '../types';
-import { HERO_CLASSES, HERO_COLORS } from '../types';
+import type { AgentSource, AgentState, ContextUsage, HeroClass, HeroColor, PluginUsage, SkillUsage } from '../types';
+import { HERO_COLORS, estimateTokens } from '../types';
 import type { ParsedEvent } from '../parsers/session-parser';
+import { resolveContextWindow } from './context-window';
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit']);
+/** Tools that spawn a subagent whose result flows back as a tool_result / task-notification. */
+const AGENT_TOOLS = new Set(['Agent', 'Task']);
+/** A sample below this fraction of the previous one (which was above the floor) counts as a compaction. */
+const COMPACTION_DROP_RATIO = 0.6;
+const COMPACTION_MIN_PREV_TOKENS = 50_000;
+/** Per-agent cap on tool_use ids remembered while their result is pending. */
+const TOOL_USE_INDEX_CAP = 500;
+/** Caps on the cross-session maps that can otherwise grow for the life of the process. */
+const PENDING_AGENT_RESULTS_CAP = 1000;
+const PENDING_HINTS_CAP = 200;
+/** A compaction episode (markers + the zero/drop samples around it) is over once a real sample lands, or after this long. */
+const COMPACTION_EPISODE_MAX_MS = 10 * 60_000;
 
 function cwdBasename(cwd: string): string {
   const parts = cwd.split('/').filter((p) => p.length > 0);
@@ -13,7 +26,8 @@ function looksLikeSessionPrefix(name: string): boolean {
   return /^[a-f0-9]{8}$/i.test(name);
 }
 
-function isSubagentId(sessionId: string): boolean {
+/** Claude Code subagent transcripts are keyed by filename: `agent-<descriptor?>-<hex>`. */
+function isSubagentSessionId(sessionId: string): boolean {
   return sessionId.startsWith('agent-');
 }
 
@@ -30,15 +44,83 @@ function deriveSubagentName(sessionId: string): string {
 }
 
 function deriveAgentName(slug: string | undefined, cwd: string | undefined, sessionId: string): string {
-  if (isSubagentId(sessionId)) return deriveSubagentName(sessionId);
+  if (isSubagentSessionId(sessionId)) return deriveSubagentName(sessionId);
   if (slug !== undefined) return slug;
   if (cwd !== undefined && cwd.length > 0) return cwdBasename(cwd);
   return sessionId.slice(0, 8);
 }
 
+/**
+ * Hero class by role: every main conversation is a knight (`warrior`); the
+ * agents working for it are pawns, and ultra-mode Workflow squads are archers.
+ * The class is the first thing the eye reads on the map, so it must never be
+ * ambiguous between "the agent I'm talking to" and "its helpers".
+ */
+function heroClassFor(isSubagent: boolean, isWorkflow: boolean): HeroClass {
+  if (!isSubagent) return 'warrior';
+  return isWorkflow ? 'archer' : 'pawn';
+}
+
+/** Real API model ids only — Claude Code writes `<synthetic>` on lines it fabricates (errors, retries). */
+function isRealModelId(model: string | undefined): model is string {
+  return model !== undefined && model.length > 0 && !model.startsWith('<');
+}
+
+/** Drop the oldest entry when a Map reaches its cap (insertion order = age). */
+function evictOldest(map: Map<string, unknown>, cap: number): void {
+  if (map.size < cap) return;
+  const oldest = map.keys().next().value;
+  if (oldest !== undefined) map.delete(oldest);
+}
+
+/** `superpowers:brainstorming` → `superpowers`; standalone skills have no plugin. */
+function pluginFromSkillName(name: string): string | undefined {
+  const i = name.indexOf(':');
+  return i > 0 ? name.slice(0, i) : undefined;
+}
+
+/** `/…/skills/<name>` → `<name>` (last path segment as a fallback). */
+function skillNameFromPath(path: string | undefined): string | undefined {
+  if (path === undefined) return undefined;
+  const trimmed = path.replace(/\/+$/, '');
+  const m = trimmed.match(/\/skills\/([^/]+)$/);
+  if (m !== null && m[1] !== undefined) return m[1];
+  const last = trimmed.split('/').pop();
+  return last !== undefined && last.length > 0 ? last : undefined;
+}
+
+/** Plugin that ships a skill, from the cache layout `plugins/cache/<marketplace>/<plugin>/<version>/skills/<name>`. */
+function pluginFromSkillPath(path: string | undefined): string | undefined {
+  if (path === undefined) return undefined;
+  const cached = path.match(/\/plugins\/cache\/[^/]+\/([^/]+)\//);
+  if (cached !== null && cached[1] !== undefined) return cached[1];
+  const direct = path.match(/\/plugins\/([^/]+)\/skills\//);
+  return direct !== null ? direct[1] : undefined;
+}
+
 export interface ProcessResult {
   agent: AgentState;
   isNew: boolean;
+  /** Other agents whose visible state this event changed (e.g. a child agent receiving its result size). */
+  alsoChanged?: AgentState[];
+}
+
+/** Facts a provider knows about a session that the events themselves don't carry. */
+export interface SessionMeta {
+  configDir?: string;
+  source?: AgentSource;
+  /** Name resolved by the provider (Claude subagent label, Codex agent nickname). */
+  nameOverride?: string;
+  /** Explicit subagent flag; falls back to the `agent-` id prefix when omitted. */
+  isSubagent?: boolean;
+  parentId?: string;
+  subagentType?: string;
+  /** True for ultra-mode Workflow agents (rendered as archers). */
+  isWorkflow?: boolean;
+  /** The parent's Agent tool_use id that spawned this subagent — links its returned result size. */
+  spawnToolUseId?: string;
+  /** Model configured in the install's settings.json — hints the context window. */
+  configuredModel?: string;
 }
 
 /** Live-session oracle: tells the state manager whether a sessionId has a live Claude pid. */
@@ -72,17 +154,49 @@ export interface AgentStateManagerOptions {
   subagentBusyCompletedThresholdMs?: number;
   /** Optional oracle for cross-referencing sessions against live Claude pids. */
   livenessOracle?: SessionLivenessOracle;
+  /** Forces the Claude context window (tokens) for every session, e.g. from `AGENT_QUEST_CLAUDE_CONTEXT_WINDOW`. */
+  claudeContextWindowOverride?: string;
 }
 
-function isSubagentSessionId(sessionId: string): boolean {
-  return sessionId.startsWith('agent-');
+interface ToolUseRef {
+  /** Plugin / MCP server the tool_use belongs to, for result-size attribution. */
+  plugin?: string;
+  /** True for Agent/Task tool_uses whose result is a subagent's report. */
+  isAgent: boolean;
+}
+
+/** Per-agent bookkeeping that never leaves the server. */
+interface AgentTelemetry {
+  configuredModel?: string;
+  /** tool_use id → what to attribute its result to, until the result arrives. */
+  toolUseIndex: Map<string, ToolUseRef>;
+  /** Skill names invoked whose bodies haven't been seen yet (matched by name, else FIFO). */
+  pendingSkillLoads: string[];
+  /**
+   * True from a compaction marker until the next real context sample: both
+   * CLIs write two markers per compaction and a zero/dropped sample between
+   * them, which would otherwise count the same compaction 2-3 times.
+   */
+  compactionPending: boolean;
+}
+
+/** Telemetry that arrived before the session's first real event (Codex `turn_context` / `task_started`). */
+interface SessionHints {
+  model?: string;
+  window?: number;
 }
 
 export class AgentStateManager {
   private agents = new Map<string, AgentState>();
   /** Per-agent set of assistant message ids whose usage has already been counted. */
   private countedUsageIds = new Map<string, Set<string>>();
-  private classIndex = 0;
+  private telemetry = new Map<string, AgentTelemetry>();
+  /** Parent Agent tool_use id → child agent id. */
+  private spawnIndex = new Map<string, string>();
+  /** Subagent results (tokens) seen before their child agent was discovered. */
+  private pendingAgentResults = new Map<string, number>();
+  /** Model / window telemetry seen before the agent existed, applied on creation. */
+  private pendingHints = new Map<string, SessionHints>();
   private colorIndex = 0;
   private idleThresholdMs: number;
   private completedThresholdMs: number;
@@ -91,6 +205,7 @@ export class AgentStateManager {
   private subagentCompletedThresholdMs: number;
   private subagentBusyCompletedThresholdMs: number;
   private livenessOracle: SessionLivenessOracle | undefined;
+  private claudeContextWindowOverride: string | undefined;
 
   constructor(opts: AgentStateManagerOptions = {}) {
     this.idleThresholdMs = opts.idleThresholdMs ?? 5 * 60_000;
@@ -100,18 +215,14 @@ export class AgentStateManager {
     this.subagentCompletedThresholdMs = opts.subagentCompletedThresholdMs ?? 5 * 60_000;
     this.subagentBusyCompletedThresholdMs = opts.subagentBusyCompletedThresholdMs ?? 15 * 60_000;
     this.livenessOracle = opts.livenessOracle;
+    this.claudeContextWindowOverride = opts.claudeContextWindowOverride;
   }
 
   setLivenessOracle(oracle: SessionLivenessOracle | undefined): void {
     this.livenessOracle = oracle;
   }
 
-  processEvent(
-    event: ParsedEvent,
-    configDir = '',
-    source: AgentSource = 'claude',
-    nameOverride?: string,
-  ): ProcessResult | null {
+  processEvent(event: ParsedEvent, meta: SessionMeta = {}): ProcessResult | null {
     const existing = this.agents.get(event.sessionId);
 
     // Resume hints (last-prompt dumps) never create new agents and never advance
@@ -124,15 +235,32 @@ export class AgentStateManager {
       return { agent: existing, isNew: false };
     }
 
+    // Telemetry lines (tool results, skill bodies, token counts, compaction
+    // markers) only feed accounting: no status, activity or timer changes, and
+    // they never create an agent. Returns the agents whose visible state moved.
+    if (event.kind === 'telemetry') {
+      if (existing === undefined) {
+        this.stashHints(event);
+        return null;
+      }
+      const changed = this.applyTelemetry(existing, event);
+      const first = changed[0];
+      if (first === undefined) return null;
+      return { agent: first, isNew: false, alsoChanged: changed.slice(1) };
+    }
+
     if (existing === undefined) {
-      const agent = this.createAgent(event, configDir, source, nameOverride);
+      const agent = this.createAgent(event, meta);
       this.agents.set(event.sessionId, agent);
-      this.addUsage(agent, event);
+      this.registerSpawn(agent, meta.spawnToolUseId);
+      this.applyHints(agent, event.timestamp);
+      this.ingestAssistantTelemetry(agent, event);
       this.applyDerivedStatus(agent);
       this.applyTurnAndError(agent, event);
       // Liveness wins over turn-end: a dead pid can't be mid-turn.
       this.applyLivenessOverride(agent);
-      return { agent, isNew: true };
+      const recolored = this.adoptChildren(agent);
+      return recolored.length > 0 ? { agent, isNew: true, alsoChanged: recolored } : { agent, isNew: true };
     }
 
     if (event.kind === 'task') {
@@ -173,7 +301,7 @@ export class AgentStateManager {
       this.livenessOracle !== undefined &&
       this.livenessOracle.hasAnyLive() &&
       agent.source === 'claude' &&
-      !isSubagentSessionId(agent.id) &&
+      !agent.isSubagent &&
       !this.livenessOracle.isLive(agent.id)
     ) {
       agent.status = 'completed';
@@ -190,7 +318,7 @@ export class AgentStateManager {
 
     const age = Date.now() - agent.lastEvent;
 
-    if (isSubagentSessionId(agent.id)) {
+    if (agent.isSubagent) {
       // Busy subagents are mid-tool: a single long Edit / MCP call / Opus turn
       // can take many minutes without writing new JSONL lines. Keep them active
       // until the crash timeout, otherwise they flicker completed→active when
@@ -298,7 +426,7 @@ export class AgentStateManager {
   markTurnEnd(sessionId: string): boolean {
     const agent = this.agents.get(sessionId);
     if (agent === undefined) return false;
-    if (isSubagentSessionId(agent.id)) return false;
+    if (agent.isSubagent) return false;
     agent.busy = false;
     if (agent.status !== 'active' && agent.status !== 'waiting') return false;
     const changed = agent.status !== 'waiting' || agent.currentActivity !== 'idle';
@@ -314,7 +442,7 @@ export class AgentStateManager {
 
     for (const agent of this.agents.values()) {
       if (agent.status !== 'active') continue;
-      if (isSubagentSessionId(agent.id)) {
+      if (agent.isSubagent) {
         // Subagent mid-work: stays active until the crash timeout
         // (checkCompletedAgents handles that path). No idle transition.
         if (agent.busy === true) continue;
@@ -343,7 +471,7 @@ export class AgentStateManager {
     const completed: string[] = [];
 
     for (const agent of this.agents.values()) {
-      if (isSubagentSessionId(agent.id)) {
+      if (agent.isSubagent) {
         // Crash path: busy subagent silent past the crash timeout is presumed dead.
         if (
           agent.status === 'active' &&
@@ -401,6 +529,10 @@ export class AgentStateManager {
     for (const agent of candidates) {
       this.agents.delete(agent.id);
       this.countedUsageIds.delete(agent.id);
+      this.telemetry.delete(agent.id);
+      for (const [toolUseId, childId] of this.spawnIndex) {
+        if (childId === agent.id) this.spawnIndex.delete(toolUseId);
+      }
       removed.push(agent.id);
     }
 
@@ -412,10 +544,20 @@ export class AgentStateManager {
     return Array.from(this.agents.values()).sort((a, b) => b.lastEvent - a.lastEvent);
   }
 
-  private nextHeroClass(): HeroClass {
-    const cls = HERO_CLASSES[this.classIndex % HERO_CLASSES.length]!;
-    this.classIndex++;
-    return cls;
+  /**
+   * A parent discovered after its subagents: pull the children onto its color
+   * so the family reads as one group. Returns the children that changed.
+   */
+  private adoptChildren(parent: AgentState): AgentState[] {
+    if (parent.isSubagent) return [];
+    const changed: AgentState[] = [];
+    for (const a of this.agents.values()) {
+      if (a.isSubagent && a.parentId === parent.id && a.heroColor !== parent.heroColor) {
+        a.heroColor = parent.heroColor;
+        changed.push(a);
+      }
+    }
+    return changed;
   }
 
   private nextHeroColor(): HeroColor {
@@ -446,20 +588,19 @@ export class AgentStateManager {
     return this.nextHeroColor();
   }
 
-  private createAgent(
-    event: ParsedEvent,
-    configDir: string,
-    source: AgentSource,
-    nameOverride?: string,
-  ): AgentState {
-    const name = nameOverride !== undefined && nameOverride.length > 0
-      ? nameOverride
+  private createAgent(event: ParsedEvent, meta: SessionMeta): AgentState {
+    const name = meta.nameOverride !== undefined && meta.nameOverride.length > 0
+      ? meta.nameOverride
       : deriveAgentName(event.slug, event.cwd, event.sessionId);
+    const isSubagent = meta.isSubagent ?? isSubagentSessionId(event.sessionId);
+    // Subagents wear their parent's color (when the parent is already known);
+    // main agents pick a color no same-named hero is using.
+    const parent = isSubagent && meta.parentId !== undefined ? this.agents.get(meta.parentId) : undefined;
     const agent: AgentState = {
       id: event.sessionId,
       name,
-      heroClass: this.nextHeroClass(),
-      heroColor: this.pickUnusedColorFor(name),
+      heroClass: heroClassFor(isSubagent, meta.isWorkflow === true),
+      heroColor: parent !== undefined ? parent.heroColor : this.pickUnusedColorFor(name),
       status: 'active',
       currentActivity: event.activity,
       currentFile: event.file,
@@ -474,12 +615,73 @@ export class AgentStateManager {
       lastMessage: event.lastMessage,
       currentTask: event.currentTask,
       cwd: event.cwd ?? '',
-      configDir,
-      source,
-      model: event.model,
-      isSubagent: isSubagentSessionId(event.sessionId),
+      configDir: meta.configDir ?? '',
+      source: meta.source ?? 'claude',
+      model: isRealModelId(event.model) ? event.model : undefined,
+      isSubagent,
+      parentId: meta.parentId,
+      subagentType: meta.subagentType,
+      skills: [],
+      plugins: [],
     };
+    this.telemetry.set(agent.id, {
+      configuredModel: meta.configuredModel,
+      toolUseIndex: new Map(),
+      pendingSkillLoads: [],
+      compactionPending: false,
+    });
     return agent;
+  }
+
+  private telemetryFor(agent: AgentState): AgentTelemetry {
+    let t = this.telemetry.get(agent.id);
+    if (t === undefined) {
+      t = { toolUseIndex: new Map(), pendingSkillLoads: [], compactionPending: false };
+      this.telemetry.set(agent.id, t);
+    }
+    return t;
+  }
+
+  /** Remember model/window telemetry for a session we haven't created yet (Codex emits them before the first UserMessage). */
+  private stashHints(event: ParsedEvent): void {
+    const model = isRealModelId(event.model) ? event.model : undefined;
+    const window = event.contextSample?.window;
+    if (model === undefined && window === undefined) return;
+    const hints = this.pendingHints.get(event.sessionId) ?? {};
+    if (model !== undefined) hints.model = model;
+    if (window !== undefined) hints.window = window;
+    if (!this.pendingHints.has(event.sessionId)) evictOldest(this.pendingHints, PENDING_HINTS_CAP);
+    this.pendingHints.set(event.sessionId, hints);
+  }
+
+  private applyHints(agent: AgentState, ts: number): void {
+    const hints = this.pendingHints.get(agent.id);
+    if (hints === undefined) return;
+    this.pendingHints.delete(agent.id);
+    if (hints.model !== undefined && agent.model === undefined) agent.model = hints.model;
+    if (hints.window !== undefined) this.applyContextSample(agent, { window: hints.window }, ts, 'reported');
+  }
+
+  /** Link a child to the parent tool_use that spawned it; settle any result that arrived first. */
+  private registerSpawn(child: AgentState, spawnToolUseId: string | undefined): void {
+    if (spawnToolUseId === undefined) return;
+    this.spawnIndex.set(spawnToolUseId, child.id);
+    const pending = this.pendingAgentResults.get(spawnToolUseId);
+    if (pending !== undefined) {
+      this.pendingAgentResults.delete(spawnToolUseId);
+      child.returnedTokens = (child.returnedTokens ?? 0) + pending;
+    }
+  }
+
+  /**
+   * Accounting carried by assistant/tool events: token usage (deduped per API
+   * message), skill attribution, skill invocations, plugin calls and the
+   * tool_use ids whose results we still have to attribute.
+   */
+  private ingestAssistantTelemetry(agent: AgentState, event: ParsedEvent): void {
+    const countedNewMessage = this.addUsage(agent, event);
+    this.applyAttribution(agent, event, countedNewMessage);
+    this.recordToolTelemetry(agent, event);
   }
 
   /**
@@ -487,9 +689,10 @@ export class AgentStateManager {
    * logical assistant message as several JSONL lines (one per content block)
    * that all repeat the same `usage`; without this guard a message's tokens
    * would be counted 2-3× and the cost estimate would be wildly inflated.
+   * Returns true when this call counted a message not seen before.
    */
-  private addUsage(agent: AgentState, event: ParsedEvent): void {
-    if (event.usage === undefined) return;
+  private addUsage(agent: AgentState, event: ParsedEvent): boolean {
+    if (event.usage === undefined) return false;
     const id = event.usageMessageId;
     if (id !== undefined) {
       let seen = this.countedUsageIds.get(agent.id);
@@ -497,13 +700,279 @@ export class AgentStateManager {
         seen = new Set();
         this.countedUsageIds.set(agent.id, seen);
       }
-      if (seen.has(id)) return; // this message's usage already counted
+      if (seen.has(id)) return false; // this message's usage already counted
       seen.add(id);
     }
     agent.tokenUsage.input += event.usage.input;
     agent.tokenUsage.output += event.usage.output;
     agent.tokenUsage.cacheRead += event.usage.cacheRead;
     agent.tokenUsage.cacheWrite += event.usage.cacheWrite;
+
+    // The prompt of this request (input + both cache buckets) plus what the
+    // model wrote is what sits in the context window right now.
+    const used = event.usage.input + event.usage.cacheRead + event.usage.cacheWrite + event.usage.output;
+    const { window, source } = resolveContextWindow({
+      model: isRealModelId(event.model) ? event.model : agent.model,
+      configuredModel: this.telemetryFor(agent).configuredModel,
+      envOverride: this.claudeContextWindowOverride,
+      used,
+      current: agent.context,
+    });
+    this.applyContextSample(agent, { used, window }, event.timestamp, source);
+    return true;
+  }
+
+  /**
+   * Skill attribution. Claude Code stamps every assistant line with the skill
+   * whose instructions currently apply: the latest line decides the hero's
+   * active skill, and each distinct API message counts once toward the skill's
+   * tally. Codex has no attribution: its active skill is the last loaded one
+   * and clears at turn end.
+   */
+  private applyAttribution(agent: AgentState, event: ParsedEvent, countedNewMessage: boolean): void {
+    if (agent.source === 'claude') {
+      // `isTurnEnd` is only ever set on assistant-derived events.
+      if (event.isTurnEnd !== undefined) {
+        agent.activeSkill = event.attribution?.skill;
+      }
+      const skillName = event.attribution?.skill;
+      if (skillName !== undefined) {
+        const skill = this.upsertSkill(agent, skillName, event.timestamp, event.attribution?.plugin);
+        if (countedNewMessage) {
+          skill.attributedMessages += 1;
+          skill.attributedOutputTokens += event.usage?.output ?? 0;
+        }
+      }
+      return;
+    }
+    if (event.isTurnEnd === true) agent.activeSkill = undefined;
+  }
+
+  private recordToolTelemetry(agent: AgentState, event: ParsedEvent): void {
+    const t = this.telemetryFor(agent);
+    for (const name of event.skillInvocations ?? []) {
+      this.upsertSkill(agent, name, event.timestamp);
+      t.pendingSkillLoads.push(name);
+    }
+    for (const call of event.pluginCalls ?? []) {
+      const plugin = this.upsertPlugin(agent, call.name, call.kind, event.timestamp);
+      plugin.calls += 1;
+      if (call.resultChars !== undefined) {
+        plugin.resultTokens += estimateTokens(call.resultChars);
+      } else if (call.toolUseId !== undefined) {
+        this.indexToolUse(t, call.toolUseId, { plugin: call.name, isAgent: false });
+      }
+    }
+    for (const tc of event.toolCalls) {
+      if (AGENT_TOOLS.has(tc.name)) this.indexToolUse(t, tc.id, { isAgent: true });
+    }
+    // Codex carries the skill body on the same line as the command that read it.
+    if (event.skillLoad !== undefined) this.applySkillLoad(agent, event);
+  }
+
+  private indexToolUse(t: AgentTelemetry, toolUseId: string, ref: ToolUseRef): void {
+    if (t.toolUseIndex.size >= TOOL_USE_INDEX_CAP) {
+      const oldest = t.toolUseIndex.keys().next().value;
+      if (oldest !== undefined) t.toolUseIndex.delete(oldest);
+    }
+    t.toolUseIndex.set(toolUseId, ref);
+  }
+
+  private upsertSkill(agent: AgentState, name: string, ts: number, plugin?: string): SkillUsage {
+    let skill = agent.skills.find((s) => s.name === name);
+    if (skill === undefined) {
+      skill = {
+        name,
+        plugin: plugin ?? pluginFromSkillName(name),
+        loads: 0,
+        loadTokens: 0,
+        attributedMessages: 0,
+        attributedOutputTokens: 0,
+        firstUsedAt: ts,
+        lastUsedAt: ts,
+      };
+      agent.skills.push(skill);
+      return skill;
+    }
+    if (skill.plugin === undefined && plugin !== undefined) skill.plugin = plugin;
+    if (ts > skill.lastUsedAt) skill.lastUsedAt = ts;
+    return skill;
+  }
+
+  private upsertPlugin(agent: AgentState, name: string, kind: PluginUsage['kind'], ts: number): PluginUsage {
+    let plugin = agent.plugins.find((p) => p.name === name);
+    if (plugin === undefined) {
+      plugin = { name, kind, calls: 0, resultTokens: 0, lastUsedAt: ts };
+      agent.plugins.push(plugin);
+      return plugin;
+    }
+    if (ts > plugin.lastUsedAt) plugin.lastUsedAt = ts;
+    return plugin;
+  }
+
+  /**
+   * A skill body entered the context: attribute its size to the invoked skill.
+   * The body's path ends with the skill's short name, so a pending invocation
+   * whose name matches (`dataviz`, or `plugin:dataviz`) wins over FIFO order —
+   * a failed invocation that never produced a body must not steal the next one.
+   */
+  private applySkillLoad(agent: AgentState, event: ParsedEvent): boolean {
+    const load = event.skillLoad;
+    if (load === undefined) return false;
+    const t = this.telemetryFor(agent);
+    let name = load.name;
+    if (name !== undefined) {
+      const i = t.pendingSkillLoads.indexOf(name);
+      if (i !== -1) t.pendingSkillLoads.splice(i, 1);
+    } else {
+      const base = skillNameFromPath(load.path);
+      const i = base !== undefined
+        ? t.pendingSkillLoads.findIndex((n) => n === base || n.endsWith(`:${base}`))
+        : -1;
+      if (i !== -1) {
+        name = t.pendingSkillLoads.splice(i, 1)[0];
+      } else {
+        name = t.pendingSkillLoads.shift() ?? base;
+      }
+    }
+    if (name === undefined) return false;
+    const skill = this.upsertSkill(agent, name, event.timestamp, pluginFromSkillPath(load.path));
+    skill.loads += 1;
+    skill.loadTokens += estimateTokens(load.chars);
+    if (event.timestamp > skill.lastUsedAt) skill.lastUsedAt = event.timestamp;
+    if (agent.source !== 'claude') agent.activeSkill = name;
+    return true;
+  }
+
+  /**
+   * Fold a context sample into the agent. `windowSource` applies when the
+   * sample carries a window. A sharp drop from a sizeable context is counted
+   * as a compaction even without an explicit marker. Returns whether anything
+   * the client renders changed.
+   */
+  private applyContextSample(
+    agent: AgentState,
+    sample: { used?: number; window?: number },
+    ts: number,
+    windowSource: ContextUsage['windowSource'],
+  ): boolean {
+    const prev = agent.context;
+    const t = this.telemetryFor(agent);
+    const used = sample.used ?? prev?.used ?? 0;
+    const window = sample.window ?? prev?.window ?? null;
+    const source = sample.window !== undefined ? windowSource : (prev?.windowSource ?? 'default');
+    let compactions = prev?.compactions ?? 0;
+    let lastCompactionAt = prev?.lastCompactionAt;
+    if (sample.used !== undefined && sample.used > 0) {
+      if (t.compactionPending) {
+        // First real sample after an explicit marker: this IS the post-compaction
+        // context, already counted by the marker.
+        t.compactionPending = false;
+      } else if (
+        prev !== undefined &&
+        prev.used > COMPACTION_MIN_PREV_TOKENS &&
+        sample.used < prev.used * COMPACTION_DROP_RATIO
+      ) {
+        compactions += 1;
+        lastCompactionAt = ts;
+      }
+    }
+    const next: ContextUsage = {
+      used,
+      peak: Math.max(prev?.peak ?? 0, used),
+      window,
+      windowSource: source,
+      compactions,
+      lastCompactionAt,
+      updatedAt: sample.used !== undefined ? ts : (prev?.updatedAt ?? ts),
+    };
+    const changed = prev === undefined
+      || prev.used !== next.used
+      || prev.window !== next.window
+      || prev.windowSource !== next.windowSource
+      || prev.compactions !== next.compactions;
+    agent.context = next;
+    return changed;
+  }
+
+  /** Explicit compaction marker. Returns false when it belongs to an episode already counted. */
+  private recordCompaction(agent: AgentState, ts: number): boolean {
+    const t = this.telemetryFor(agent);
+    const prev = agent.context ?? {
+      used: 0, peak: 0, window: null, windowSource: 'default' as const, compactions: 0, updatedAt: ts,
+    };
+    const episodeStart = prev.lastCompactionAt ?? Number.NEGATIVE_INFINITY;
+    if (t.compactionPending && ts - episodeStart < COMPACTION_EPISODE_MAX_MS) return false;
+    t.compactionPending = true;
+    agent.context = { ...prev, compactions: prev.compactions + 1, lastCompactionAt: ts };
+    return true;
+  }
+
+  /** Apply a telemetry event; returns the agents whose visible state changed (deduped, this agent first). */
+  private applyTelemetry(agent: AgentState, event: ParsedEvent): AgentState[] {
+    const changed = new Set<AgentState>();
+    if (isRealModelId(event.model) && event.model !== agent.model) {
+      agent.model = event.model;
+      changed.add(agent);
+    }
+    if (event.contextSample !== undefined) {
+      if (this.applyContextSample(agent, event.contextSample, event.timestamp, 'reported')) changed.add(agent);
+    }
+    if (event.isCompaction === true && this.recordCompaction(agent, event.timestamp)) {
+      changed.add(agent);
+    }
+    if (event.skillLoad !== undefined && this.applySkillLoad(agent, event)) changed.add(agent);
+    for (const result of event.toolResults ?? []) {
+      for (const a of this.applyToolResult(agent, result.toolUseId, result.chars)) changed.add(a);
+    }
+    if (event.taskNotification !== undefined) {
+      // The notification carries the subagent's actual report; it replaces the
+      // launch acknowledgement credited from the Agent tool_result.
+      for (const a of this.applyAgentResult(event.taskNotification.toolUseId, event.taskNotification.resultChars, 'set')) changed.add(a);
+    }
+    // Keep this agent first so the caller broadcasts the obvious one as `agent`.
+    const out = [...changed];
+    const self = out.indexOf(agent);
+    if (self > 0) {
+      out.splice(self, 1);
+      out.unshift(agent);
+    }
+    return out;
+  }
+
+  /** A tool result landed: attribute its size to the plugin or subagent its tool_use belongs to. */
+  private applyToolResult(agent: AgentState, toolUseId: string, chars: number): AgentState[] {
+    const t = this.telemetryFor(agent);
+    const ref = t.toolUseIndex.get(toolUseId);
+    if (ref === undefined) return [];
+    t.toolUseIndex.delete(toolUseId);
+    if (ref.plugin !== undefined) {
+      const plugin = agent.plugins.find((p) => p.name === ref.plugin);
+      if (plugin === undefined) return [];
+      plugin.resultTokens += estimateTokens(chars);
+      return [agent];
+    }
+    if (ref.isAgent) return this.applyAgentResult(toolUseId, chars);
+    return [];
+  }
+
+  /**
+   * A subagent's report re-entered its parent's context. Credits the child
+   * (looked up through the spawn index) or parks the size until the child's
+   * transcript is discovered.
+   */
+  private applyAgentResult(toolUseId: string, chars: number, mode: 'add' | 'set' = 'add'): AgentState[] {
+    const tokens = estimateTokens(chars);
+    const childId = this.spawnIndex.get(toolUseId);
+    const child = childId !== undefined ? this.agents.get(childId) : undefined;
+    if (child === undefined) {
+      const prev = this.pendingAgentResults.get(toolUseId);
+      if (prev === undefined) evictOldest(this.pendingAgentResults, PENDING_AGENT_RESULTS_CAP);
+      this.pendingAgentResults.set(toolUseId, mode === 'set' ? tokens : (prev ?? 0) + tokens);
+      return [];
+    }
+    child.returnedTokens = mode === 'set' ? tokens : (child.returnedTokens ?? 0) + tokens;
+    return [child];
   }
 
   private updateAgent(agent: AgentState, event: ParsedEvent): void {
@@ -516,14 +985,14 @@ export class AgentStateManager {
       agent.lastMessage = event.lastMessage;
     }
     agent.toolCalls.push(...event.toolCalls);
-    if (event.model !== undefined) {
+    if (isRealModelId(event.model)) {
       agent.model = event.model;
     }
-    this.addUsage(agent, event);
+    this.ingestAssistantTelemetry(agent, event);
 
-    // Subagents keep their filename-derived name — the event's slug is the
+    // Subagents keep their provider-resolved name — the event's slug is the
     // parent session's slug (copied verbatim) and would be misleading.
-    if (!isSubagentId(agent.id)) {
+    if (!agent.isSubagent) {
       if (event.slug !== undefined) {
         agent.name = event.slug;
       } else if (looksLikeSessionPrefix(agent.name) && event.cwd !== undefined) {

@@ -275,3 +275,29 @@
     transition: none;
   }
 }
+
+/* Hottest main-agent context occupancy — a button so a click jumps to that hero. */
+.topbar-ctx-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 7px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.topbar-ctx-btn.ctx-ok       { color: #7ED9A0; }
+.topbar-ctx-btn.ctx-warn     { color: #FFD27A; }
+.topbar-ctx-btn.ctx-hot      { color: #FF9F4A; border-color: rgba(255, 159, 74, 0.5); background: rgba(255, 159, 74, 0.12); }
+.topbar-ctx-btn.ctx-critical { color: #FF6B6B; border-color: rgba(255, 107, 107, 0.6); background: rgba(255, 107, 107, 0.14); animation: topbar-ctx-pulse 1s ease-in-out infinite; }
+.topbar-ctx-btn:hover { text-decoration: underline; }
+@keyframes topbar-ctx-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar-ctx-btn.ctx-critical { animation: none; }
+}
+
+.topbar-skills-btn { color: #7BD4C5; font-weight: 700; }

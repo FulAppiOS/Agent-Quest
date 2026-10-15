@@ -76,6 +76,61 @@ export interface ToolCall {
   input: Record<string, unknown>;
 }
 
+/**
+ * Occupancy of the model's context window after the latest response.
+ * Kept in sync with server/src/types.ts.
+ */
+export interface ContextUsage {
+  /** Tokens in the context after the latest response (prompt + output). */
+  used: number;
+  /** Highest `used` observed during the session (survives compactions). */
+  peak: number;
+  /** Model context window in tokens; null when unknown. */
+  window: number | null;
+  /** How `window` was determined. */
+  windowSource: 'reported' | 'configured' | 'inferred' | 'default';
+  /** Context compactions detected (explicit marker or a large drop). */
+  compactions: number;
+  lastCompactionAt?: number;
+  /** Timestamp (ms) of the sample `used` comes from. */
+  updatedAt: number;
+}
+
+/** A skill whose instructions were loaded into the agent's context. */
+export interface SkillUsage {
+  /** Canonical name, e.g. `superpowers:brainstorming` or `pdf`. */
+  name: string;
+  /** Owning plugin when known (e.g. `superpowers`). */
+  plugin?: string;
+  /** How many times the skill body entered the context. */
+  loads: number;
+  /** Estimated tokens the skill bodies injected (chars / 4). */
+  loadTokens: number;
+  /** Assistant messages Claude Code attributed to this skill. */
+  attributedMessages: number;
+  /** Output tokens of those attributed messages. */
+  attributedOutputTokens: number;
+  firstUsedAt: number;
+  lastUsedAt: number;
+}
+
+/** A plugin or MCP server the agent called tools through. */
+export interface PluginUsage {
+  /** Plugin id (`chrome-devtools-mcp`) or MCP server name. */
+  name: string;
+  kind: 'plugin' | 'mcp';
+  calls: number;
+  /** Estimated tokens its tool results pushed into the context (chars / 4). */
+  resultTokens: number;
+  lastUsedAt: number;
+}
+
+/** Skills installed on disk for one provider: how much context they would cost if always loaded. */
+export interface SkillInventory {
+  count: number;
+  tokens: number;
+}
+
 export interface AgentState {
   id: string;
   name: string;
@@ -104,14 +159,71 @@ export interface AgentState {
   /** True for Claude Code subagents (Task tool). Set by the server once it
    * sends the flag; until then `isSubagentAgent()` falls back to the id prefix. */
   isSubagent?: boolean;
+  /** Context-window occupancy; undefined until the first usage sample. */
+  context?: ContextUsage;
+  /** Skills loaded this session. Optional on the client for snapshots from older servers. */
+  skills?: SkillUsage[];
+  /** Plugins / MCP servers called this session. Optional for the same reason. */
+  plugins?: PluginUsage[];
+  /** Skill the latest assistant message was attributed to (Claude) or the last one loaded in the turn (Codex). */
+  activeSkill?: string;
+  /** Session id of the parent agent, for subagents. */
+  parentId?: string;
+  /** Subagent role, e.g. `Explore`, `general-purpose`, or a Codex agent path basename. */
+  subagentType?: string;
+  /** Estimated tokens the subagent's final result pushed into the parent context. */
+  returnedTokens?: number;
+}
+
+/** Estimated token count for a text of `chars` characters (≈ 4 chars per token, rounded up). */
+export function estimateTokens(chars: number): number {
+  return chars > 0 ? Math.ceil(chars / 4) : 0;
+}
+
+/** Percentage of the context window in use, or null when the window is unknown. */
+export function contextPct(c: ContextUsage | undefined): number | null {
+  if (c === undefined || c.window === null || c.window <= 0) return null;
+  return Math.max(0, (c.used * 100) / c.window);
+}
+
+export type ContextLevel = 'ok' | 'warn' | 'hot' | 'critical';
+
+/** Saturation level for a context percentage: <60 ok, <80 warn, <90 hot, otherwise critical. */
+export function contextLevel(pct: number): ContextLevel {
+  if (pct >= 90) return 'critical';
+  if (pct >= 80) return 'hot';
+  if (pct >= 60) return 'warn';
+  return 'ok';
+}
+
+/** Color per saturation level — shared by the Phaser bar, Party Bar, Detail Panel and Top Bar. */
+export const CONTEXT_LEVEL_COLOR: Record<ContextLevel, string> = {
+  ok:       '#7ED9A0',
+  warn:     '#FFD27A',
+  hot:      '#FF9F4A',
+  critical: '#FF6B6B',
+};
+
+/** `superpowers:brainstorming` → `brainstorming`; standalone names are returned unchanged. */
+export function skillShortName(name: string): string {
+  const i = name.lastIndexOf(':');
+  return i === -1 ? name : name.slice(i + 1);
+}
+
+/** Compact token count: 999 → `999`, 1234 → `1.2k`, 1_200_000 → `1.2M`. */
+export function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(Math.round(n));
 }
 
 /**
  * Whether an agent is a subagent (spawned via the Task tool) rather than a
  * top-level session. Prefers the explicit server flag; falls back to the
  * `agent-` session-id prefix the server uses internally, so this is correct
- * even before the flag ships. Codex has no subagents, so this is always false
- * for Codex sources in practice. Used to suppress per-subagent notifications.
+ * even before the flag ships. Codex subagents (spawned with `spawn_agent`)
+ * carry the explicit flag only — their ids have no prefix. Used to suppress
+ * per-subagent notifications and to nest heroes under their parent.
  */
 export function isSubagentAgent(a: Pick<AgentState, 'id' | 'isSubagent'>): boolean {
   if (typeof a.isSubagent === 'boolean') return a.isSubagent;
@@ -192,4 +304,10 @@ export type WsEvent =
   | { type: 'agent:new'; agent: AgentState }
   | { type: 'agent:complete'; id: string }
   | { type: 'activity:log'; agentId: string; action: string; detail: string; timestamp: number }
-  | { type: 'snapshot'; agents: AgentState[]; configDirs: string[] };
+  | {
+      type: 'snapshot';
+      agents: AgentState[];
+      configDirs: string[];
+      /** Skills installed on disk per provider (what they would cost if always loaded). */
+      skillInventory?: Partial<Record<AgentSource, SkillInventory>>;
+    };

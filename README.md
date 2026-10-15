@@ -20,7 +20,7 @@
 
 > **Use Claude Code CLI or Codex as usual — each agent session auto-spawns a hero on the dashboard, live.**
 
-Agent Quest is a browser-based monitoring dashboard that visualizes active Claude Code and Codex agent sessions as fantasy heroes in a 2D village. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on.
+Agent Quest is a browser-based monitoring dashboard that visualizes active Claude Code and Codex agent sessions as fantasy heroes in a 2D village. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on. Every hero also shows how much of its context window it has used, which skills and plugins it is running under, and which subagents are working for it — with a one-click export you can hand to another AI to review the session.
 
 <p align="center">
   <img src="docs/media/day.gif" alt="Agent Quest — main view" width="820" />
@@ -43,6 +43,27 @@ Agent Quest is a browser-based monitoring dashboard that visualizes active Claud
   </tr>
 </table>
 
+<p align="center">
+  <img src="docs/media/skills-plugins-panel.png" alt="Skills & Plugins fleet panel" width="820" />
+  <br/>
+  <sub><em>Skills &amp; Plugins — what every agent loaded, what it cost in context, and the export for AI review.</em></sub>
+</p>
+
+<table align="center">
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/media/detail-panel-delegation.png" alt="Detail panel of a main agent: context window, skills and delegation" width="300" />
+      <br/>
+      <sub><em>Main agent — context gauge, skills, delegation</em></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/media/detail-panel-subagent.png" alt="Detail panel of a subagent with its parent and returned tokens" width="300" />
+      <br/>
+      <sub><em>Subagent — role badge, parent, context kept out</em></sub>
+    </td>
+  </tr>
+</table>
+
 ## Why?
 
 Claude Code and Codex sessions happen in a terminal — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations and `~/.codex`), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
@@ -52,8 +73,12 @@ Claude Code and Codex sessions happen in a terminal — useful, but not very *al
 - Real-time visualization of active Claude Code and Codex sessions
 - Auto-discovery of every `~/.claude*` directory (supports multiple installations like `~/.claude-work`, `~/.claude-personale`) and of `~/.codex` if present
 - Activity feed, party bar, and detail panel alongside the village scene
+- Context-window gauge per hero (how close each conversation is to a compaction), plus the hottest main agent in the top bar and an optional "context nearly full" alert
+- Skill & plugin telemetry: which skill a hero is running under, how many tokens each loaded skill or plugin result pushed into the context, and what the installed skills would cost if they were always loaded
+- Subagent hierarchy: knights are main sessions, pawns are subagents — smaller, in the parent's color with a `SUBAGENT · role` badge; they nest under the parent in the party bar, and the parent's panel shows how much context delegation kept out of the main conversation
 - Built-in map editor for customizing the village layout
 - Sub-2s latency via native WebSocket (optional lower-latency path via Claude Code `postToolUse` hooks — Claude Code only; Codex doesn't expose hooks)
+- Works with both the legacy Codex rollout format and the `item_completed` format of Codex ≥ 0.160, including Codex subagents spawned with `spawn_agent`
 
 ## Requirements
 
@@ -122,6 +147,26 @@ agentquest            # same as `agentquest start` — launches and opens the br
 agentquest update     # git pull + bun install (preserves local map edits)
 ```
 
+## Context, skills & subagents
+
+Every hero carries three extra layers of telemetry, all read from the same local logs:
+
+| Layer | What you see | Where it comes from |
+|---|---|---|
+| **Context window** | A bar above the hero (green → amber → orange → red, pulsing from 90%), a `Ctx` stat in the top bar showing the hottest main conversation (click it to open a dropdown comparing every live main agent), and a *Context* section in the detail panel with usage, peak and compaction count | Claude Code: `message.usage` of every assistant line. Codex: `token_count` events, which also report the window size |
+| **Skills & plugins** | A `✦ skill` tag above the hero while a skill's instructions apply; a *Skills & Plugins* section listing every skill loaded (how many times, ~tokens injected) and every plugin / MCP server called (calls, ~tokens of results) | Claude Code: `attributionSkill`, the `Skill` tool and the injected skill body; MCP tool names and result sizes. Codex: `SKILL.md` reads and `McpToolCall` items |
+| **Subagents** | Knights are always main sessions; subagents are pawns (archers for ultra-mode workflow squads), drawn smaller in the parent's color with a dimmer italic name and a `SUBAGENT · role` badge, while the parent wears a `⚑ N` badge. They nest in the party bar, and the parent's *Delegation* section shows the context processed by the subagents vs. what they returned | Claude Code: transcript location + `meta.json`. Codex: `parent_thread_id` in the rollout header |
+| **Fleet view & export** | The `✦` button in the top bar opens *Skills & Plugins*: fleet-wide skill and plugin tables, every agent's context, and *Export for AI review* (Markdown or JSON). Each hero's panel has the same export for one session | Aggregated client-side from the same data |
+
+The export is meant to be pasted into another AI session (outside Agent Quest) so it can review how an agent spent its context: it contains the session facts, context and token figures, activity breakdown, skills, plugins, delegation, the last message and a list of review questions. Prompt text and file paths are included.
+
+Token figures marked `~` are estimates (characters ÷ 4). Claude Code never writes the context
+window size to its logs, so Agent Quest reads the `model` configured in your `settings.json`
+(a `[1m]` suffix means the 1M window), infers 1M once a session exceeds 200k tokens, and
+otherwise assumes 200k. Override it with `AGENT_QUEST_CLAUDE_CONTEXT_WINDOW=<tokens>` when
+starting the server. Context bars and the context alert can be toggled in
+Settings.
+
 ## Troubleshooting
 
 **`bun: command not found`** — install Bun first, then re-run the Quick start:
@@ -153,6 +198,8 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 **Assets look broken or the app blocks at boot with "missing asset" screens** — see [Missing assets](#missing-assets).
 
 ## Configuration
+
+- `AGENT_QUEST_CLAUDE_CONTEXT_WINDOW` — force the Claude context window size in tokens (e.g. `1000000`) when the `[1m]` hint in `settings.json` doesn't apply to your setup. Codex reports its own window and ignores this.
 
 Defaults work out of the box. To customize ports or URLs, copy the example env files:
 

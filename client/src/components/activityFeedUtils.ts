@@ -57,7 +57,7 @@ export function resolvePath(detail: string, cwd: string | undefined): string | n
   return `${base}/${detail}`;
 }
 
-export type ActionFilter = 'errors' | 'edits' | 'bash' | 'reads' | 'messages' | 'agent' | 'other';
+export type ActionFilter = 'errors' | 'edits' | 'bash' | 'reads' | 'messages' | 'agent' | 'skills' | 'other';
 
 const READ_ACTIONS = new Set(['Read', 'Grep', 'Glob']);
 const EDIT_ACTIONS = new Set(['Edit', 'Write', 'NotebookEdit']);
@@ -70,6 +70,7 @@ export function categorizeEntry(action: string, detail: string): ActionFilter {
   if (READ_ACTIONS.has(action)) return 'reads';
   if (MESSAGE_ACTIONS.has(action)) return 'messages';
   if (action === 'Agent') return 'agent';
+  if (action === 'Skill') return 'skills';
   return 'other';
 }
 
@@ -89,7 +90,7 @@ export interface DetectedCategories {
 
 export function detectCategories(log: ActivityLogEntry[]): DetectedCategories {
   const counts: Record<ActionFilter, number> = {
-    errors: 0, edits: 0, bash: 0, reads: 0, messages: 0, agent: 0, other: 0,
+    errors: 0, edits: 0, bash: 0, reads: 0, messages: 0, agent: 0, skills: 0, other: 0,
   };
   for (const entry of log) {
     counts[categorizeEntry(entry.action, entry.detail)]++;

@@ -1,0 +1,48 @@
+.ctx-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: 'Fira Code', ui-monospace, monospace;
+}
+.ctx-meter-track {
+  flex: 1;
+  min-width: 24px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ctx-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+.ctx-meter-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.ctx-meter--full { width: 100%; }
+.ctx-meter--mini .ctx-meter-track { height: 4px; border-width: 0; background: rgba(255, 255, 255, 0.1); }
+.ctx-meter--mini .ctx-meter-pct { font-size: 9.5px; }
+.ctx-meter--micro { width: 100%; }
+.ctx-meter--micro .ctx-meter-track { height: 3px; border-width: 0; background: rgba(255, 255, 255, 0.1); }
+
+/* Critical occupancy pulses, like the bar above the hero on the map. */
+.ctx-meter.ctx-level-critical .ctx-meter-fill,
+.ctx-meter.ctx-level-critical .ctx-meter-pct {
+  animation: ctx-meter-pulse 1s ease-in-out infinite;
+}
+@keyframes ctx-meter-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ctx-meter.ctx-level-critical .ctx-meter-fill,
+  .ctx-meter.ctx-level-critical .ctx-meter-pct { animation: none; }
+}

@@ -53,3 +53,19 @@ describe('mergeSettings', () => {
     expect(mergeSettings(DEFAULT_SETTINGS, { volume: -1 }).volume).toBe(0);
   });
 });
+
+describe('context display settings', () => {
+  it('default to showing context bars and context alerts', () => {
+    expect(DEFAULT_SETTINGS.showContextBars).toBe(true);
+    expect(DEFAULT_SETTINGS.notifyContext).toBe(true);
+  });
+
+  it('parses explicit false values and falls back to defaults when missing or invalid', () => {
+    const parsed = parseSettings(JSON.stringify({ showContextBars: false, notifyContext: 'nope' }));
+    expect(parsed.showContextBars).toBe(false);
+    expect(parsed.notifyContext).toBe(true);
+    const legacy = parseSettings(JSON.stringify({ v: 1, notificationsEnabled: true, showSubagentLinks: false }));
+    expect(legacy.showContextBars).toBe(true);
+    expect('showSubagentLinks' in legacy).toBe(false);
+  });
+});

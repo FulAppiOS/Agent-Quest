@@ -1,0 +1,130 @@
+.skills-modal { width: min(760px, 94vw); }
+
+.skills-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+.skills-scope { display: inline-flex; gap: 4px; }
+.skills-scope-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  color: #D6CBB0;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.skills-scope-btn.on {
+  background: rgba(196, 163, 90, 0.25);
+  border-color: #C4A35A;
+  color: #F5E6C8;
+}
+.skills-export { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.skills-export-label { font-size: 11px; color: #9a937e; margin-right: 2px; }
+
+.skills-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.skills-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(196, 163, 90, 0.18);
+  border-radius: 4px;
+  min-width: 0;
+}
+.skills-tile-v { font-size: 16px; font-weight: 700; color: #F5E6C8; white-space: nowrap; }
+.skills-tile-k { font-size: 9.5px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
+.skills-inventory { margin: 0 0 6px; line-height: 1.5; }
+
+.skills-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: #D6CBB0;
+  margin-bottom: 6px;
+}
+.skills-table th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #9a937e;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.25);
+}
+.skills-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skills-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.skills-table .muted, .skills-agent .muted { color: #9a937e; }
+
+.skills-agents { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.skills-agent {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(90px, 0.8fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.skills-agent.is-sub { background: rgba(255, 255, 255, 0.015); margin-left: 14px; }
+.skills-agent-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.skills-agent-main:hover .skills-agent-name { text-decoration: underline; }
+.skills-agent-name { font-weight: 700; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skills-agent.is-sub .skills-agent-name { font-style: italic; font-weight: 600; }
+.skills-agent-parent { font-size: 10.5px; color: #9a937e; white-space: nowrap; }
+.skills-agent-status { font-size: 10px; color: #9a937e; white-space: nowrap; }
+.skills-agent-status.status-active { color: #7ED9A0; }
+.skills-agent-status.status-waiting { color: #FFD700; }
+.skills-agent-ctx { min-width: 0; }
+.skills-agent-meta { display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-size: 10.5px; min-width: 0; flex-wrap: wrap; }
+.skills-chip {
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #7BD4C5;
+  background: rgba(123, 212, 197, 0.12);
+  border: 1px solid rgba(123, 212, 197, 0.45);
+  border-radius: 3px;
+  padding: 1px 6px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .skills-tiles { grid-template-columns: repeat(2, 1fr); }
+  .skills-agent { grid-template-columns: 1fr; gap: 4px; }
+  .skills-agent-meta { justify-content: flex-start; }
+}

@@ -1,0 +1,118 @@
+.ctx-stat { position: relative; }
+
+.ctx-stat-pct { font-variant-numeric: tabular-nums; }
+.ctx-stat-name {
+  margin-left: 6px;
+  font-weight: 500;
+  opacity: 0.85;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+.ctx-stat-count {
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.ctx-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(340px, calc(100vw - 16px));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(26, 26, 46, 0.97);
+  border: 1px solid rgba(196, 163, 90, 0.45);
+  border-radius: 6px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+  z-index: 60;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  overflow: hidden;
+}
+.ctx-dropdown-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.25);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #C4A35A;
+  flex-shrink: 0;
+}
+.ctx-dropdown-sub { font-family: 'Fira Code', ui-monospace, monospace; font-size: 10px; font-weight: 400; color: #9a937e; }
+
+.ctx-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 163, 90, 0.4) transparent;
+}
+.ctx-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  color: #F5E6C8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ctx-item:hover { background: rgba(91, 163, 245, 0.1); }
+.ctx-item:focus-visible { outline: 2px solid #C4A35A; outline-offset: -2px; }
+.ctx-item.ctx-warn     { border-left-color: #FFD27A; }
+.ctx-item.ctx-hot      { border-left-color: #FF9F4A; }
+.ctx-item.ctx-critical { border-left-color: #FF6B6B; }
+.ctx-item.status-idle { opacity: 0.7; }
+
+.ctx-item-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ctx-item-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.ctx-item-model {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 0 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.ctx-item-status { font-size: 10px; color: #9a937e; flex-shrink: 0; }
+.ctx-item-status.status-active { color: #7ED9A0; }
+.ctx-item-status.status-waiting { color: #FFD700; }
+.ctx-item-meter { display: block; }
+/* `.ctx-meter` is inline-flex and the mini size sets no width: stretch it to the row. */
+.ctx-item-meter > .ctx-meter { display: flex; width: 100%; }
+.ctx-item-detail { font-size: 10.5px; color: #9FB7D4; font-variant-numeric: tabular-nums; }
+.ctx-item-compact { color: #FFD27A; }
+
+/* Narrow desktop windows: the name would push the right-aligned stats under the logo. */
+@media (max-width: 1200px) {
+  .ctx-stat-name { display: none; }
+}
+
+/* Mobile drawer: `.topbar-tools` is transformed, so `fixed` would resolve against it.
+   Anchor the list under the Ctx row instead and let it span the drawer width. */
+@media (max-width: 640px) {
+  .ctx-dropdown { top: calc(100% + 4px); left: 0; right: 0; width: auto; max-height: 50vh; }
+  .ctx-stat-name { display: inline-block; max-width: 160px; }
+}

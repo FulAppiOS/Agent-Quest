@@ -23,6 +23,7 @@ const PILL_ORDER: { id: ActionFilter; label: string }[] = [
   { id: 'bash',     label: 'Bash'     },
   { id: 'reads',    label: 'Reads'    },
   { id: 'agent',    label: 'Agent'    },
+  { id: 'skills',   label: 'Skills'   },
   { id: 'other',    label: 'Other'    },
 ];
 

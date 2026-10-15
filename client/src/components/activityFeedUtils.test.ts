@@ -263,3 +263,19 @@ describe('detectCategories', () => {
     expect(counts.other).toBe(2);
   });
 });
+
+describe('skill rows', () => {
+  it('categorizes Skill actions as skills', () => {
+    expect(categorizeEntry('Skill', 'superpowers:brainstorming')).toBe('skills');
+    expect(categorizeEntry('Compact', 'context compacted (#1)')).toBe('other');
+  });
+
+  it('counts skills in detectCategories', () => {
+    const { categories, counts } = detectCategories([
+      { agentId: 'a', action: 'Skill', detail: 'pdf', timestamp: 1 },
+      { agentId: 'a', action: 'Read', detail: '/x.ts', timestamp: 2 },
+    ]);
+    expect(categories.has('skills')).toBe(true);
+    expect(counts.skills).toBe(1);
+  });
+});

@@ -417,15 +417,15 @@ describe('AgentStateManager', () => {
     expect(mgr.getAgent('sess-1')!.status).toBe('idle');
   });
 
-  test('assigns hero classes and colors cyclically', () => {
+  test('assigns colors cyclically and the knight class to every main agent', () => {
     const mgr = new AgentStateManager();
     const r1 = mgr.processEvent(makeEvent({ sessionId: 'sess-1' }));
     const r2 = mgr.processEvent(makeEvent({ sessionId: 'sess-2', slug: 'another-slug' }));
     const r3 = mgr.processEvent(makeEvent({ sessionId: 'sess-3', slug: 'third-slug' }));
 
     expect(r1!.agent.heroClass).toBe('warrior');
-    expect(r2!.agent.heroClass).toBe('archer');
-    expect(r3!.agent.heroClass).toBe('pawn');
+    expect(r2!.agent.heroClass).toBe('warrior');
+    expect(r3!.agent.heroClass).toBe('warrior');
 
     expect(r1!.agent.heroColor).toBe('blue');
     expect(r2!.agent.heroColor).toBe('yellow');
@@ -735,7 +735,7 @@ describe('AgentStateManager', () => {
       kind: 'tool',
       isTurnEnd: false,
     };
-    const res = m.processEvent(ev, '/home/x/.codex', 'codex');
+    const res = m.processEvent(ev, { configDir: '/home/x/.codex', source: 'codex' });
     expect(res).not.toBeNull();
     expect(res!.agent.source).toBe('codex');
     expect(res!.agent.status).toBe('active');  // NOT completed despite oracle saying "not live"
@@ -892,5 +892,314 @@ describe('AgentStateManager', () => {
       expect(mgr.markTurnEnd('sess-1')).toBe(false);
       expect(mgr.getAgent('sess-1')!.status).toBe('completed');
     });
+  });
+});
+
+describe('AgentStateManager telemetry (context, skills, plugins, subagent linkage)', () => {
+  const T0 = Date.now();
+
+  function asst(over: Partial<ParsedEvent> = {}): ParsedEvent {
+    return makeEvent({ timestamp: T0, kind: 'tool', isTurnEnd: false, ...over });
+  }
+
+  function telem(over: Partial<ParsedEvent> = {}): ParsedEvent {
+    return {
+      sessionId: 'sess-1', slug: undefined, timestamp: T0, activity: 'idle', toolCalls: [],
+      file: undefined, command: undefined, cwd: '/project', kind: 'telemetry', ...over,
+    };
+  }
+
+  const usage = (used: number, output = 500) => ({ input: 10, output, cacheRead: used - 10 - output, cacheWrite: 0 });
+
+  test('derives context usage from Claude usage with the 200k default window', () => {
+    const mgr = new AgentStateManager();
+    const r = mgr.processEvent(asst({
+      usage: { input: 10, output: 500, cacheRead: 40_000, cacheWrite: 2_000 }, usageMessageId: 'm1', model: 'claude-opus-4-6',
+    }))!;
+    expect(r.agent.context).toMatchObject({ used: 42_510, peak: 42_510, window: 200_000, windowSource: 'default', compactions: 0 });
+    expect(r.agent.context!.updatedAt).toBe(T0);
+  });
+
+  test('infers the 1M window once usage exceeds 200k, keeps it, and counts a large drop as a compaction', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst({ usage: usage(150_000), usageMessageId: 'm1', model: 'claude-fable-5-1' }));
+    const r2 = mgr.processEvent(asst({ usage: usage(300_000), usageMessageId: 'm2', model: 'claude-fable-5-1', timestamp: T0 + 1 }))!;
+    expect(r2.agent.context).toMatchObject({ used: 300_000, window: 1_000_000, windowSource: 'inferred' });
+    const r3 = mgr.processEvent(asst({ usage: usage(100_000), usageMessageId: 'm3', model: 'claude-fable-5-1', timestamp: T0 + 2 }))!;
+    expect(r3.agent.context).toMatchObject({ used: 100_000, peak: 300_000, window: 1_000_000, windowSource: 'inferred', compactions: 1, lastCompactionAt: T0 + 2 });
+  });
+
+  test('a small step down is not a compaction', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst({ usage: usage(100_000), usageMessageId: 'm1' }));
+    const r = mgr.processEvent(asst({ usage: usage(90_000), usageMessageId: 'm2', timestamp: T0 + 1 }))!;
+    expect(r.agent.context!.compactions).toBe(0);
+  });
+
+  test('uses the [1m] model configured in settings.json as the window hint when it matches the session model', () => {
+    const mgr = new AgentStateManager();
+    const r = mgr.processEvent(asst({ usage: usage(50_000), usageMessageId: 'm1', model: 'claude-fable-5-1' }), { configuredModel: 'claude-fable-5-1[1m]' })!;
+    expect(r.agent.context).toMatchObject({ window: 1_000_000, windowSource: 'configured' });
+
+    const other = new AgentStateManager();
+    const r2 = other.processEvent(asst({ usage: usage(50_000), usageMessageId: 'm1', model: 'claude-sonnet-4' }), { configuredModel: 'claude-opus-4-6[1m]' })!;
+    expect(r2.agent.context).toMatchObject({ window: 200_000, windowSource: 'default' });
+  });
+
+  test('a [1m] model id or an explicit override sets the window', () => {
+    const mgr = new AgentStateManager();
+    const r = mgr.processEvent(asst({ usage: usage(50_000), usageMessageId: 'm1', model: 'claude-opus-5[1m]' }))!;
+    expect(r.agent.context).toMatchObject({ window: 1_000_000, windowSource: 'configured' });
+
+    const forced = new AgentStateManager({ claudeContextWindowOverride: '500000' });
+    const r2 = forced.processEvent(asst({ usage: usage(50_000), usageMessageId: 'm1', model: 'claude-opus-4-6' }))!;
+    expect(r2.agent.context).toMatchObject({ window: 500_000, windowSource: 'configured' });
+  });
+
+  test('explicit compaction markers increment the counter without touching activity, status or lastEvent', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst({ usage: usage(50_000), usageMessageId: 'm1' }));
+    const r = mgr.processEvent(telem({ isCompaction: true, timestamp: T0 + 1000 }));
+    expect(r).not.toBeNull();
+    expect(r!.agent.context).toMatchObject({ compactions: 1, lastCompactionAt: T0 + 1000, used: 50_000 });
+    expect(r!.agent.lastEvent).toBe(T0);
+    expect(r!.agent.currentActivity).toBe('reading');
+    expect(r!.agent.status).toBe('active');
+  });
+
+  test('telemetry for an unknown agent is ignored', () => {
+    const mgr = new AgentStateManager();
+    expect(mgr.processEvent(telem({ contextSample: { used: 10, window: 100 } }))).toBeNull();
+    expect(mgr.getAll()).toHaveLength(0);
+  });
+
+  test('Codex context samples carry the reported window', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(makeEvent({ kind: 'task', currentTask: 'audit', toolCalls: [], activity: 'thinking' }), { source: 'codex', configDir: '/home/x/.codex' });
+    const r = mgr.processEvent(telem({ contextSample: { used: 214_503, window: 258_400 } }))!;
+    expect(r.agent.context).toMatchObject({ used: 214_503, peak: 214_503, window: 258_400, windowSource: 'reported' });
+    const r2 = mgr.processEvent(telem({ contextSample: { window: 258_400 } }));
+    expect(r2).toBeNull(); // nothing visible changed
+  });
+
+  test('tracks skill loads: invocation + body size, per-message attribution and the active skill', () => {
+    const mgr = new AgentStateManager();
+    const skillCall = { id: 'tu-skill', name: 'Skill', timestamp: T0, input: { skill: 'superpowers:brainstorming' } };
+    const r1 = mgr.processEvent(asst({
+      attribution: { skill: 'superpowers:brainstorming', plugin: 'superpowers' },
+      skillInvocations: ['superpowers:brainstorming'],
+      toolCalls: [skillCall], activity: 'thinking', file: undefined,
+      usage: usage(20_000, 500), usageMessageId: 'm1',
+    }))!;
+    expect(r1.agent.activeSkill).toBe('superpowers:brainstorming');
+
+    expect(mgr.processEvent(telem({ toolResults: [{ toolUseId: 'tu-skill', chars: 42 }] }))).toBeNull();
+
+    const r2 = mgr.processEvent(telem({ skillLoad: { path: '/x/plugins/cache/mkt/superpowers/1.0/skills/brainstorming', chars: 17_826 } }))!;
+    expect(r2.agent.skills).toEqual([{
+      name: 'superpowers:brainstorming', plugin: 'superpowers', loads: 1, loadTokens: 4_457,
+      attributedMessages: 1, attributedOutputTokens: 500, firstUsedAt: T0, lastUsedAt: T0,
+    }]);
+
+    // Same API message split over a second JSONL line: attribution is not double counted.
+    mgr.processEvent(asst({ attribution: { skill: 'superpowers:brainstorming', plugin: 'superpowers' }, usage: usage(20_000, 500), usageMessageId: 'm1', toolCalls: [], activity: 'thinking', file: undefined }));
+    expect(mgr.getAgent('sess-1')!.skills[0]!.attributedMessages).toBe(1);
+
+    // Next message without attribution clears the active skill but keeps the history.
+    const r3 = mgr.processEvent(asst({ usage: usage(21_000, 300), usageMessageId: 'm2', timestamp: T0 + 5 }))!;
+    expect(r3.agent.activeSkill).toBeUndefined();
+    expect(r3.agent.skills).toHaveLength(1);
+  });
+
+  test('a skill body without a pending invocation is named from its path', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst());
+    const r = mgr.processEvent(telem({ skillLoad: { path: '/Users/x/.claude/skills/dataviz', chars: 400 } }))!;
+    expect(r.agent.skills[0]).toMatchObject({ name: 'dataviz', loads: 1, loadTokens: 100 });
+    expect(r.agent.skills[0]!.plugin).toBeUndefined();
+  });
+
+  test('Codex skill loads name the skill directly and keep it active until the turn ends', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(makeEvent({ kind: 'task', currentTask: 'go', toolCalls: [], activity: 'thinking' }), { source: 'codex' });
+    const r = mgr.processEvent(asst({
+      skillInvocations: ['pdf'], skillLoad: { name: 'pdf', chars: 800 }, activity: 'reading',
+      toolCalls: [{ id: 'exec-1', name: 'Bash', timestamp: T0, input: { command: 'cat skills/pdf/SKILL.md' } }],
+    }))!;
+    expect(r.agent.activeSkill).toBe('pdf');
+    expect(r.agent.skills[0]).toMatchObject({ name: 'pdf', loads: 1, loadTokens: 200 });
+    const end = mgr.processEvent(asst({ isTurnEnd: true, toolCalls: [], activity: 'idle', file: undefined, timestamp: T0 + 1 }))!;
+    expect(end.agent.activeSkill).toBeUndefined();
+  });
+
+  test('plugin tool calls accumulate calls and result tokens', () => {
+    const mgr = new AgentStateManager();
+    const call = { id: 'tu-mcp', name: 'mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot', timestamp: T0, input: {} };
+    mgr.processEvent(asst({ toolCalls: [call], pluginCalls: [{ name: 'chrome-devtools-mcp', kind: 'plugin', toolUseId: 'tu-mcp' }], activity: 'thinking', file: undefined }));
+    const r = mgr.processEvent(telem({ toolResults: [{ toolUseId: 'tu-mcp', chars: 800 }] }))!;
+    expect(r.agent.plugins).toEqual([{ name: 'chrome-devtools-mcp', kind: 'plugin', calls: 1, resultTokens: 200, lastUsedAt: T0 }]);
+
+    // Codex-style call with the result size already known.
+    const r2 = mgr.processEvent(asst({ pluginCalls: [{ name: 'posthog', kind: 'mcp', toolUseId: 'x', resultChars: 40 }], toolCalls: [], activity: 'bash', file: undefined, timestamp: T0 + 1 }))!;
+    expect(r2.agent.plugins.find((p) => p.name === 'posthog')).toMatchObject({ kind: 'mcp', calls: 1, resultTokens: 10 });
+  });
+
+  test('links a subagent result delivered before the child is discovered', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst({ toolCalls: [{ id: 'toolu_A', name: 'Agent', timestamp: T0, input: { prompt: 'x' } }], activity: 'reviewing', file: undefined }));
+    expect(mgr.processEvent(telem({ toolResults: [{ toolUseId: 'toolu_A', chars: 400 }] }))).toBeNull();
+
+    const child = mgr.processEvent(
+      makeEvent({ sessionId: 'agent-child1' }),
+      { isSubagent: true, parentId: 'sess-1', spawnToolUseId: 'toolu_A', subagentType: 'Explore' },
+    )!;
+    expect(child.agent).toMatchObject({ isSubagent: true, parentId: 'sess-1', subagentType: 'Explore', returnedTokens: 100 });
+  });
+
+  test('links a subagent result delivered after the child exists, including task notifications', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(makeEvent({ sessionId: 'agent-child2' }), { isSubagent: true, parentId: 'sess-1', spawnToolUseId: 'toolu_B' });
+    mgr.processEvent(asst({ toolCalls: [{ id: 'toolu_B', name: 'Agent', timestamp: T0, input: {} }], activity: 'reviewing', file: undefined }));
+    const r = mgr.processEvent(telem({ taskNotification: { toolUseId: 'toolu_B', resultChars: 200 } }))!;
+    expect(r.agent.id).toBe('agent-child2');
+    expect(r.agent.returnedTokens).toBe(50);
+    mgr.processEvent(telem({ toolResults: [{ toolUseId: 'toolu_B', chars: 400 }] }));
+    expect(mgr.getAgent('agent-child2')!.returnedTokens).toBe(150);
+  });
+
+  test('Codex subagents follow the subagent lifecycle even without the agent- prefix', () => {
+    const mgr = new AgentStateManager({ subagentIdleThresholdMs: 1000, subagentCompletedThresholdMs: 60_000 });
+    const r = mgr.processEvent(
+      asst({ sessionId: 'codex-child', isTurnEnd: true, toolCalls: [], activity: 'idle', file: undefined, timestamp: T0 - 1500 }),
+      { source: 'codex', isSubagent: true, parentId: 'codex-parent' },
+    )!;
+    expect(r.agent.isSubagent).toBe(true);
+    expect(r.agent.parentId).toBe('codex-parent');
+    expect(r.agent.status).toBe('idle');
+  });
+
+  test('Codex turn_context model telemetry updates the model once', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(makeEvent({ kind: 'task', currentTask: 'go', toolCalls: [], activity: 'thinking' }), { source: 'codex' });
+    const r = mgr.processEvent(telem({ model: 'gpt-6-astra' }))!;
+    expect(r.agent.model).toBe('gpt-6-astra');
+    expect(mgr.processEvent(telem({ model: 'gpt-6-astra' }))).toBeNull();
+  });
+});
+
+describe('AgentStateManager review fixes', () => {
+  const T0 = Date.now();
+  function asst(over: Partial<ParsedEvent> = {}): ParsedEvent {
+    return makeEvent({ timestamp: T0, kind: 'tool', isTurnEnd: false, ...over });
+  }
+  function telem(over: Partial<ParsedEvent> = {}): ParsedEvent {
+    return {
+      sessionId: 'sess-1', slug: undefined, timestamp: T0, activity: 'idle', toolCalls: [],
+      file: undefined, command: undefined, cwd: '/project', kind: 'telemetry', ...over,
+    };
+  }
+  const usage = (used: number, output = 500) => ({ input: 10, output, cacheRead: used - 10 - output, cacheWrite: 0 });
+
+  test('one real compaction (marker, zero sample, second marker, small sample) counts once and the bar never shows 0', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(makeEvent({ kind: 'task', currentTask: 'go', toolCalls: [], activity: 'thinking' }), { source: 'codex' });
+    mgr.processEvent(telem({ contextSample: { used: 235_492, window: 258_400 } }));
+    const m1 = mgr.processEvent(telem({ isCompaction: true, timestamp: T0 + 1 }));
+    expect(m1).not.toBeNull();
+    expect(mgr.processEvent(telem({ contextSample: { window: 258_400 }, timestamp: T0 + 2 }))).toBeNull();
+    expect(mgr.processEvent(telem({ isCompaction: true, timestamp: T0 + 3 }))).toBeNull();
+    const after = mgr.processEvent(telem({ contextSample: { used: 33_625, window: 258_400 }, timestamp: T0 + 4 }))!;
+    expect(after.agent.context).toMatchObject({ used: 33_625, peak: 235_492, compactions: 1, lastCompactionAt: T0 + 1 });
+    // The episode is over: a later genuine drop counts again.
+    mgr.processEvent(telem({ contextSample: { used: 200_000, window: 258_400 }, timestamp: T0 + 5 }));
+    const second = mgr.processEvent(telem({ contextSample: { used: 40_000, window: 258_400 }, timestamp: T0 + 6 }))!;
+    expect(second.agent.context!.compactions).toBe(2);
+  });
+
+  test('a Claude compaction marker followed by the post-compaction usage counts once', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst({ usage: usage(150_000), usageMessageId: 'm1' }));
+    mgr.processEvent(telem({ isCompaction: true, timestamp: T0 + 1 }));
+    mgr.processEvent(telem({ isCompaction: true, timestamp: T0 + 2 })); // isCompactSummary line
+    const r = mgr.processEvent(asst({ usage: usage(30_000), usageMessageId: 'm2', timestamp: T0 + 3 }))!;
+    expect(r.agent.context).toMatchObject({ used: 30_000, compactions: 1 });
+  });
+
+  test('model and window telemetry that precede the first real event are applied when the agent is created', () => {
+    const mgr = new AgentStateManager();
+    expect(mgr.processEvent(telem({ contextSample: { window: 258_400 } }))).toBeNull();
+    expect(mgr.processEvent(telem({ model: 'gpt-6-astra' }))).toBeNull();
+    const r = mgr.processEvent(makeEvent({ kind: 'task', currentTask: 'go', toolCalls: [], activity: 'thinking' }), { source: 'codex' })!;
+    expect(r.agent.model).toBe('gpt-6-astra');
+    expect(r.agent.context).toMatchObject({ window: 258_400, windowSource: 'reported', used: 0 });
+  });
+
+  test('a background subagent task-notification replaces the launch acknowledgement credit', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(makeEvent({ sessionId: 'agent-bg' }), { isSubagent: true, parentId: 'sess-1', spawnToolUseId: 'toolu_C' });
+    mgr.processEvent(asst({ toolCalls: [{ id: 'toolu_C', name: 'Agent', timestamp: T0, input: {} }], activity: 'reviewing', file: undefined }));
+    mgr.processEvent(telem({ toolResults: [{ toolUseId: 'toolu_C', chars: 1_088 }] })); // "async_launched" ack
+    expect(mgr.getAgent('agent-bg')!.returnedTokens).toBe(272);
+    mgr.processEvent(telem({ taskNotification: { toolUseId: 'toolu_C', resultChars: 594 } }));
+    expect(mgr.getAgent('agent-bg')!.returnedTokens).toBe(149);
+  });
+
+  test('a skill body is matched to the pending invocation whose name ends with the path basename, not blindly FIFO', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst({
+      skillInvocations: ['superpowers:brainstorming', 'dataviz'], toolCalls: [], activity: 'thinking', file: undefined,
+    }));
+    const r = mgr.processEvent(telem({ skillLoad: { path: '/Users/x/.claude/skills/dataviz', chars: 400 } }))!;
+    expect(r.agent.skills.find((s) => s.name === 'dataviz')).toMatchObject({ loads: 1, loadTokens: 100 });
+    expect(r.agent.skills.find((s) => s.name === 'superpowers:brainstorming')).toMatchObject({ loads: 0 });
+    const r2 = mgr.processEvent(telem({ skillLoad: { path: '/x/plugins/cache/mkt/superpowers/1.0/skills/brainstorming', chars: 800 }, timestamp: T0 + 1 }))!;
+    expect(r2.agent.skills.find((s) => s.name === 'superpowers:brainstorming')).toMatchObject({ loads: 1, loadTokens: 200 });
+  });
+
+  test('synthetic assistant lines never overwrite the model or the context', () => {
+    const mgr = new AgentStateManager();
+    mgr.processEvent(asst({ usage: usage(50_000), usageMessageId: 'm1', model: 'claude-opus-4-6' }));
+    const r = mgr.processEvent(asst({ model: '<synthetic>', toolCalls: [], activity: 'thinking', file: undefined, timestamp: T0 + 1 }))!;
+    expect(r.agent.model).toBe('claude-opus-4-6');
+    expect(r.agent.context).toMatchObject({ used: 50_000 });
+    const fresh = new AgentStateManager();
+    const first = fresh.processEvent(asst({ model: '<synthetic>', toolCalls: [], activity: 'thinking', file: undefined }))!;
+    expect(first.agent.model).toBeUndefined();
+  });
+});
+
+describe('hero class and color by role', () => {
+  const T0 = Date.now();
+  const ev = (sessionId: string): ParsedEvent => makeEvent({ sessionId, timestamp: T0, slug: undefined, cwd: `/p/${sessionId}` });
+
+  test('main agents are always knights (warrior) while colors keep rotating', () => {
+    const mgr = new AgentStateManager();
+    const a = mgr.processEvent(ev('main-1'))!.agent;
+    const b = mgr.processEvent(ev('main-2'))!.agent;
+    const c = mgr.processEvent(ev('main-3'))!.agent;
+    expect([a.heroClass, b.heroClass, c.heroClass]).toEqual(['warrior', 'warrior', 'warrior']);
+    expect(new Set([a.heroColor, b.heroColor, c.heroColor]).size).toBe(3);
+  });
+
+  test('subagents are pawns, workflow agents are archers, and both inherit the parent color', () => {
+    const mgr = new AgentStateManager();
+    const parent = mgr.processEvent(ev('main-1'))!.agent;
+    const task = mgr.processEvent(ev('agent-aaaaaaaaaaaaaaaa'), { isSubagent: true, parentId: 'main-1' })!.agent;
+    const wf = mgr.processEvent(ev('agent-bbbbbbbbbbbbbbbb'), { isSubagent: true, parentId: 'main-1', isWorkflow: true })!.agent;
+    const codex = mgr.processEvent(ev('codex-child'), { source: 'codex', isSubagent: true, parentId: 'main-1' })!.agent;
+    expect(task.heroClass).toBe('pawn');
+    expect(wf.heroClass).toBe('archer');
+    expect(codex.heroClass).toBe('pawn');
+    expect([task.heroColor, wf.heroColor, codex.heroColor]).toEqual([parent.heroColor, parent.heroColor, parent.heroColor]);
+  });
+
+  test('a subagent discovered before its parent is recolored when the parent appears', () => {
+    const mgr = new AgentStateManager();
+    const child = mgr.processEvent(ev('agent-cccccccccccccccc'), { isSubagent: true, parentId: 'main-9' })!.agent;
+    expect(child.heroClass).toBe('pawn');
+    const r = mgr.processEvent(ev('main-9'))!;
+    expect(r.agent.heroClass).toBe('warrior');
+    expect(mgr.getAgent('agent-cccccccccccccccc')!.heroColor).toBe(r.agent.heroColor);
+    expect(r.alsoChanged?.map((a) => a.id)).toEqual(['agent-cccccccccccccccc']);
   });
 });

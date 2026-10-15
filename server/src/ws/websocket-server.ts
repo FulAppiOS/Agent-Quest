@@ -1,5 +1,5 @@
 import type { ServerWebSocket } from 'bun';
-import type { WsEvent, AgentState } from '../types';
+import type { WsEvent, AgentState, AgentSource, SkillInventory } from '../types';
 
 export type WsClient = ServerWebSocket<{ id: string }>;
 
@@ -16,8 +16,13 @@ export class WebSocketServer {
     console.log(`[WS] client disconnected (total: ${this.clients.size})`);
   }
 
-  sendSnapshot(ws: WsClient, agents: AgentState[], configDirs: readonly string[]): void {
-    const event: WsEvent = { type: 'snapshot', agents, configDirs: [...configDirs] };
+  sendSnapshot(
+    ws: WsClient,
+    agents: AgentState[],
+    configDirs: readonly string[],
+    skillInventory?: Partial<Record<AgentSource, SkillInventory>>,
+  ): void {
+    const event: WsEvent = { type: 'snapshot', agents, configDirs: [...configDirs], skillInventory };
     ws.send(JSON.stringify(event));
   }
 

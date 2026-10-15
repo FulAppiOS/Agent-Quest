@@ -37,6 +37,8 @@ function firstSentenceFallback(prompt: string): string | undefined {
 interface SubagentMeta {
   description?: string;
   agentType?: string;
+  /** The parent's `Agent` tool_use id that spawned this subagent. */
+  toolUseId?: string;
 }
 
 /**
@@ -49,14 +51,15 @@ async function readSubagentMeta(filePath: string): Promise<SubagentMeta> {
   const metaFile = Bun.file(filePath.replace(/\.jsonl$/, '.meta.json'));
   try {
     if (!(await metaFile.exists())) return {};
-    const meta = (await metaFile.json()) as { description?: unknown; agentType?: unknown };
+    const meta = (await metaFile.json()) as { description?: unknown; agentType?: unknown; toolUseId?: unknown };
     const description = typeof meta.description === 'string' && meta.description.length > 0
       ? meta.description
       : undefined;
     const agentType = typeof meta.agentType === 'string' && meta.agentType.length > 0 && meta.agentType !== 'workflow-subagent'
       ? meta.agentType
       : undefined;
-    return { description, agentType };
+    const toolUseId = typeof meta.toolUseId === 'string' && meta.toolUseId.length > 0 ? meta.toolUseId : undefined;
+    return { description, agentType, toolUseId };
   } catch {
     return {};
   }
@@ -99,10 +102,25 @@ function matchAgentLabel(parentText: string, targetPrompt: string): string | und
   return undefined;
 }
 
+/** What the transcript location and sibling meta.json tell us about a subagent. */
+export interface SubagentInfo {
+  /** Human-readable label (see `resolveSubagentLabel` for the tiers). */
+  label?: string;
+  /** Session id of the parent agent, derived from the directory layout. */
+  parentId?: string;
+  /** Role from meta.json (`Explore`, `general-purpose`, …); undefined for the generic workflow value. */
+  agentType?: string;
+  /** The parent's `Agent` tool_use id that spawned this subagent, when meta.json records it. */
+  toolUseId?: string;
+  /** True for ultra-mode Workflow agents nested under `subagents/workflows/wf_<runId>/`. */
+  isWorkflow: boolean;
+}
+
 /**
  * Given a subagent JSONL path (`.../<parentSessionId>/subagents/agent-*.jsonl`,
  * or the ultra-mode variant `.../<parentSessionId>/subagents/workflows/wf_<runId>/agent-*.jsonl`),
- * return a human-readable label. Tiers, best first:
+ * return the parent session id plus the meta.json facts and a human-readable
+ * label. Label tiers, best first:
  *
  * 1. `description` from the sibling `agent-*.meta.json`
  * 2. the parent's matching `Agent` tool_use (description / subagent_type)
@@ -111,26 +129,29 @@ function matchAgentLabel(parentText: string, targetPrompt: string): string | und
  *    the Workflow script rather than in the parent transcript
  * 4. the first sentence of the subagent prompt
  *
- * Returns `undefined` for non-subagent paths or when nothing usable is available.
+ * Returns `undefined` for non-subagent paths.
  */
-export async function resolveSubagentLabel(filePath: string): Promise<string | undefined> {
+export async function resolveSubagentInfo(filePath: string): Promise<SubagentInfo | undefined> {
   let subagentsDir = dirname(filePath);
+  let isWorkflow = false;
   // Workflow runs nest two levels deeper: subagents/workflows/wf_<runId>/
   if (basename(dirname(subagentsDir)) === 'workflows') {
     subagentsDir = dirname(dirname(subagentsDir));
+    isWorkflow = true;
   }
   if (basename(subagentsDir) !== 'subagents') return undefined;
 
-  const meta = await readSubagentMeta(filePath);
-  if (meta.description !== undefined) return truncate(meta.description);
-
   const parentSessionDir = dirname(subagentsDir);
   const projectDir = dirname(parentSessionDir);
-  const parentSessionId = basename(parentSessionDir);
-  const parentPath = join(projectDir, `${parentSessionId}.jsonl`);
+  const parentId = basename(parentSessionDir);
+  const parentPath = join(projectDir, `${parentId}.jsonl`);
+
+  const meta = await readSubagentMeta(filePath);
+  const base: SubagentInfo = { parentId, agentType: meta.agentType, toolUseId: meta.toolUseId, isWorkflow };
+  if (meta.description !== undefined) return { ...base, label: truncate(meta.description) };
 
   const childFile = Bun.file(filePath);
-  if (!(await childFile.exists())) return undefined;
+  if (!(await childFile.exists())) return base;
   const childText = await childFile.text();
   const prompt = readFirstLineContent(childText);
 
@@ -139,13 +160,19 @@ export async function resolveSubagentLabel(filePath: string): Promise<string | u
     if (await parentFile.exists()) {
       const parentText = await parentFile.text();
       const matched = matchAgentLabel(parentText, prompt);
-      if (matched !== undefined) return matched;
+      if (matched !== undefined) return { ...base, label: matched };
     }
   }
 
   const sentence = prompt !== undefined ? firstSentenceFallback(prompt) : undefined;
   if (meta.agentType !== undefined) {
-    return truncate(sentence !== undefined ? `${meta.agentType}: ${sentence}` : meta.agentType);
+    return { ...base, label: truncate(sentence !== undefined ? `${meta.agentType}: ${sentence}` : meta.agentType) };
   }
-  return sentence;
+  return { ...base, label: sentence };
+}
+
+/** Label-only convenience over `resolveSubagentInfo`. */
+export async function resolveSubagentLabel(filePath: string): Promise<string | undefined> {
+  const info = await resolveSubagentInfo(filePath);
+  return info?.label;
 }

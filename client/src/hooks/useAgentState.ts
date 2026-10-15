@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { AgentState, WsEvent, ActivityLogEntry } from '../types/agent';
+import type { AgentState, AgentSource, WsEvent, ActivityLogEntry, SkillInventory } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
 import { WS_URL } from '../config';
 
@@ -14,6 +14,8 @@ export interface AgentStateHook {
    * we haven't received a snapshot yet (still connecting); an empty array
    * means the server found neither ~/.claude* nor ~/.codex install on disk. */
   configDirs: string[] | null;
+  /** Skills installed on disk per provider, from the last snapshot (older servers send none). */
+  skillInventory: Partial<Record<AgentSource, SkillInventory>>;
 }
 
 export function useAgentState(): AgentStateHook {
@@ -21,6 +23,7 @@ export function useAgentState(): AgentStateHook {
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const [connected, setConnected] = useState(false);
   const [configDirs, setConfigDirs] = useState<string[] | null>(null);
+  const [skillInventory, setSkillInventory] = useState<Partial<Record<AgentSource, SkillInventory>>>({});
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -29,6 +32,7 @@ export function useAgentState(): AgentStateHook {
       case 'snapshot':
         setAgents(event.agents);
         setConfigDirs(event.configDirs);
+        setSkillInventory(event.skillInventory ?? {});
         break;
 
       case 'agent:new':
@@ -109,5 +113,5 @@ export function useAgentState(): AgentStateHook {
     };
   }, [connect]);
 
-  return { agents, activityLog, connected, configDirs };
+  return { agents, activityLog, connected, configDirs, skillInventory };
 }

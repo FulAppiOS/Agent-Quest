@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
+import { ContextMeter } from './ContextMeter';
+import { buildPartyTree } from './partyTree';
 import { usePartyPrefs } from '../hooks/usePartyPrefs';
-import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, type AgentState } from '../types/agent';
+import {
+  HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, isSubagentAgent, skillShortName,
+  type AgentState, type HeroColor,
+} from '../types/agent';
 import './PartyBar.css';
 
 interface PartyBarProps {
@@ -12,15 +17,8 @@ interface PartyBarProps {
 }
 
 const AVATAR_SIZE = 66;
+const CHILD_AVATAR_SIZE = 48;
 const FLASH_DURATION_MS = 400;
-
-const STATUS_ORDER: Record<AgentState['status'], number> = {
-  active: 0,
-  waiting: 1,
-  idle: 2,
-  error: 3,
-  completed: 4,
-};
 
 interface PartyRowProps {
   agent: AgentState;
@@ -28,9 +26,15 @@ interface PartyRowProps {
   isSelected: boolean;
   onClick: () => void;
   showSourceBadge: boolean;
+  /** Live subagents working for this agent (parent rows only). */
+  childCount?: number;
+  /** Rendered nested under a parent row. */
+  isChild?: boolean;
+  /** Parent's label color, so the role tag reads as part of the family. */
+  parentColor?: HeroColor;
 }
 
-function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRowProps) {
+function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge, childCount = 0, isChild = false, parentColor }: PartyRowProps) {
   const [flashing, setFlashing] = useState(false);
   const prevSelected = useRef(isSelected);
 
@@ -49,10 +53,12 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
     `mode-${mode}`,
     isSelected ? 'selected' : '',
     flashing ? 'flashing' : '',
+    isChild ? 'partybar-agent--child' : '',
   ].filter(Boolean).join(' ');
 
+  const role = isSubagentAgent(agent) ? (agent.subagentType ?? 'subagent') : undefined;
   const title = mode === 'icons'
-    ? `${agent.name} · ${displayActivity(agent)}`
+    ? `${agent.name}${role !== undefined ? ` (${role})` : ''} · ${displayActivity(agent)}`
     : undefined;
 
   return (
@@ -60,13 +66,15 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
       type="button"
       className={classes}
       onClick={onClick}
-      aria-label={`Select ${agent.name}${showSourceBadge ? ` (${agent.source})` : ''}, ${displayActivity(agent)}`}
+      aria-label={`Select ${agent.name}${showSourceBadge ? ` (${agent.source})` : ''}${role !== undefined ? `, ${role} subagent` : ''}, ${displayActivity(agent)}`}
       aria-current={isSelected ? 'true' : undefined}
       title={title}
     >
+      {isChild && <span className="partybar-child-connector" aria-hidden="true">└</span>}
       <span className="partybar-avatar-wrap">
-        <HeroAvatar agent={agent} size={AVATAR_SIZE} />
+        <HeroAvatar agent={agent} size={isChild ? CHILD_AVATAR_SIZE : AVATAR_SIZE} />
         <span className={`partybar-status-overlay ${agent.status}`} aria-hidden="true" />
+        {mode === 'icons' && <span className="partybar-ctx-micro"><ContextMeter context={agent.context} size="micro" /></span>}
       </span>
       {mode === 'full' && (
         <span className="partybar-row-body">
@@ -75,10 +83,29 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
               className="partybar-agent-name"
               style={isSelected ? undefined : { color: HERO_LABEL_COLOR[agent.heroColor] }}
             >{agent.name}</span>
+            {childCount > 0 && (
+              <span className="partybar-child-badge" title={`${childCount} live subagent${childCount === 1 ? '' : 's'}`}>
+                {'⚑'} {childCount}
+              </span>
+            )}
             <span className={`partybar-dot ${agent.status}`} aria-hidden="true" />
           </span>
+          {role !== undefined && (
+            <span
+              className="partybar-role"
+              style={parentColor !== undefined ? { color: HERO_LABEL_COLOR[parentColor] } : undefined}
+              title={agent.subagentType ?? 'subagent'}
+            >
+              {'⚔'} {role}
+            </span>
+          )}
           <span className="partybar-row-bottom">
             <span className={`partybar-activity status-${agent.status}`}>{displayActivity(agent)}</span>
+            {agent.activeSkill !== undefined && (
+              <span className="partybar-skill-chip" title={agent.activeSkill}>
+                {'✦'} {skillShortName(agent.activeSkill)}
+              </span>
+            )}
             {showSourceBadge && (
               <span
                 className="partybar-source-badge"
@@ -111,6 +138,7 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge }: PartyRo
               );
             })()}
           </span>
+          <ContextMeter context={agent.context} size="mini" />
         </span>
       )}
     </button>
@@ -128,7 +156,8 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
   // waiting on the server a finished-turn agent stays 'waiting', and dropping it
   // would make heroes vanish from the party the moment they're done.
   const live = agents.filter((a) => LIVE_STATUSES.has(a.status));
-  const sorted = [...live].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
+  // Subagents nest under their (live) parent; everything else is a root.
+  const tree = buildPartyTree(live);
   const activeCount = live.filter((a) => a.status === 'active').length;
   const waitingCount = live.filter((a) => a.status === 'waiting').length;
   const idleCount = live.filter((a) => a.status === 'idle').length;
@@ -169,15 +198,29 @@ export function PartyBar({ agents, selectedAgentId, onSelectAgent, showSourceBad
       </div>
 
       <div className="partybar-list">
-        {sorted.map((agent) => (
-          <PartyRow
-            key={agent.id}
-            agent={agent}
-            mode={mode}
-            isSelected={agent.id === selectedAgentId}
-            onClick={() => handleClick(agent.id)}
-            showSourceBadge={showSourceBadge}
-          />
+        {tree.map((node) => (
+          <div key={node.agent.id} className="partybar-group">
+            <PartyRow
+              agent={node.agent}
+              mode={mode}
+              isSelected={node.agent.id === selectedAgentId}
+              onClick={() => handleClick(node.agent.id)}
+              showSourceBadge={showSourceBadge}
+              childCount={node.children.length}
+            />
+            {node.children.map((child) => (
+              <PartyRow
+                key={child.id}
+                agent={child}
+                mode={mode}
+                isSelected={child.id === selectedAgentId}
+                onClick={() => handleClick(child.id)}
+                showSourceBadge={showSourceBadge}
+                isChild
+                parentColor={node.agent.heroColor}
+              />
+            ))}
+          </div>
         ))}
       </div>
 

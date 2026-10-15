@@ -8,7 +8,7 @@ import { renderMapConfig } from '../terrain/MapConfigRenderer';
 import { ensureAssetsLoaded } from '../data/asset-loader';
 import { buildRoadNetworkFromPaths, resetRoadNetwork } from '../data/road-network';
 import { NpcSprite } from '../entities/NpcSprite';
-import type { AgentState } from '../../types/agent';
+import { isSubagentAgent, type AgentState } from '../../types/agent';
 import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '../../editor/types/map';
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
@@ -60,6 +60,11 @@ export class VillageScene extends Phaser.Scene {
 
   /** Decorative NPCs placed via the map editor. */
   private editorNpcs: NpcSprite[] = [];
+
+  /** Latest agent state per id — child counts and parent lookups read from here. */
+  private agentsById = new Map<string, AgentState>();
+  private showContextBars = true;
+  private onSettingsUpdated: ((settings: unknown) => void) | null = null;
 
   /** Hero sprite scale — overridden by MapConfig settings if available. */
   /** Hero sprite scale — defaults to the active theme's baseline (0.5 for
@@ -307,6 +312,16 @@ export class VillageScene extends Phaser.Scene {
     };
     eventBridge.on('effect:rain:toggle', this.onRainToggle);
 
+    // Display preferences (context bars) pushed by React.
+    this.onSettingsUpdated = (settings: unknown) => {
+      try { if (!this.sys.isActive()) return; } catch { return; }
+      if (typeof settings !== 'object' || settings === null) return;
+      const s = settings as { showContextBars?: unknown };
+      this.showContextBars = s.showContextBars !== false;
+      for (const hero of this.heroes.values()) hero.setContextBarVisible(this.showContextBars);
+    };
+    eventBridge.on('settings:updated', this.onSettingsUpdated);
+
     // Listen for agent updates from React
     this.onAgentsUpdated = (agents: unknown) => {
       try { if (!this.sys.isActive()) return; } catch { return; }
@@ -372,6 +387,11 @@ export class VillageScene extends Phaser.Scene {
         this.input.off('pointerdown', this.onBackgroundPointerDown);
         this.onBackgroundPointerDown = null;
       }
+      if (this.onSettingsUpdated !== null) {
+        eventBridge.off('settings:updated', this.onSettingsUpdated);
+        this.onSettingsUpdated = null;
+      }
+      this.agentsById.clear();
       this.lightningTimer?.remove();
       this.lightningTimer = null;
       for (const hero of this.heroes.values()) {
@@ -659,6 +679,15 @@ export class VillageScene extends Phaser.Scene {
     const hasCodex = liveAgents.some((a) => a.source === 'codex');
     const showSourceBadge = hasClaude && hasCodex;
 
+    this.agentsById = new Map(agents.map((a) => [a.id, a]));
+    // Live subagents per parent → the parent's `⚑ N` badge.
+    const childCount = new Map<string, number>();
+    for (const a of visible) {
+      if (isSubagentAgent(a) && a.parentId !== undefined) {
+        childCount.set(a.parentId, (childCount.get(a.parentId) ?? 0) + 1);
+      }
+    }
+
     // Remove heroes no longer visible
     for (const [id, hero] of this.heroes) {
       if (!visible.some((a) => a.id === id)) {
@@ -675,8 +704,21 @@ export class VillageScene extends Phaser.Scene {
     const buildingsToReposition = new Set<string>();
 
     for (const agent of visible) {
-      const existing = this.heroes.get(agent.id);
+      let existing = this.heroes.get(agent.id);
       const buildingDef = getBuildingForActivity(agent.currentActivity);
+
+      // Class and color are baked into the sprite sheet. They change only when
+      // a subagent's parent shows up after it (color adoption) — rebuild the
+      // hero in place instead of showing stale art.
+      let spawnAt = this.heroSpawn;
+      if (existing !== undefined && (existing.heroClass !== agent.heroClass || existing.heroColor !== agent.heroColor)) {
+        spawnAt = { x: existing.x, y: existing.y };
+        const oldBuilding = this.removeFromSlot(agent.id);
+        existing.destroy();
+        this.heroes.delete(agent.id);
+        if (oldBuilding !== undefined) buildingsToReposition.add(oldBuilding);
+        existing = undefined;
+      }
 
       if (existing === undefined) {
         // New hero: spawn at configured spawn point then assign to building
@@ -686,9 +728,9 @@ export class VillageScene extends Phaser.Scene {
           agent.name,
           agent.heroClass,
           agent.heroColor,
-          this.heroSpawn.x,
-          this.heroSpawn.y,
-          agent.id.startsWith('agent-'),
+          spawnAt.x,
+          spawnAt.y,
+          isSubagentAgent(agent),
           agent.source,
         );
         hero.setHeroScale(this.heroScale);
@@ -698,6 +740,8 @@ export class VillageScene extends Phaser.Scene {
         hero.updateDetail(agent.currentFile, agent.currentCommand);
         hero.updateTask(agent.currentTask);
         hero.setModel(agent.model);
+        hero.setContextBarVisible(this.showContextBars);
+        this.applyTelemetryVisuals(hero, agent, childCount.get(agent.id) ?? 0);
         this.heroes.set(agent.id, hero);
         hero.setInteractiveForSelection(() => {
           eventBridge.emit('hero:clicked', agent.id);
@@ -711,6 +755,7 @@ export class VillageScene extends Phaser.Scene {
         existing.setStatus(agent.status);
         existing.setErrorTimestamp(agent.lastErrorAt);
         existing.setModel(agent.model);
+        this.applyTelemetryVisuals(existing, agent, childCount.get(agent.id) ?? 0);
 
         const currentBuildingId = this.heroBuildingMap.get(agent.id);
 
@@ -740,5 +785,13 @@ export class VillageScene extends Phaser.Scene {
     for (const buildingId of buildingsToReposition) {
       this.repositionBuilding(buildingId);
     }
+  }
+
+  /** Context bar, skill buff, subagent role tag and child badge — the telemetry layer of a hero. */
+  private applyTelemetryVisuals(hero: HeroSprite, agent: AgentState, liveChildren: number): void {
+    hero.setContext(agent.context);
+    hero.setActiveSkill(agent.activeSkill);
+    if (isSubagentAgent(agent)) hero.setSubagentRole(agent.subagentType);
+    hero.setChildCount(liveChildren);
   }
 }

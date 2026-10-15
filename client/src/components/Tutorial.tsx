@@ -93,6 +93,29 @@ export function Tutorial({ onClose }: TutorialProps) {
           CLI it came from.
         </p>
 
+        <div className="tutorial-section-label">Context, skills & subagents</div>
+        <p className="tutorial-text">
+          The bar above a hero is its <strong>context window</strong>: green is roomy, red
+          (pulsing) means a compaction is near; the <strong>Ctx</strong> stat in the top bar
+          follows the hottest main conversation and opens a list of every live agent's window. A <strong>✦ skill</strong> tag shows which
+          skill the agent is running under; the detail panel lists every skill and plugin used
+          with the tokens they pushed into the context.
+        </p>
+        <p className="tutorial-text">
+          <strong>Knights are your main sessions.</strong> <strong>Subagents</strong> are pawns
+          (archers for ultra-mode workflow squads): smaller, in the parent's color with a dimmer
+          italic name and a <strong>SUBAGENT · role</strong> badge, while the knight that spawned
+          them wears a <strong>⚑ N</strong> badge. They nest under their parent in the Party Bar, and the parent's
+          panel shows how much context the delegation kept out of the main conversation. Context
+          bars can be switched off in Settings.
+        </p>
+        <p className="tutorial-text">
+          The <strong>✦</strong> button in the top bar opens the fleet-wide <strong>Skills &amp; Plugins</strong>{' '}
+          view. From there, or from any hero's panel, <strong>Export</strong> produces a Markdown or JSON
+          report you can hand to another AI to review a session: context budget, tools, skills, plugins
+          and delegation.
+        </p>
+
         <div className="tutorial-section-label">How to use it</div>
         <p className="tutorial-text">
           Heroes appear in real time as you spawn new Claude Code or Codex sessions. Click a

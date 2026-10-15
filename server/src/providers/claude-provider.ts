@@ -1,6 +1,9 @@
 import { FileWatcher } from '../watchers/file-watcher';
 import { parseJsonlLine, parseSessionFile } from '../parsers/session-parser';
-import { resolveSubagentLabel } from '../parsers/subagent-label';
+import { resolveSubagentInfo } from '../parsers/subagent-label';
+import type { SubagentInfo } from '../parsers/subagent-label';
+import { readConfiguredModel } from './claude-settings';
+import { serializeByKey } from './serialize-by-key';
 import type { ParsedEvent } from '../parsers/session-parser';
 import type { AgentSource } from '../types';
 import type { ProviderHandlers, SessionProvider } from './types';
@@ -16,6 +19,12 @@ export class ClaudeProvider implements SessionProvider {
 
   private watcher: FileWatcher | null = null;
   private readonly opts: ClaudeProviderOptions;
+  /** `settings.json` model per config dir, re-read at most once a minute; concurrent callers share one read. */
+  private configuredModels = new Map<string, { value: Promise<string | undefined>; readAt: number }>();
+  /** Deliveries for one transcript (discovery, then every incremental batch) run strictly in order. */
+  private readonly deliver = serializeByKey();
+  /** Subagent facts per transcript path — resolved once, reused for every incremental update. */
+  private subagentInfos = new Map<string, Promise<SubagentInfo | undefined>>();
 
   constructor(opts: ClaudeProviderOptions = {}) {
     this.opts = opts;
@@ -26,22 +35,30 @@ export class ClaudeProvider implements SessionProvider {
       maxAgeMs: this.opts.maxAgeMs,
       claudeDirs: this.opts.claudeDirs,
 
-      onNewSession: async (sessionId, filePath, configDir) => {
-        const contents = await Bun.file(filePath).text();
-        const events = parseSessionFile(contents);
-        const nameOverride = sessionId.startsWith('agent-')
-          ? await resolveSubagentLabel(filePath).catch(() => undefined)
-          : undefined;
-        await handlers.onSessionStart({
-          source: this.source,
-          sessionId,
-          configDir,
-          events,
-          nameOverride,
-        });
+      onNewSession: (sessionId, filePath, configDir) => {
+        void this.deliver(filePath, async () => {
+          const contents = await Bun.file(filePath).text();
+          const events = parseSessionFile(contents);
+          const isSubagent = sessionId.startsWith('agent-');
+          const info = isSubagent ? await this.subagentInfoFor(filePath) : undefined;
+          const configuredModel = await this.configuredModelFor(configDir);
+          await handlers.onSessionStart({
+            source: this.source,
+            sessionId,
+            configDir,
+            events,
+            nameOverride: info?.label,
+            isSubagent,
+            parentId: info?.parentId,
+            subagentType: info?.agentType,
+            isWorkflow: info?.isWorkflow,
+            spawnToolUseId: info?.toolUseId,
+            configuredModel,
+          });
+        }).catch((err) => console.error('[ClaudeProvider] session start failed:', err));
       },
 
-      onSessionUpdate: (sessionId, _filePath, newContent, configDir) => {
+      onSessionUpdate: (sessionId, filePath, newContent, configDir) => {
         const events: ParsedEvent[] = [];
         for (const line of newContent.split('\n')) {
           if (line.trim() === '') continue;
@@ -49,12 +66,24 @@ export class ClaudeProvider implements SessionProvider {
           if (ev !== null) events.push(ev);
         }
         if (events.length === 0) return;
-        handlers.onSessionEvents({
-          source: this.source,
-          sessionId,
-          configDir,
-          events,
-        });
+        const isSubagent = sessionId.startsWith('agent-');
+        void this.deliver(filePath, async () => {
+          const info = isSubagent ? await this.subagentInfoFor(filePath) : undefined;
+          const configuredModel = await this.configuredModelFor(configDir);
+          handlers.onSessionEvents({
+            source: this.source,
+            sessionId,
+            configDir,
+            events,
+            nameOverride: info?.label,
+            isSubagent,
+            parentId: info?.parentId,
+            subagentType: info?.agentType,
+            isWorkflow: info?.isWorkflow,
+            spawnToolUseId: info?.toolUseId,
+            configuredModel,
+          });
+        }).catch((err) => console.error('[ClaudeProvider] session update failed:', err));
       },
     });
 
@@ -70,4 +99,24 @@ export class ClaudeProvider implements SessionProvider {
   getConfigDirs(): readonly string[] {
     return this.watcher?.getConfigDirs() ?? this.opts.claudeDirs ?? [];
   }
+
+  private subagentInfoFor(filePath: string): Promise<SubagentInfo | undefined> {
+    let pending = this.subagentInfos.get(filePath);
+    if (pending === undefined) {
+      pending = resolveSubagentInfo(filePath).catch(() => undefined);
+      this.subagentInfos.set(filePath, pending);
+    }
+    return pending;
+  }
+
+  private configuredModelFor(configDir: string): Promise<string | undefined> {
+    const cached = this.configuredModels.get(configDir);
+    const now = Date.now();
+    if (cached !== undefined && now - cached.readAt < CONFIGURED_MODEL_TTL_MS) return cached.value;
+    const value = readConfiguredModel(configDir);
+    this.configuredModels.set(configDir, { value, readAt: now });
+    return value;
+  }
 }
+
+const CONFIGURED_MODEL_TTL_MS = 60_000;

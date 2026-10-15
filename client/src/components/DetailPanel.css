@@ -465,3 +465,120 @@
   background: rgba(255, 107, 107, 0.14);
   border-color: rgba(255, 107, 107, 0.5);
 }
+
+/* --- Context / skills / delegation --- */
+.detail-row--spaced { margin-top: 8px; }
+.detail-note {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #8f8f8f;
+}
+.detail-value--warn { color: #FFD27A; }
+.detail-value--good { color: #7ED9A0; }
+.detail-class-muted { color: #777; }
+.detail-skill-pill {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7BD4C5;
+  background: rgba(123, 212, 197, 0.12);
+  border: 1px solid rgba(123, 212, 197, 0.45);
+  border-radius: 3px;
+  padding: 1px 7px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-usage-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.detail-usage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  min-width: 0;
+}
+.detail-usage-name {
+  color: #F5E6C8;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-usage-tag {
+  margin-left: 6px;
+  font-size: 9.5px;
+  color: #9a937e;
+  background: rgba(196, 163, 90, 0.12);
+  border-radius: 3px;
+  padding: 0 4px;
+  vertical-align: middle;
+}
+.detail-usage-stat {
+  color: #9FB7D4;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.detail-usage-stat.status-waiting { color: #FFD700; }
+.detail-usage-stat.status-completed { color: #999; }
+.detail-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: #9ec4f5;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-link-btn:hover { text-decoration: underline; }
+.detail-link-btn:focus-visible { outline: 2px solid #C4A35A; outline-offset: 1px; border-radius: 2px; }
+
+/* --- Export buttons on the tab strip --- */
+.detail-export {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 4px;
+}
+.detail-export-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  color: #C4A35A;
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.detail-export-btn:hover { background: rgba(196, 163, 90, 0.15); border-color: rgba(196, 163, 90, 0.6); }
+.detail-export-btn:focus-visible { outline: 2px solid #C4A35A; outline-offset: 1px; }
+
+.detail-sub-badge {
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #B8C4D6;
+  border: 1px solid rgba(184, 196, 214, 0.5);
+  background: rgba(184, 196, 214, 0.12);
+  border-radius: 3px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}

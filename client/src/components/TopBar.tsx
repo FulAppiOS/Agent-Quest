@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AgentState } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
 import { NotificationMenu, type NotificationEntry } from './NotificationMenu';
+import { ContextDropdown } from './ContextDropdown';
 import './TopBar.css';
 
 interface TopBarNotifications {
@@ -29,6 +30,7 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
   const [nightOn, setNightOn] = useState(false);
   const [rainOn, setRainOn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [ctxOpen, setCtxOpen] = useState(false);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   const toggleNight = () => {
@@ -130,6 +132,12 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
               <span className="topbar-stat-label">Total:</span>
               <span className="topbar-stat-value">{agents.length}</span>
             </div>
+            <ContextDropdown
+              agents={agents}
+              open={ctxOpen}
+              onToggle={() => setCtxOpen((v) => !v)}
+              onSelect={(id) => eventBridge.emit('hero:clicked', id)}
+            />
           </div>
 
           <div className="topbar-effects">
@@ -166,6 +174,14 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
             >
               {'\u{1F5FA}\u{FE0F}'}
             </a>
+            <button
+              className="topbar-effect-btn topbar-skills-btn"
+              onClick={() => eventBridge.emit('skills:open')}
+              title="Skills & Plugins — fleet view and AI-review export"
+              aria-label="Skills and plugins"
+            >
+              {'\u2726'}
+            </button>
             <button
               className="topbar-effect-btn"
               onClick={() => eventBridge.emit('settings:open')}

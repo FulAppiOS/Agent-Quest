@@ -16,6 +16,7 @@ const CATEGORY_ICON: Record<ToastPayload['category'], string> = {
   waiting: '\u{1F514}',   // bell
   error: '\u{26A0}\u{FE0F}', // warning
   completed: '\u{2705}',  // check
+  context: '\u{1F9E0}',   // brain — context window nearly full
 };
 
 /**

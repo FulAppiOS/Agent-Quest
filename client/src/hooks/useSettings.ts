@@ -30,6 +30,10 @@ export interface AppSettings {
   notifyError: boolean;
   /** Notify when a (main) agent session completes. */
   notifyCompleted: boolean;
+  /** Notify when a (main) agent's context window passes 85% (re-arms below 70%). */
+  notifyContext: boolean;
+  /** Draw the context-occupancy bar above each hero on the map. */
+  showContextBars: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -41,6 +45,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifyWaiting: true,
   notifyError: true,
   notifyCompleted: false,
+  notifyContext: true,
+  showContextBars: true,
 };
 
 const STORAGE_KEY = 'agentquest:settings';
@@ -73,6 +79,8 @@ export function parseSettings(raw: string | null): AppSettings {
     notifyWaiting: isBool(o.notifyWaiting) ? o.notifyWaiting : DEFAULT_SETTINGS.notifyWaiting,
     notifyError: isBool(o.notifyError) ? o.notifyError : DEFAULT_SETTINGS.notifyError,
     notifyCompleted: isBool(o.notifyCompleted) ? o.notifyCompleted : DEFAULT_SETTINGS.notifyCompleted,
+    notifyContext: isBool(o.notifyContext) ? o.notifyContext : DEFAULT_SETTINGS.notifyContext,
+    showContextBars: isBool(o.showContextBars) ? o.showContextBars : DEFAULT_SETTINGS.showContextBars,
   };
 }
 

@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import type { AgentState } from '../types/agent';
+import { isSubagentAgent, type AgentState } from '../types/agent';
 import { BUILDING_DEFS, VILLAGE_GATE } from '../game/data/building-layout';
 import './Minimap.css';
 
@@ -62,7 +62,8 @@ export function Minimap({ agents }: MinimapProps) {
       const ay = (building.y + BUILDING_SIZE / 2 + 10) * sy;
       ctx.fillStyle = HERO_COLOR_HEX[agent.heroColor] ?? '#FFFFFF';
       ctx.beginPath();
-      ctx.arc(ax, ay, 3, 0, Math.PI * 2);
+      // Subagents: smaller dots, so a parent with a fan-out doesn't read as a crowd of peers.
+      ctx.arc(ax, ay, isSubagentAgent(agent) ? 2 : 3, 0, Math.PI * 2);
       ctx.fill();
     }
   }, [agents]);
