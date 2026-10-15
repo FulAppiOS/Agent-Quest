@@ -1,6 +1,6 @@
 {
   "name": "agent-quest",
-  "version": "0.0.3",
+  "version": "0.3.0",
   "private": true,
   "workspaces": ["server", "client"],
   "engines": {
