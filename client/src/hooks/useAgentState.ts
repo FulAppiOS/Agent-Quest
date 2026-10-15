@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { AgentState, AgentSource, WsEvent, ActivityLogEntry, SkillInventory } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
 import { WS_URL } from '../config';
+import { skillInventoryFromEvent } from './wsEvents';
 
 const RECONNECT_DELAY_MS = 3000;
 const MAX_LOG_ENTRIES = 200;
@@ -32,7 +33,11 @@ export function useAgentState(): AgentStateHook {
       case 'snapshot':
         setAgents(event.agents);
         setConfigDirs(event.configDirs);
-        setSkillInventory(event.skillInventory ?? {});
+        setSkillInventory(skillInventoryFromEvent(event) ?? {});
+        break;
+
+      case 'inventory:update':
+        setSkillInventory(skillInventoryFromEvent(event) ?? {});
         break;
 
       case 'agent:new':

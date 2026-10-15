@@ -14,7 +14,7 @@ import { CodexProvider } from './providers/codex-provider';
 import type { ProviderHandlers, SessionStartPayload, SessionEventsPayload } from './providers/types';
 import type { ParsedEvent } from './parsers/session-parser';
 import type { AgentSource, AgentState, SkillInventory } from './types';
-import { claudeSkillRoots, codexSkillRoots, scanSkillInventory } from './skills/skill-inventory';
+import { claudeSkillRoots, codexSkillRoots, inventoryChanged, scanSkillInventory } from './skills/skill-inventory';
 
 /** Return IPv4 addresses bound to non-internal, non-link-local interfaces. */
 function listLanAddresses(): string[] {
@@ -211,14 +211,24 @@ function allConfigDirs(): string[] {
 // Shown next to the per-session skill loads so the saving of on-demand loading
 // is visible. Cheap (one stat per SKILL.md), refreshed every 10 minutes.
 const SKILL_INVENTORY_REFRESH_MS = 10 * 60_000;
-const skillInventory: Partial<Record<AgentSource, SkillInventory>> = {};
+let skillInventory: Partial<Record<AgentSource, SkillInventory>> = {};
 
-async function refreshSkillInventory(): Promise<void> {
+async function scanInstalledSkills(): Promise<Partial<Record<AgentSource, SkillInventory>>> {
+  const next: Partial<Record<AgentSource, SkillInventory>> = {};
   const claudeRoots: string[] = [];
   for (const dir of claudeProvider.getConfigDirs()) claudeRoots.push(...await claudeSkillRoots(dir));
-  if (claudeRoots.length > 0) skillInventory.claude = await scanSkillInventory(claudeRoots);
+  if (claudeRoots.length > 0) next.claude = await scanSkillInventory(claudeRoots);
   const codexRoot = codexProvider.getConfigDirs()[0];
-  if (codexRoot !== undefined) skillInventory.codex = await scanSkillInventory(codexSkillRoots(codexRoot));
+  if (codexRoot !== undefined) next.codex = await scanSkillInventory(codexSkillRoots(codexRoot));
+  return next;
+}
+
+/** Rescan; when the installed set changed, push it to every open dashboard. */
+async function refreshSkillInventory(): Promise<void> {
+  const next = await scanInstalledSkills();
+  if (!inventoryChanged(skillInventory, next)) return;
+  skillInventory = next;
+  wsServer.broadcastSkillInventory(skillInventory);
 }
 
 // --- Lifecycle: active → idle (5m) → completed (30m) → removed (2h, keep min 5) ---

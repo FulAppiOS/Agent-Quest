@@ -42,6 +42,11 @@ export class WebSocketServer {
     this.broadcast({ type: 'activity:log', agentId, action, detail, timestamp });
   }
 
+  /** Installed-skill inventory changed on disk — every open dashboard updates its "N skills installed" line. */
+  broadcastSkillInventory(skillInventory: Partial<Record<AgentSource, SkillInventory>>): void {
+    this.broadcast({ type: 'inventory:update', skillInventory });
+  }
+
   get clientCount(): number {
     return this.clients.size;
   }

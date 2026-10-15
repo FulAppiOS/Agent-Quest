@@ -1,6 +1,6 @@
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { SkillInventory } from '../types';
+import type { AgentSource, SkillInventory } from '../types';
 import { estimateTokens } from '../types';
 
 /**
@@ -73,4 +73,18 @@ export async function scanSkillInventory(roots: string[]): Promise<SkillInventor
     }
   }
   return { count, tokens: estimateTokens(bytes) };
+}
+
+/** True when any provider's count or token estimate differs (or a provider appears/disappears). */
+export function inventoryChanged(
+  prev: Partial<Record<AgentSource, SkillInventory>>,
+  next: Partial<Record<AgentSource, SkillInventory>>,
+): boolean {
+  const sources: AgentSource[] = ['claude', 'codex'];
+  return sources.some((s) => {
+    const a = prev[s];
+    const b = next[s];
+    if (a === undefined || b === undefined) return a !== b;
+    return a.count !== b.count || a.tokens !== b.tokens;
+  });
 }

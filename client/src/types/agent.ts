@@ -310,4 +310,6 @@ export type WsEvent =
       configDirs: string[];
       /** Skills installed on disk per provider (what they would cost if always loaded). */
       skillInventory?: Partial<Record<AgentSource, SkillInventory>>;
-    };
+    }
+  /** Pushed after a server rescan finds the installed skills changed (new plugin, new skill). */
+  | { type: 'inventory:update'; skillInventory: Partial<Record<AgentSource, SkillInventory>> };
