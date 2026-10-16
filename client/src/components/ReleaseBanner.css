@@ -1,0 +1,36 @@
+.release-banner {
+  padding: 12px 16px;
+  border: 1px solid rgba(196, 163, 90, 0.45);
+  border-radius: 6px;
+  background: rgba(26, 26, 46, 0.96);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  color: #F5E6C8;
+  font: 12px/1.6 'Fira Code', monospace;
+  overflow-wrap: anywhere;
+}
+
+.release-banner-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.release-banner-header p { flex: 1; margin: 0; min-width: 180px; }
+.release-banner-header strong { display: block; color: #E2C77A; font-weight: 600; }
+.release-banner-header span, .release-banner-hint { color: #B8B8C7; }
+.release-banner button {
+  background: transparent;
+  color: #D5C9AF;
+  border: 1px solid rgba(196, 163, 90, 0.35);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.release-banner button:hover { background: rgba(196, 163, 90, 0.12); }
+.release-banner a, .release-banner summary { color: #E2C77A; }
+.release-banner summary { cursor: pointer; margin-top: 6px; width: fit-content; }
+.release-banner :is(button, summary, a):focus-visible { outline: 2px solid #E2C77A; outline-offset: 3px; }
+.release-banner h2 { font-size: 13px; margin: 16px 0 6px; }
+.release-banner p { margin-top: 6px; margin-bottom: 6px; }
+.release-banner-notes { max-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
+.release-banner-notes :is(h1, h2, h3, h4, h5, h6) { font-size: 13px; margin: 8px 0; }
+.release-banner ol, .release-banner ul { padding-left: 22px; }
+.release-banner pre { overflow-x: auto; padding: 10px; background: rgba(0, 0, 0, 0.25); border-radius: 4px; }
+.release-banner code, .release-banner kbd { font-family: inherit; color: #E2C77A; }
+.release-banner-hint { font-size: 11px; }

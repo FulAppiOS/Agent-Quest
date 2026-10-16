@@ -10,6 +10,7 @@ import { DetailPanel } from './components/DetailPanel';
 import { BuildingInfoPanel } from './components/BuildingInfoPanel';
 import { Tutorial } from './components/Tutorial';
 import { NoInstallBanner } from './components/NoInstallBanner';
+import { ReleaseBanner } from './components/ReleaseBanner';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SkillsPanel } from './components/SkillsPanel';
 import { Toasts, type ToastItem } from './components/Toasts';
@@ -204,7 +205,10 @@ export default function App() {
               onClear: clearNotifications,
             }}
           />
-          <NoInstallBanner configDirs={configDirs} connected={connected} />
+          <div className="app-banners">
+            <NoInstallBanner configDirs={configDirs} connected={connected} />
+            <ReleaseBanner />
+          </div>
           <PartyBar
             agents={agents}
             selectedAgentId={selectedAgentId}

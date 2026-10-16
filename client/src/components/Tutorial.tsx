@@ -153,9 +153,9 @@ export function Tutorial({ onClose }: TutorialProps) {
 
         <div className="tutorial-section-label">Privacy</div>
         <p className="tutorial-text">
-          Everything runs locally on your machine. Nothing is uploaded, shared or
-          persisted — Agent Quest only reads the logs Claude Code and Codex already
-          keep on your disk.
+          Agent Quest reads agent logs locally; their contents are never uploaded.
+          The app contacts GitHub to check for new releases, without sending your
+          logs or prompts. Preferences and update reminders stay in your browser.
         </p>
 
         <div className="tutorial-section-label">Platform</div>

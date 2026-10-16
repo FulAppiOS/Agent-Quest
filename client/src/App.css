@@ -19,3 +19,25 @@
 .overlay > * {
   pointer-events: auto;
 }
+
+.app-banners {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, calc(100% - 24px));
+  max-height: calc(100% - 160px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 28;
+}
+
+.app-banners .no-install-banner {
+  position: static;
+  transform: none;
+  width: 100%;
+  box-sizing: border-box;
+}

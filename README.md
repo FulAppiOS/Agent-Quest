@@ -146,6 +146,24 @@ agentquest            # same as `agentquest start` — launches and opens the br
 agentquest update     # git pull + bun install (preserves local map edits)
 ```
 
+## Release notifications
+
+The dashboard checks GitHub for the latest published stable release when it opens.
+If its version is newer than your installed version, a small banner shows the
+available version, release notes, and manual update instructions. Drafts,
+prereleases, and commits without a new release do not trigger it.
+
+**Remind me tomorrow** hides that release for 24 hours in your browser, including
+across page reloads. A newer release can still appear during that time. The server
+caches successful checks for six hours and retries failed checks after 15 minutes;
+offline or unavailable GitHub checks never block the app. No GitHub login is needed.
+
+To update, stop Agent Quest with Ctrl+C, run `agentquest update`, then restart with
+`agentquest` and refresh the dashboard. For a manual installation, run
+`git pull --ff-only && bun install` in the project folder and restart with `bun start`.
+These commands follow `main`, which may include changes newer than the announced
+release. Updates are never installed automatically.
+
 ## Context, skills & subagents
 
 Every hero carries three extra layers of telemetry, all read from the same local logs:

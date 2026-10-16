@@ -15,6 +15,7 @@ import type { ProviderHandlers, SessionStartPayload, SessionEventsPayload } from
 import type { ParsedEvent } from './parsers/session-parser';
 import type { AgentSource, AgentState, SkillInventory } from './types';
 import { claudeSkillRoots, codexSkillRoots, inventoryChanged, scanSkillInventory } from './skills/skill-inventory';
+import { createUpdateChecker } from './releases/update-check';
 
 /** Return IPv4 addresses bound to non-internal, non-link-local interfaces. */
 function listLanAddresses(): string[] {
@@ -78,6 +79,12 @@ app.use('*', cors({
 
 // --- HTTP endpoints ---
 app.get('/api/health', (c) => c.json({ status: 'ok', agents: stateManager.getAll().length, clients: wsServer.clientCount }));
+
+const getReleaseUpdate = createUpdateChecker();
+app.get('/api/updates', async (c) => {
+  c.header('Cache-Control', 'no-store');
+  return c.json(await getReleaseUpdate());
+});
 
 app.get('/api/agents', (c) => c.json(stateManager.getAll()));
 
