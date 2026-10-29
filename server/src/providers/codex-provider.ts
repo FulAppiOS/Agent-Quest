@@ -1,15 +1,20 @@
 import { readdir, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { homedir } from 'node:os';
 
 import { parseCodexLine, parseCodexSessionMeta } from '../parsers/codex-parser';
 import type { ParsedEvent } from '../parsers/session-parser';
 import type { AgentSource } from '../types';
 import type { ProviderHandlers, SessionProvider } from './types';
+import { defaultCodexRoots, existingConfigDirs, type DiscoveryEnvironment } from './config-dirs';
+import { isXcodeConfigDir } from '../state/xcode-session';
+import { xcodeToolActivity } from '../parsers/xcode-tools';
 
 export interface CodexProviderOptions {
-  /** Defaults to `~/.codex`. */
+  /** Explicit single-root override, retained for existing callers. */
   codexRoot?: string;
+  /** Defaults to ~/.codex plus Xcode's Codex storage on macOS. */
+  codexRoots?: string[];
+  discovery?: DiscoveryEnvironment;
   /** How often to rescan the sessions tree. Default 3s. */
   scanIntervalMs?: number;
   /** Ignore rollout files whose mtime is older than this when first seen. Default 3h. */
@@ -20,6 +25,8 @@ interface TrackedFile {
   sessionId: string;
   sessionCwd: string;
   size: number;
+  rawToolCalls?: boolean;
+  seenCalls?: Set<string>;
   isSubagent?: boolean;
   parentId?: string;
   nickname?: string;
@@ -29,16 +36,13 @@ interface TrackedFile {
 export class CodexProvider implements SessionProvider {
   readonly source: AgentSource = 'codex';
 
-  private readonly codexRoot: string;
+  private readonly codexRoots: string[];
   private readonly scanIntervalMs: number;
   private readonly maxAgeMs: number;
   private handlers: ProviderHandlers | null = null;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private tracked = new Map<string, TrackedFile>();
-  /** Set when `start()` confirmed the codex root directory exists. Drives
-   * `getConfigDirs()` — we must not advertise a non-existent install, otherwise
-   * the client suppresses its missing-install banner. */
-  private rootExists = false;
+  private configDirs: string[] = [];
   /** Re-entrancy guard for `scan()`. On machines with thousands of archived
    * rollouts the recursive walk can take longer than `scanIntervalMs`, and
    * overlapping scans race on `this.tracked` — the second scan sees `tracked`
@@ -47,20 +51,13 @@ export class CodexProvider implements SessionProvider {
   private scanning = false;
 
   constructor(opts: CodexProviderOptions = {}) {
-    this.codexRoot = opts.codexRoot ?? join(homedir(), '.codex');
+    this.codexRoots = opts.codexRoots ?? (opts.codexRoot !== undefined ? [opts.codexRoot] : defaultCodexRoots(opts.discovery));
     this.scanIntervalMs = opts.scanIntervalMs ?? 3000;
     this.maxAgeMs = opts.maxAgeMs ?? 3 * 60 * 60_000;
   }
 
   async start(handlers: ProviderHandlers): Promise<void> {
     this.handlers = handlers;
-
-    const rootStat = await stat(this.codexRoot).catch(() => null);
-    if (rootStat === null || !rootStat.isDirectory()) {
-      console.log(`[CodexProvider] ${this.codexRoot} not found — provider inactive`);
-      return;
-    }
-    this.rootExists = true;
 
     await this.scan();
     this.pollInterval = setInterval(() => {
@@ -69,7 +66,7 @@ export class CodexProvider implements SessionProvider {
       });
     }, this.scanIntervalMs);
 
-    console.log(`[CodexProvider] watching ${this.codexRoot} every ${this.scanIntervalMs}ms`);
+    console.log(`[CodexProvider] watching ${this.configDirs.length} config dir(s) every ${this.scanIntervalMs}ms; waiting for new roots`);
   }
 
   stop(): void {
@@ -81,24 +78,26 @@ export class CodexProvider implements SessionProvider {
   }
 
   getConfigDirs(): readonly string[] {
-    return this.rootExists ? [this.codexRoot] : [];
+    return this.configDirs;
   }
 
   private async scan(): Promise<void> {
     if (this.scanning) return;
     this.scanning = true;
     try {
-      const sessionsDir = join(this.codexRoot, 'sessions');
-      const files = await listRolloutFiles(sessionsDir).catch(() => [] as string[]);
-      for (const filePath of files) {
-        await this.processFile(filePath);
+      this.configDirs = await existingConfigDirs(this.codexRoots);
+      for (const configDir of this.configDirs) {
+        const files = await listRolloutFiles(join(configDir, 'sessions'));
+        for (const filePath of files) {
+          await this.processFile(filePath, configDir);
+        }
       }
     } finally {
       this.scanning = false;
     }
   }
 
-  private async processFile(filePath: string): Promise<void> {
+  private async processFile(filePath: string, configDir: string): Promise<void> {
     const handlers = this.handlers;
     if (handlers === null) return;
 
@@ -115,33 +114,32 @@ export class CodexProvider implements SessionProvider {
         return;
       }
 
-      const contents = await Bun.file(filePath).text();
-      const firstLine = contents.split('\n', 1)[0] ?? '';
+      const contents = await Bun.file(filePath).slice(0, s.size).text();
+      const complete = contents.slice(0, contents.lastIndexOf('\n') + 1);
+      const firstLine = complete.split('\n', 1)[0] ?? '';
       const meta = parseCodexSessionMeta(firstLine);
       if (meta === null) {
         // Malformed rollout (no session_meta as first line) — skip for now, recheck next poll.
         return;
       }
-      const events: ParsedEvent[] = [];
-      for (const line of contents.split('\n')) {
-        if (line.trim() === '') continue;
-        const ev = parseCodexLine(line, meta.id, meta.cwd);
-        if (ev !== null) events.push(ev);
-      }
       const subagentType = meta.agentPath !== undefined ? basename(meta.agentPath) : undefined;
-      this.tracked.set(filePath, {
+      const next: TrackedFile = {
         sessionId: meta.id,
         sessionCwd: meta.cwd,
-        size: s.size,
+        size: Buffer.byteLength(complete),
+        rawToolCalls: meta.originator === 'Xcode' || isXcodeConfigDir(configDir),
+        seenCalls: new Set(),
         isSubagent: meta.isSubagent,
         parentId: meta.parentThreadId,
         nickname: meta.agentNickname,
         subagentType,
-      });
+      };
+      const events = parseEvents(complete, next);
+      this.tracked.set(filePath, next);
       await handlers.onSessionStart({
         source: this.source,
         sessionId: meta.id,
-        configDir: this.codexRoot,
+        configDir,
         events,
         isSubagent: meta.isSubagent,
         parentId: meta.parentThreadId,
@@ -161,7 +159,7 @@ export class CodexProvider implements SessionProvider {
     // tracked entry OR a real sessionId).
     if (tracked.sessionId === '') {
       this.tracked.delete(filePath);
-      await this.processFile(filePath);
+      await this.processFile(filePath, configDir);
       return;
     }
 
@@ -179,12 +177,7 @@ export class CodexProvider implements SessionProvider {
     }
     const complete = newContent.slice(0, lastNlIdx + 1);
 
-    const events: ParsedEvent[] = [];
-    for (const line of complete.split('\n')) {
-      if (line.trim() === '') continue;
-      const ev = parseCodexLine(line, tracked.sessionId, tracked.sessionCwd);
-      if (ev !== null) events.push(ev);
-    }
+    const events = parseEvents(complete, tracked);
     // Advance by the BYTE length of the processed chunk (not char length) —
     // required for UTF-8 content, safe for pure ASCII. `\n` is always 1 byte
     // so the offset lines up exactly with the file position.
@@ -195,7 +188,7 @@ export class CodexProvider implements SessionProvider {
     handlers.onSessionEvents({
       source: this.source,
       sessionId: tracked.sessionId,
-      configDir: this.codexRoot,
+      configDir,
       events,
       isSubagent: tracked.isSubagent,
       parentId: tracked.parentId,
@@ -203,6 +196,34 @@ export class CodexProvider implements SessionProvider {
       subagentType: tracked.subagentType,
     });
   }
+}
+
+/** Xcode can emit both an invocation and a completion for the same call.
+ * Keep completion telemetry without counting the work or changing lifecycle twice. */
+function parseEvents(contents: string, tracked: TrackedFile): ParsedEvent[] {
+  const events: ParsedEvent[] = [];
+  const seen = tracked.seenCalls ??= new Set<string>();
+  for (const line of contents.split('\n')) {
+    if (line.trim() === '') continue;
+    let event = parseCodexLine(line, tracked.sessionId, tracked.sessionCwd, { rawToolCalls: tracked.rawToolCalls });
+    if (event === null) continue;
+    const calls = event.toolCalls;
+    if (calls.length > 0 && (tracked.rawToolCalls || calls.every((tc) => xcodeToolActivity(tc.name) !== undefined))) {
+      const fresh = calls.filter((tc) => !seen.has(tc.id));
+      if (fresh.length === 0) {
+        const chars = event.pluginCalls?.[0]?.resultChars;
+        if (chars === undefined && !event.skillLoad) continue;
+        event = { ...event, kind: 'telemetry', activity: 'idle', toolCalls: [], pluginCalls: undefined,
+          toolResults: chars === undefined ? undefined : [{ toolUseId: calls[0]!.id, chars }], isTurnEnd: undefined };
+      } else {
+        event.toolCalls = fresh;
+        for (const tc of fresh) seen.add(tc.id);
+        while (seen.size > 4096) seen.delete(seen.values().next().value!);
+      }
+    }
+    events.push(event);
+  }
+  return events;
 }
 
 async function listRolloutFiles(root: string, depth = 0): Promise<string[]> {

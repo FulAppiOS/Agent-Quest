@@ -16,6 +16,7 @@ import type { ParsedEvent } from './parsers/session-parser';
 import type { AgentSource, AgentState, SkillInventory } from './types';
 import { claudeSkillRoots, codexSkillRoots, inventoryChanged, scanSkillInventory } from './skills/skill-inventory';
 import { createUpdateChecker } from './releases/update-check';
+import { isXcodeConfigDir } from './state/xcode-session';
 
 /** Return IPv4 addresses bound to non-internal, non-link-local interfaces. */
 function listLanAddresses(): string[] {
@@ -206,7 +207,7 @@ const codexProvider = new CodexProvider({ maxAgeMs: SESSION_MAX_AGE_MS });
 registerHookRoutes(app, {
   stateManager,
   wsServer,
-  getClaudeConfigDirs: () => [...claudeProvider.getConfigDirs()],
+  getClaudeConfigDirs: () => claudeProvider.getConfigDirs().filter((dir) => !isXcodeConfigDir(dir)),
   hookUrl: `http://localhost:${PORT}/api/hooks/claude`,
 });
 
@@ -225,8 +226,8 @@ async function scanInstalledSkills(): Promise<Partial<Record<AgentSource, SkillI
   const claudeRoots: string[] = [];
   for (const dir of claudeProvider.getConfigDirs()) claudeRoots.push(...await claudeSkillRoots(dir));
   if (claudeRoots.length > 0) next.claude = await scanSkillInventory(claudeRoots);
-  const codexRoot = codexProvider.getConfigDirs()[0];
-  if (codexRoot !== undefined) next.codex = await scanSkillInventory(codexSkillRoots(codexRoot));
+  const codexRoots = codexProvider.getConfigDirs().flatMap((dir) => codexSkillRoots(dir));
+  if (codexRoots.length > 0) next.codex = await scanSkillInventory(codexRoots);
   return next;
 }
 
@@ -300,7 +301,16 @@ console.log(`[SessionRegistry] live session ids: ${sessionRegistry.snapshot().le
 // Every time the registry refreshes, re-derive every agent's status so that
 // sessions that just died get demoted to `completed`, and resumed pids come
 // back into view without waiting for the next JSONL event.
+let knownConfigDirs = JSON.stringify(allConfigDirs());
 setInterval(() => {
+  const dirs = allConfigDirs();
+  const nextConfigDirs = JSON.stringify(dirs);
+  if (nextConfigDirs !== knownConfigDirs) {
+    knownConfigDirs = nextConfigDirs;
+    sessionRegistry.setConfigDirs(claudeProvider.getConfigDirs());
+    wsServer.broadcastSnapshot(stateManager.getAll(), dirs, skillInventory);
+    refreshSkillInventory().catch((err) => console.error('[Server] skill inventory scan failed:', err));
+  }
   const changed = stateManager.refreshAll();
   for (const sessionId of changed) {
     const agent = stateManager.getAgent(sessionId);

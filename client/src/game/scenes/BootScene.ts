@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { dismissStartupLoader, setStartupStatus } from '../startupLoader';
 import { eventBridge } from '../EventBridge';
 import { BUILDING_DEFS } from '../data/building-layout';
 import { addCrispText } from '../text';
@@ -19,6 +20,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    setStartupStatus('Loading village assets…');
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
       this.missingAssets.push(file.src);
     });
@@ -107,6 +109,8 @@ export class BootScene extends Phaser.Scene {
     const statusY = logo.y + (logo.displayHeight * 0.5) + 30;
 
     if (hasMissing) {
+      // Reveal the existing actionable error screen once it has been drawn.
+      this.game.events.once(Phaser.Core.Events.POST_RENDER, dismissStartupLoader);
       const n = this.missingAssets.length;
       const grouped = groupMissingByCategory(this.missingAssets);
 
@@ -175,6 +179,7 @@ export class BootScene extends Phaser.Scene {
       return;
     }
 
+    setStartupStatus('Connecting to server…');
     this.statusText = addCrispText(this, cx, statusY, 'Connecting to server...', {
       fontSize: '18px',
       color: '#888888',
@@ -185,6 +190,7 @@ export class BootScene extends Phaser.Scene {
       if (this.hasTransitioned) return;
       this.hasTransitioned = true;
       try {
+        setStartupStatus('Preparing your village…');
         this.statusText.setText('Connected! Entering village...');
         this.time.delayedCall(800, () => {
           this.scene.start('VillageScene');

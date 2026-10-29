@@ -6,6 +6,8 @@
  */
 export function configDirLabel(configDir: string): string {
   if (configDir === '') return 'default';
+  const xcode = /\/Library\/Developer\/Xcode\/CodingAssistant\/(ClaudeAgentConfig|codex)(?:\/|$)/.exec(configDir);
+  if (xcode) return xcode[1] === 'codex' ? 'Xcode · Codex' : 'Xcode · Claude';
   const base = configDir.split('/').pop() ?? configDir;
   if (base === '.claude') return 'claude';
   if (base === '.codex') return 'codex';

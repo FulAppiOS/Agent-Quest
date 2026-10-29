@@ -40,8 +40,6 @@ test('ClaudeProvider reports subagent linkage and the configured model on sessio
   const starts: Array<Record<string, unknown>> = [];
   const p = new ClaudeProvider({ claudeDirs: [configDir], maxAgeMs: 60 * 60_000, pollIntervalMs: 60_000 });
   await p.start({ onSessionStart: (payload) => { starts.push(payload as unknown as Record<string, unknown>); }, onSessionEvents: () => {} });
-  // onNewSession is fire-and-forget inside the watcher; let the async handlers settle.
-  await new Promise((r) => setTimeout(r, 100));
   p.stop();
 
   const parent = starts.find((s) => s.sessionId === 'parent-1');

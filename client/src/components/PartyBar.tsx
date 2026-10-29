@@ -1,3 +1,4 @@
+import { isXcodeAgent, sourceBadgeLabel } from '../types/sessionIdentity';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeroAvatar } from './HeroAvatar';
 import { ContextMeter } from './ContextMeter';
@@ -106,7 +107,7 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge, childCoun
                 {'✦'} {skillShortName(agent.activeSkill)}
               </span>
             )}
-            {showSourceBadge && (
+            {(showSourceBadge || isXcodeAgent(agent)) && (
               <span
                 className="partybar-source-badge"
                 style={{
@@ -114,9 +115,9 @@ function PartyRow({ agent, mode, isSelected, onClick, showSourceBadge, childCoun
                   borderColor: `${SOURCE_BADGE_COLOR[agent.source]}80`,
                   background: `${SOURCE_BADGE_COLOR[agent.source]}14`,
                 }}
-                aria-label={`source ${agent.source}`}
+                aria-label={`source ${sourceBadgeLabel(agent)} · ${agent.source}`}
               >
-                {agent.source.toUpperCase()}
+                {sourceBadgeLabel(agent)}
               </span>
             )}
             {(() => {

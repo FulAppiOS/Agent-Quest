@@ -74,6 +74,14 @@ export function Tutorial({ onClose }: TutorialProps) {
           app or claude.ai in the browser, since those don't expose local session files.
         </p>
 
+        <p className="tutorial-text">
+          On macOS, sessions started with <strong>Claude Agent or Codex inside Xcode</strong> also
+          appear automatically after the first prompt. They carry an <strong>Xcode</strong> badge
+          and a name derived from the project folder. Reading, editing, builds, tests and issue
+          diagnostics move their heroes between the corresponding buildings. Agent Quest reads
+          compatible local logs; it does not control Xcode or cover every chat provider.
+        </p>
+
         <div className="tutorial-section-label">Activity → Building</div>
         <table className="tutorial-legend">
           <tbody>

@@ -3,11 +3,12 @@
 </p>
 
 <p align="center">
-  <strong>A fantasy village dashboard for monitoring your Claude Code CLI and Codex agents.</strong>
+  <strong>A fantasy village dashboard for Claude Code and Codex — including agents started inside Xcode on macOS.</strong>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="#xcode-macos"><img src="https://img.shields.io/badge/Xcode-Claude%20%26%20Codex-147EFB?logo=xcode&logoColor=white" alt="Xcode: Claude and Codex on macOS" /></a>
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-%E2%89%A51.1-black.svg" alt="Bun ≥ 1.1" /></a>
   <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.shields.io/badge/Buy%20me%20a%20beer-%F0%9F%8D%BA-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a beer" /></a>
 </p>
@@ -18,9 +19,9 @@
 
 ---
 
-> **Use Claude Code CLI or Codex as usual — each agent session auto-spawns a hero on the dashboard, live.**
+> **Use Claude Code or Codex as usual — in your terminal, app, or inside Xcode on macOS. Each supported local session becomes a hero in the village.**
 
-Agent Quest is a browser-based monitoring dashboard that visualizes active Claude Code and Codex agent sessions as fantasy heroes in a 2D village. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on. Every hero also shows how much of its context window it has used, which skills and plugins it is running under, and which subagents are working for it — with a one-click export you can hand to another AI to review the session.
+Agent Quest is an open-source, browser-based monitoring dashboard that visualizes active Claude Code and Codex sessions as fantasy heroes in a 2D village, including Claude Agent and Codex sessions started inside Xcode on macOS. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on. Every hero also shows how much of its context window it has used, which skills and plugins it is running under, and which subagents are working for it — with a one-click export you can hand to another AI to review the session.
 
 <p align="center">
   <img src="docs/media/day.gif" alt="Agent Quest — main view" width="820" />
@@ -65,25 +66,42 @@ Agent Quest is a browser-based monitoring dashboard that visualizes active Claud
 
 ## Why?
 
-Claude Code and Codex sessions happen in a terminal — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations and `~/.codex`), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
+Claude Code and Codex sessions happen in terminals, apps, and Xcode — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations and `~/.codex`), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
 
 ## Features
 
 - Real-time visualization of active Claude Code and Codex sessions
 - Auto-discovery of every `~/.claude*` directory (supports multiple installations like `~/.claude-work`, `~/.claude-personale`) and of `~/.codex` if present
+- On macOS, automatically discovers Claude Agent and Codex sessions started inside Xcode, with Xcode source labels and activity mapping for reading, editing, builds, tests, and diagnostics
 - Activity feed, party bar, and detail panel alongside the village scene
 - Context-window gauge per hero (how close each conversation is to a compaction), plus the hottest main agent in the top bar and an optional "context nearly full" alert
 - Skill & plugin telemetry: which skill a hero is running under, how many tokens each loaded skill or plugin result pushed into the context, and what the installed skills would cost if they were always loaded
 - Subagent hierarchy: knights are main sessions, pawns are subagents — smaller, in the parent's color with a `SUBAGENT · role` badge; they nest under the parent in the party bar, and the parent's panel shows how much context delegation kept out of the main conversation
 - Built-in map editor for customizing the village layout
-- Sub-2s latency via native WebSocket (optional lower-latency path via Claude Code `postToolUse` hooks — Claude Code only; Codex doesn't expose hooks)
+- Session polling every 2–3 seconds with live WebSocket updates (optional lower-latency path via Claude Code `postToolUse` hooks — Claude Code only; Codex doesn't expose hooks)
 - Works with both the legacy Codex rollout format and the `item_completed` format of Codex ≥ 0.160, including Codex subagents spawned with `spawn_agent`
+
+## Xcode (macOS)
+
+Start a prompt with **Claude Agent or Codex inside Xcode** and follow it in the same village as your terminal and app sessions. Agent Quest discovers Xcode’s compatible local session logs automatically. Reading and searching send a hero to the Library, edits to the Forge, builds and tests to the Arena, and issue diagnostics to the Alchemist.
+
+Each Xcode session carries an **Xcode** badge, even when it is the only provider in the village. Its project name is derived from the session’s working directory; the profile identifies **Xcode · Claude** or **Xcode · Codex**. Sessions using Xcode tools from an external terminal keep their original source identity.
+
+<p align="center">
+  <img src="docs/media/xcode-agents.jpg" alt="Agent Quest with Claude and Codex Xcode sessions alongside terminal sessions" width="820" />
+  <br />
+  <sub><em>Xcode and terminal sessions in one village. Demonstration data; no private sessions shown.</em></sub>
+</p>
+
+Run Agent Quest under the same macOS account as Xcode and send a first prompt to create the session logs. Newly created folders are discovered while Agent Quest is running. See [troubleshooting](#troubleshooting) if an agent does not appear.
+
+This is log-based monitoring of compatible Claude/Codex sessions; it does not control Xcode, check agent sign-in, or cover every Xcode chat provider. The open-source dashboard runs with Bun in your browser.
 
 ## Requirements
 
 **Required**
 - [Bun](https://bun.sh) 1.1 or later — the runtime behind both the server and the scripts. If you don't have it: `curl -fsSL https://bun.sh/install | bash`
-- An active Claude Code or Codex installation (one or more `~/.claude*` directories, and/or `~/.codex`, with session logs). Without either, the dashboard still starts, but the village stays empty and a banner tells you so.
+- Claude Code or Codex with local session logs (`~/.claude*`, `~/.codex`, or Xcode’s agent storage on macOS). Without session logs, the dashboard still starts, but the village stays empty and a banner tells you so.
 - See the [Platform matrix](#platform-matrix) below for OS support per provider.
 
 **Optional**
@@ -210,7 +228,16 @@ lsof -ti:4444,4445 | xargs kill -9
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 ```
 
-**Empty village with a "No Claude Code or Codex installation detected" banner** — expected when no `~/.claude*` or `~/.codex` directory with session logs exists. Start a Claude Code or Codex session and heroes appear automatically (the banner disappears on its own).
+**Empty village with a "No Claude Code or Codex installation detected" banner** — expected when no Claude, Codex, or supported Xcode session storage has been detected. Start a Claude Code or Codex session and heroes appear automatically (the banner disappears on its own).
+
+**Xcode agents do not appear (macOS)** — choose Claude Agent or Codex inside Xcode and send a new prompt. Agent Quest watches these local locations automatically:
+
+- `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/projects`
+- `~/Library/Developer/Xcode/CodingAssistant/codex/sessions`
+
+Keep Agent Quest running under the same macOS account as Xcode. New activity normally appears within the 2–3 second polling interval; newly created sources also update an already-open dashboard. If you upgraded an older checkout, restart its server once. Check that the relevant folder exists and contains readable `.jsonl` logs; Xcode may only create it after the first agent session. Files older than three hours are skipped at startup and picked up when the session resumes. Xcode sessions do not need the optional terminal Claude hook.
+
+Support is based on compatible local Claude/Codex logs, including incremental tool events. It does not discover every Xcode chat provider or infer an agent’s login status. Using Xcode tools from a terminal session keeps that session’s terminal source label.
 
 **Assets look broken or the app blocks at boot with "missing asset" screens** — see [Missing assets](#missing-assets).
 
@@ -292,6 +319,7 @@ Open the UI URL on the other device. The client auto-detects the host so API and
 |-------------|-------|----------------------|-------|
 | Claude Code | ✓     | ✓ (WSL2 recommended) | ✓     |
 | Codex       | ✓     | not yet verified     | not yet verified |
+| Xcode Claude / Codex | ✓ | — | — |
 
 Claude Code is exercised on macOS and Windows (via WSL2). Codex has been tested on macOS only so far — it should work on Windows/Linux the same way (the provider watches `~/.codex/sessions/`), but we haven't confirmed it yet.
 

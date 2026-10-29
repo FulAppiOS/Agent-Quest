@@ -1,3 +1,4 @@
+import { isXcodeAgent, sourceBadgeLabel } from '../types/sessionIdentity';
 import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type ActivityLogEntry, type AgentState } from '../types/agent';
@@ -92,16 +93,16 @@ function ActivityRowImpl({
             >{agentName}</button>
           )}
           <span className={`feed-action-pill ${error ? 'is-error' : ''} ${pillVariant}`}>{entry.action}</span>
-          {showSourceBadge === true && !inGroup && agent !== undefined && (
+          {!inGroup && agent !== undefined && (showSourceBadge === true || isXcodeAgent(agent)) && (
             <span
               className="feed-source-badge"
               style={{
                 color: SOURCE_BADGE_COLOR[agent.source],
                 background: `${SOURCE_BADGE_COLOR[agent.source]}26`,
               }}
-              aria-label={`source ${agent.source}`}
+              aria-label={`source ${sourceBadgeLabel(agent)} · ${agent.source}`}
             >
-              {agent.source.toUpperCase()}
+              {sourceBadgeLabel(agent)}
             </span>
           )}
           {!inGroup && agent !== undefined && (() => {

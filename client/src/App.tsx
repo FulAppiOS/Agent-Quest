@@ -133,7 +133,7 @@ export default function App() {
   }, [handleSelectAgent]);
 
   // Hide the HTML overlays (TopBar, PartyBar, etc.) while the BootScene is up.
-  // VillageScene emits 'village:ready' in its create().
+  // VillageScene emits 'village:ready' after the world has rendered.
   useEffect(() => {
     const onReady = () => {
       setVillageReady(true);

@@ -7,6 +7,14 @@ function fakeClient(sent: string[]): WsClient {
 }
 
 describe('WebSocketServer skill inventory', () => {
+  test('refreshes an open dashboard when a new source is discovered', () => {
+    const server = new WebSocketServer();
+    const sent: string[] = [];
+    server.handleOpen(fakeClient(sent));
+    const dirs = ['/Synthetic/Library/Developer/Xcode/CodingAssistant/codex'];
+    server.broadcastSnapshot([], dirs, {});
+    expect(JSON.parse(sent[0]!)).toEqual({ type: 'snapshot', agents: [], configDirs: dirs, skillInventory: {} });
+  });
   test('broadcasts the inventory to every connected client', () => {
     const server = new WebSocketServer();
     const a: string[] = [];

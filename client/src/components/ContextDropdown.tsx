@@ -1,3 +1,4 @@
+import { isXcodeAgent } from '../types/sessionIdentity';
 import { useEffect, useRef } from 'react';
 import { HERO_LABEL_COLOR, contextLevel, formatTokens, modelBadge, type AgentState } from '../types/agent';
 import { rankContextAgents } from '../report/contextRanking';
@@ -90,6 +91,7 @@ export function ContextDropdown({ agents, open, onToggle, onSelect }: ContextDro
                   >
                     <span className="ctx-item-top">
                       <span className="ctx-item-name" style={{ color: HERO_LABEL_COLOR[r.heroColor] }}>{r.name}</span>
+                      {isXcodeAgent(r) && <span className="ctx-item-model" style={{ color: "#88BBFF", background: "#88BBFF26" }}>Xcode</span>}
                       {badge !== null && (
                         <span className="ctx-item-model" style={{ color: badge.color, background: `${badge.color}26` }} title={r.model}>{badge.short}</span>
                       )}

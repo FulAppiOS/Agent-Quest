@@ -30,6 +30,11 @@ export class WebSocketServer {
     this.broadcast({ type: 'agent:update', agent });
   }
 
+  /** A provider discovered storage created after the dashboard connected. */
+  broadcastSnapshot(agents: AgentState[], configDirs: readonly string[], skillInventory?: Partial<Record<AgentSource, SkillInventory>>): void {
+    this.broadcast({ type: 'snapshot', agents, configDirs: [...configDirs], skillInventory });
+  }
+
   broadcastNewAgent(agent: AgentState): void {
     this.broadcast({ type: 'agent:new', agent });
   }

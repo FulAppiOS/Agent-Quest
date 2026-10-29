@@ -1,17 +1,18 @@
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { discoverClaudeDirs, type DiscoveryEnvironment } from '../providers/config-dirs';
 
 export interface WatcherCallbacks {
-  onNewSession: (sessionId: string, projectPath: string, configDir: string) => void;
-  onSessionUpdate: (sessionId: string, projectPath: string, newContent: string, configDir: string) => void;
+  onNewSession: (sessionId: string, projectPath: string, configDir: string, contents: string) => void | Promise<void>;
+  onSessionUpdate: (sessionId: string, projectPath: string, newContent: string, configDir: string) => void | Promise<void>;
 }
 
 export interface WatcherOptions extends WatcherCallbacks {
   /** Skip JSONL files whose mtime is older than this (ms). Default: 30 minutes. */
   maxAgeMs?: number;
-  /** Claude config directories to watch. If omitted, auto-discovers ~/.claude* dirs with a projects/ subdir. */
+  /** If omitted, discovers ~/.claude* and Xcode's Claude storage on macOS. */
   claudeDirs?: string[];
+  discovery?: DiscoveryEnvironment;
 }
 
 export class FileWatcher {
@@ -20,42 +21,23 @@ export class FileWatcher {
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private callbacks: WatcherCallbacks;
   private maxAgeMs: number;
+  private readonly autoDiscover: boolean;
+  private readonly discovery: DiscoveryEnvironment;
+  private scanning = false;
 
   constructor(opts: WatcherOptions) {
     this.callbacks = opts;
     this.maxAgeMs = opts.maxAgeMs ?? 30 * 60 * 1000;
     this.claudeDirs = opts.claudeDirs ?? [];
+    this.autoDiscover = this.claudeDirs.length === 0;
+    this.discovery = opts.discovery ?? {};
   }
 
-  /** Find every ~/.claudeXXX directory that contains a projects/ subdir. */
-  static async autoDiscoverDirs(): Promise<string[]> {
-    const home = homedir();
-    let entries: string[];
-    try {
-      entries = await readdir(home);
-    } catch {
-      return [];
-    }
-    const dirs: string[] = [];
-    for (const entry of entries) {
-      if (!entry.startsWith('.claude')) continue;
-      const full = join(home, entry);
-      const s = await stat(full).catch(() => null);
-      if (s === null || !s.isDirectory()) continue;
-      const projects = join(full, 'projects');
-      const ps = await stat(projects).catch(() => null);
-      if (ps !== null && ps.isDirectory()) {
-        dirs.push(full);
-      }
-    }
-    return dirs;
+  static async autoDiscoverDirs(env: DiscoveryEnvironment = {}): Promise<string[]> {
+    return discoverClaudeDirs(env);
   }
 
   async start(intervalMs = 2000): Promise<void> {
-    if (this.claudeDirs.length === 0) {
-      this.claudeDirs = await FileWatcher.autoDiscoverDirs();
-    }
-
     await this.scan();
 
     this.pollInterval = setInterval(() => {
@@ -67,7 +49,7 @@ export class FileWatcher {
     if (this.claudeDirs.length === 0) {
       // Per-provider diagnostic only. If *both* providers end up empty, the
       // bootstrap in index.ts prints a single aggregated warning.
-      console.log('[ClaudeProvider] no ~/.claude* dir — provider inactive');
+      console.log('[ClaudeProvider] no session storage yet — waiting for Claude or Xcode');
     } else {
       console.log(`[ClaudeProvider] watching ${this.claudeDirs.length} config dir(s) every ${intervalMs}ms:`);
       for (const d of this.claudeDirs) console.log(`  - ${d}`);
@@ -87,8 +69,15 @@ export class FileWatcher {
   }
 
   async scan(): Promise<void> {
-    for (const claudeDir of this.claudeDirs) {
-      await this.scanConfigDir(claudeDir);
+    if (this.scanning) return;
+    this.scanning = true;
+    try {
+      if (this.autoDiscover) this.claudeDirs = await FileWatcher.autoDiscoverDirs(this.discovery);
+      for (const claudeDir of this.claudeDirs) {
+        await this.scanConfigDir(claudeDir);
+      }
+    } finally {
+      this.scanning = false;
     }
   }
 
@@ -179,16 +168,22 @@ export class FileWatcher {
         this.fileSizes.set(filePath, currentSize);
         return;
       }
-      // New session file
-      this.fileSizes.set(filePath, currentSize);
-      this.callbacks.onNewSession(sessionId, filePath, claudeDir);
+      // Capture exactly the complete lines delivered to the provider. Re-reading
+      // asynchronously could include an append that the next scan delivers twice.
+      const contents = await Bun.file(filePath).slice(0, currentSize).text();
+      const complete = contents.slice(0, contents.lastIndexOf('\n') + 1);
+      if (complete.length === 0) return;
+      this.fileSizes.set(filePath, Buffer.byteLength(complete));
+      await this.callbacks.onNewSession(sessionId, filePath, claudeDir, complete);
     } else if (currentSize > previousSize) {
       // File grew — read only the new bytes
       const fd = Bun.file(filePath);
       const newBytes = fd.slice(previousSize, currentSize);
       const newContent = await newBytes.text();
-      this.fileSizes.set(filePath, currentSize);
-      this.callbacks.onSessionUpdate(sessionId, filePath, newContent, claudeDir);
+      const complete = newContent.slice(0, newContent.lastIndexOf('\n') + 1);
+      if (complete.length === 0) return;
+      this.fileSizes.set(filePath, previousSize + Buffer.byteLength(complete));
+      await this.callbacks.onSessionUpdate(sessionId, filePath, complete, claudeDir);
     }
   }
 }

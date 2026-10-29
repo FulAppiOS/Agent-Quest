@@ -1,3 +1,4 @@
+import { isXcodeAgent } from '../types/sessionIdentity';
 import { useState } from 'react';
 import { HERO_LABEL_COLOR, modelBadge, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
@@ -52,6 +53,7 @@ export function AgentGroup({
         {agent !== undefined && (
           <span className="feed-group-activity">· {agent.currentActivity}</span>
         )}
+        {agent !== undefined && isXcodeAgent(agent) && <span className="feed-model-badge" style={{ color: '#88BBFF', background: '#88BBFF26' }}>Xcode</span>}
         {agent !== undefined && (() => {
           const badge = modelBadge(agent.model);
           if (badge === null) return null;

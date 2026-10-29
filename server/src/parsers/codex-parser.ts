@@ -1,6 +1,7 @@
 // server/src/parsers/codex-parser.ts
 import type { AgentActivity, ToolCall } from '../types';
 import type { ParsedEvent } from './session-parser';
+import { xcodeToolActivity, xcodeToolFile } from './xcode-tools';
 import type {
   CodexRawLine,
   CodexEventMsgPayload,
@@ -136,7 +137,7 @@ function commandActivity(command: string, parsedFirst: CodexParsedCmdEntry | Rec
 }
 
 /** Parse one line of a Codex rollout JSONL file. `null` when the line is noise or malformed. */
-export function parseCodexLine(raw: string, sessionId: string, sessionCwd: string): ParsedEvent | null {
+export function parseCodexLine(raw: string, sessionId: string, sessionCwd: string, options: { rawToolCalls?: boolean } = {}): ParsedEvent | null {
   let line: CodexRawLine;
   try {
     line = JSON.parse(raw) as CodexRawLine;
@@ -146,7 +147,6 @@ export function parseCodexLine(raw: string, sessionId: string, sessionCwd: strin
 
   // Noise we drop outright.
   if (line.type === 'session_meta') return null;
-  if (line.type === 'response_item') return null;
   if (line.type === 'token_usage_record') return null;
   if (line.type === 'world_state') return null;
 
@@ -155,6 +155,32 @@ export function parseCodexLine(raw: string, sessionId: string, sessionCwd: strin
   // the hero in 'active' forever — drop the event instead.
   if (!Number.isFinite(tsMs)) return null;
   const ctx: LineContext = { sessionId, sessionCwd, tsMs };
+
+  // Xcode's bundled Codex also writes tool calls only as response_item records.
+  // Consume the invocation once; legacy completion records carry telemetry only.
+  if (line.type === 'response_item') {
+    const p = line.payload;
+    if (!isRecord(p) || typeof p.name !== 'string' ||
+        typeof p.call_id !== 'string' || !p.call_id) return null;
+    // Hosts opting in must deduplicate raw calls against later completion items.
+    if (options.rawToolCalls && p.type === 'custom_tool_call' && p.name === 'apply_patch' && typeof p.input === 'string') {
+      const paths = [...p.input.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)].map((match) => match[1]!.trim());
+      return paths.length > 0 ? fileChangeEvent(ctx, paths, p.call_id) : null;
+    }
+    if (p.type !== 'function_call') return null;
+    const args = asJson(p.arguments);
+    const input = isRecord(args) ? args : {};
+    if (options.rawToolCalls && p.name === 'exec_command' && typeof input.cmd === 'string') {
+      const command = input.cmd;
+      return toolEvent(ctx, commandActivity(command, undefined), [{ id: p.call_id, name: 'Bash', timestamp: tsMs, input: { command } }], { command });
+    }
+    const activity = xcodeToolActivity(p.name);
+    if (activity === undefined) return null;
+    return toolEvent(ctx, activity, [{ id: p.call_id, name: p.name, timestamp: tsMs, input }], {
+      file: xcodeToolFile(p.name, input),
+      pluginCalls: [{ name: 'xcode-tools', kind: 'mcp', toolUseId: p.call_id }],
+    });
+  }
 
   // Codex rewrote the history: the context just shrank.
   if (line.type === 'compacted') return telemetry(ctx, { isCompaction: true });
@@ -172,6 +198,14 @@ export function parseCodexLine(raw: string, sessionId: string, sessionCwd: strin
   if (payload === undefined) return null;
 
   switch (payload.type) {
+    case 'mcp_tool_call_end': {
+      const p = payload as unknown as Record<string, unknown>;
+      const invocation = p.invocation;
+      if (!isRecord(invocation) || typeof invocation.server !== 'string' || typeof invocation.tool !== 'string' ||
+          xcodeToolActivity(`${invocation.server}.${invocation.tool}`) === undefined || typeof p.call_id !== 'string') return null;
+      const result = isRecord(p.result) && 'Ok' in p.result ? p.result.Ok : p.result;
+      return telemetry(ctx, { toolResults: [{ toolUseId: p.call_id, chars: mcpResultChars(result) }] });
+    }
     case 'token_count': {
       const info = (payload as CodexTokenCount).info;
       if (!isRecord(info)) return null;
@@ -344,8 +378,9 @@ function parseCodexItem(item: unknown, ctx: LineContext): ParsedEvent | null {
         timestamp: ctx.tsMs,
         input: isRecord(item.arguments) ? item.arguments : {},
       };
-      const activity: AgentActivity = item.readOnlyHint === true ? 'reading' : 'bash';
+      const activity: AgentActivity = xcodeToolActivity(`${server}.${tool}`) ?? (item.readOnlyHint === true ? 'reading' : 'bash');
       return toolEvent(ctx, activity, [tc], {
+        file: xcodeToolFile(`${server}.${tool}`, tc.input),
         pluginCalls: [{
           name: pluginId ?? server,
           kind: pluginId !== undefined ? 'plugin' : 'mcp',
@@ -428,6 +463,7 @@ export interface CodexSessionHeader {
   agentNickname?: string;
   /** Agent path, e.g. `/root/audit_project_docs` — its basename is the role. */
   agentPath?: string;
+  originator?: string;
 }
 
 export function parseCodexSessionMeta(firstLine: string): CodexSessionHeader | null {
@@ -449,7 +485,8 @@ export function parseCodexSessionMeta(firstLine: string): CodexSessionHeader | n
     const agentNickname = typeof p.agent_nickname === 'string' && p.agent_nickname.length > 0 ? p.agent_nickname : undefined;
     const isSubagent = p.thread_source === 'subagent' || parentThreadId !== undefined;
 
-    return { id: p.id, cwd: p.cwd, startedAt, isSubagent, parentThreadId, agentNickname, agentPath };
+    return { id: p.id, cwd: p.cwd, startedAt, isSubagent, parentThreadId, agentNickname, agentPath,
+      originator: typeof p.originator === 'string' ? p.originator : undefined };
   } catch {
     return null;
   }

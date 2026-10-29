@@ -7,11 +7,13 @@ import { serializeByKey } from './serialize-by-key';
 import type { ParsedEvent } from '../parsers/session-parser';
 import type { AgentSource } from '../types';
 import type { ProviderHandlers, SessionProvider } from './types';
+import type { DiscoveryEnvironment } from './config-dirs';
 
 export interface ClaudeProviderOptions {
   claudeDirs?: string[];
   maxAgeMs?: number;
   pollIntervalMs?: number;
+  discovery?: DiscoveryEnvironment;
 }
 
 export class ClaudeProvider implements SessionProvider {
@@ -34,10 +36,10 @@ export class ClaudeProvider implements SessionProvider {
     const watcher = new FileWatcher({
       maxAgeMs: this.opts.maxAgeMs,
       claudeDirs: this.opts.claudeDirs,
+      discovery: this.opts.discovery,
 
-      onNewSession: (sessionId, filePath, configDir) => {
-        void this.deliver(filePath, async () => {
-          const contents = await Bun.file(filePath).text();
+      onNewSession: (sessionId, filePath, configDir, contents) => {
+        return this.deliver(filePath, async () => {
           const events = parseSessionFile(contents);
           const isSubagent = sessionId.startsWith('agent-');
           const info = isSubagent ? await this.subagentInfoFor(filePath) : undefined;
@@ -67,7 +69,7 @@ export class ClaudeProvider implements SessionProvider {
         }
         if (events.length === 0) return;
         const isSubagent = sessionId.startsWith('agent-');
-        void this.deliver(filePath, async () => {
+        return this.deliver(filePath, async () => {
           const info = isSubagent ? await this.subagentInfoFor(filePath) : undefined;
           const configuredModel = await this.configuredModelFor(configDir);
           handlers.onSessionEvents({

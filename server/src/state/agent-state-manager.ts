@@ -1,7 +1,9 @@
+import { isXcodeConfigDir, xcodeProjectName } from './xcode-session';
 import type { AgentSource, AgentState, ContextUsage, HeroClass, HeroColor, PluginUsage, SkillUsage } from '../types';
 import { HERO_COLORS, estimateTokens } from '../types';
 import type { ParsedEvent } from '../parsers/session-parser';
 import { resolveContextWindow } from './context-window';
+import { xcodeToolActivity, xcodeToolFile } from '../parsers/xcode-tools';
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit']);
 /** Tools that spawn a subagent whose result flows back as a tool_result / task-notification. */
@@ -224,6 +226,19 @@ export class AgentStateManager {
 
   processEvent(event: ParsedEvent, meta: SessionMeta = {}): ProcessResult | null {
     const existing = this.agents.get(event.sessionId);
+    const configDir = meta.configDir ?? existing?.configDir ?? '';
+    const child = existing?.isSubagent ?? meta.isSubagent ?? isSubagentSessionId(event.sessionId);
+    if (!child && isXcodeConfigDir(configDir)) {
+      const project = xcodeProjectName(event.cwd ?? existing?.cwd ?? '');
+      if (project !== undefined) {
+        event = { ...event, slug: project };
+        meta = { ...meta, nameOverride: project };
+        if (existing !== undefined) {
+          existing.name = project;
+          if (event.cwd !== undefined) existing.cwd = event.cwd;
+        }
+      }
+    }
 
     // Resume hints (last-prompt dumps) never create new agents and never advance
     // lifecycle timers — they would otherwise resurrect historical sessions.
@@ -293,7 +308,8 @@ export class AgentStateManager {
    * Liveness override: when the oracle has at least one live session tracked,
    * any regular (non-subagent) sessionId that doesn't match a live Claude pid
    * is forced to `completed`. Subagents never get pid files of their own, so
-   * we trust the JSONL lifecycle for them. Returns true when the override
+   * we trust the JSONL lifecycle for them. Xcode also has no terminal pid
+   * registration. Returns true when the override
    * applied and the caller should short-circuit further status changes.
    */
   private applyLivenessOverride(agent: AgentState): boolean {
@@ -301,6 +317,7 @@ export class AgentStateManager {
       this.livenessOracle !== undefined &&
       this.livenessOracle.hasAnyLive() &&
       agent.source === 'claude' &&
+      !isXcodeConfigDir(agent.configDir) &&
       !agent.isSubagent &&
       !this.livenessOracle.isLive(agent.id)
     ) {
@@ -1010,6 +1027,10 @@ export class AgentStateManager {
   private extractModifiedFiles(event: ParsedEvent): string[] {
     const files: string[] = [];
     for (const tc of event.toolCalls) {
+      if (xcodeToolActivity(tc.name) === 'editing') {
+        const path = xcodeToolFile(tc.name, tc.input);
+        if (path !== undefined) files.push(path);
+      }
       if (EDIT_TOOLS.has(tc.name)) {
         const fp = tc.input['file_path'];
         if (typeof fp === 'string') {

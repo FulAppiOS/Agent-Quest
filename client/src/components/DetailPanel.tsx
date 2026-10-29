@@ -1,3 +1,4 @@
+import { isXcodeAgent, sourceBadgeLabel } from '../types/sessionIdentity';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -127,7 +128,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
           <div className="detail-name-row">
             <span className="detail-name" style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}>{agent.name}</span>
             {isSubagentAgent(agent) && <span className="detail-sub-badge" title={agent.subagentType ?? 'subagent'}>SUBAGENT</span>}
-            {showSourceBadge && (
+            {(showSourceBadge || isXcodeAgent(agent)) && (
               <span
                 className="detail-source-badge"
                 style={{
@@ -135,9 +136,9 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
                   borderColor: `${SOURCE_BADGE_COLOR[agent.source]}80`,
                   background: `${SOURCE_BADGE_COLOR[agent.source]}14`,
                 }}
-                aria-label={`source ${agent.source}`}
+                aria-label={`source ${sourceBadgeLabel(agent)} · ${agent.source}`}
               >
-                {agent.source.toUpperCase()}
+                {sourceBadgeLabel(agent)}
               </span>
             )}
           </div>

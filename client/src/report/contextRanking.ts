@@ -6,6 +6,7 @@ export interface ContextRow {
   id: string;
   name: string;
   source: AgentSource;
+  configDir: string;
   model?: string;
   status: AgentState['status'];
   heroColor: HeroColor;
@@ -33,6 +34,7 @@ export function rankContextAgents(agents: AgentState[]): ContextRow[] {
       id: a.id,
       name: a.name,
       source: a.source,
+      configDir: a.configDir,
       model: a.model,
       status: a.status,
       heroColor: a.heroColor,

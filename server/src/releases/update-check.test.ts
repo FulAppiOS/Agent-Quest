@@ -88,9 +88,9 @@ describe('release checker', () => {
   });
 
   it('tolerates empty notes and bounds large release notes', async () => {
-    const empty = createUpdateChecker({ fetchRelease: async () => Response.json(release({ body: null })) });
+    const empty = createUpdateChecker({ installedVersion: '0.3.1', fetchRelease: async () => Response.json(release({ body: null })) });
     expect((await empty()).release?.notes).toBe('');
-    const large = createUpdateChecker({ fetchRelease: async () => Response.json(release({ body: 'x'.repeat(30_000) })) });
+    const large = createUpdateChecker({ installedVersion: '0.3.1', fetchRelease: async () => Response.json(release({ body: 'x'.repeat(30_000) })) });
     expect((await large()).release?.notes).toHaveLength(20_000);
   });
 });

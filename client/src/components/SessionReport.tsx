@@ -1,3 +1,4 @@
+import { isXcodeAgent } from '../types/sessionIdentity';
 import { useMemo } from 'react';
 import { formatTokens, skillShortName, type AgentActivity, type AgentState } from '../types/agent';
 import { computeSessionReport } from '../report/sessionReport';
@@ -38,7 +39,7 @@ export function SessionReport({ agent, subagents = [] }: SessionReportProps) {
     <div className="report">
       <div className="report-env">
         <span className="report-env-item"><span className="report-env-k">Profile</span> {configDirLabel(agent.configDir)}</span>
-        <span className="report-env-item"><span className="report-env-k">Project</span> {agent.cwd.length > 0 ? cwdBasename(agent.cwd) : '—'}</span>
+        <span className="report-env-item"><span className="report-env-k">Project</span> {isXcodeAgent(agent) && !agent.isSubagent ? agent.name : agent.cwd.length > 0 ? cwdBasename(agent.cwd) : '—'}</span>
         {agent.model !== undefined && <span className="report-env-item"><span className="report-env-k">Model</span> {agent.model}</span>}
       </div>
 

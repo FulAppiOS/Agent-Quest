@@ -10,9 +10,30 @@
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #1a1a2e; }
+      #startup-loader {
+        position: fixed; inset: 0; z-index: 10000;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 24px; padding: 32px; text-align: center;
+        background: radial-gradient(ellipse at center, #292b42 0%, #1a1a2e 70%);
+        color: #c4a35a; font-family: Georgia, serif;
+      }
+      #startup-loader h1 { font-size: clamp(28px, 5vw, 42px); letter-spacing: 0.12em; font-weight: normal; }
+      #startup-status { color: #c5c6d0; font: 14px/1.6 system-ui, sans-serif; }
+      .startup-spinner {
+        width: 32px; height: 32px; border: 2px solid #c4a35a33;
+        border-top-color: #c4a35a; border-radius: 50%;
+        animation: startup-spin 1s linear infinite;
+      }
+      @keyframes startup-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .startup-spinner { animation: none; } }
     </style>
   </head>
   <body>
+    <div id="startup-loader" role="status" aria-live="polite">
+      <h1>AGENT QUEST</h1>
+      <div class="startup-spinner" aria-hidden="true"></div>
+      <p id="startup-status">Preparing your village…</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

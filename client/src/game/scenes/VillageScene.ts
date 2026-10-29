@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { dismissStartupLoader, setStartupStatus } from '../startupLoader';
 import { eventBridge } from '../EventBridge';
 import { Building } from '../entities/Building';
 import { HeroSprite } from '../entities/HeroSprite';
@@ -93,14 +94,13 @@ export class VillageScene extends Phaser.Scene {
     // this colour is only visible past the map edges or during zoom-out.
     this.cameras.main.setBackgroundColor('#000000');
 
-    // Signal React that the village is up so it can reveal the HTML overlays
-    // (TopBar, PartyBar, etc.) that should stay hidden during the BootScene.
-    eventBridge.emit('village:ready');
-
     // Try to load a user-saved map from the editor; fall back to the procedural
     // terrain if none exists or the request fails. This is fire-and-forget —
     // the rest of create() (input, overlays, listeners) doesn't depend on it.
-    void this.bootstrapWorld();
+    void this.bootstrapWorld().catch((error: unknown) => {
+      console.error('[VillageScene] World initialization failed', error);
+      setStartupStatus('Unable to load the village. Please reload the page to try again.');
+    });
 
     // Set world bounds and fit the village into the viewport, then center the
     // map inside it. Anchoring on the world center (rather than a hardcoded
@@ -493,6 +493,17 @@ export class VillageScene extends Phaser.Scene {
       this.pendingAgentUpdate = null;
       this.handleAgentUpdate(pending);
     }
+
+    // Assets and terrain are ready; keep covering the canvas until its first
+    // complete frame has been rendered (create() runs before the async map load).
+    const onRendered = () => {
+      dismissStartupLoader();
+      eventBridge.emit('village:ready');
+    };
+    this.game.events.once(Phaser.Core.Events.POST_RENDER, onRendered);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.events.off(Phaser.Core.Events.POST_RENDER, onRendered);
+    });
   }
 
   /** Calculate zoom so the village area (~1100×700 centred at 1400,780) fills the viewport. */
@@ -739,6 +750,7 @@ export class VillageScene extends Phaser.Scene {
         hero.setErrorTimestamp(agent.lastErrorAt);
         hero.updateDetail(agent.currentFile, agent.currentCommand);
         hero.updateTask(agent.currentTask);
+        hero.setSessionIdentity(agent);
         hero.setModel(agent.model);
         hero.setContextBarVisible(this.showContextBars);
         this.applyTelemetryVisuals(hero, agent, childCount.get(agent.id) ?? 0);
@@ -754,6 +766,7 @@ export class VillageScene extends Phaser.Scene {
         existing.updateTask(agent.currentTask);
         existing.setStatus(agent.status);
         existing.setErrorTimestamp(agent.lastErrorAt);
+        existing.setSessionIdentity(agent);
         existing.setModel(agent.model);
         this.applyTelemetryVisuals(existing, agent, childCount.get(agent.id) ?? 0);
 

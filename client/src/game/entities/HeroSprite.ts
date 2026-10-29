@@ -1,3 +1,4 @@
+import { isXcodeAgent, sourceBadgeLabel } from '../../types/sessionIdentity';
 import * as Phaser from 'phaser';
 import {
   CONTEXT_LEVEL_COLOR, HERO_COLOR_SPRITE_BASE, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR,
@@ -93,6 +94,8 @@ export class HeroSprite {
   private source: AgentSource;
   private isSubagent: boolean;
   private sourceBadgeVisible = false;
+  private xcodeSession = false;
+  private sourceLabel: string | undefined;
   private activityText: Phaser.GameObjects.Text;
   /** Lazily created when a model badge applies (Claude sessions only). */
   private modelText: Phaser.GameObjects.Text | null = null;
@@ -464,6 +467,14 @@ export class HeroSprite {
     if (this.selectionHalo !== null) this.selectionHalo.setDepth(footY + 0.4);
   }
 
+  setSessionIdentity(agent: AgentState): void {
+    this.nameText.setText(agent.name);
+    this.xcodeSession = isXcodeAgent(agent);
+    this.sourceLabel = sourceBadgeLabel(agent);
+    this.sourceText?.setText(this.sourceLabel);
+    this.setSourceBadgeVisible(this.sourceBadgeVisible);
+  }
+
   /**
    * Show or hide the source badge (`CODEX` / `CLAUDE`). Called by the scene
    * whenever the fleet's provider makeup changes. Lazily creates the Text
@@ -472,6 +483,7 @@ export class HeroSprite {
    * alone on that row.
    */
   setSourceBadgeVisible(visible: boolean): void {
+    visible = visible || this.xcodeSession;
     this.sourceBadgeVisible = visible;
     const justCreated = visible && this.sourceText === null;
     if (justCreated) {
@@ -479,7 +491,7 @@ export class HeroSprite {
         this.scene,
         this._x,
         this._y + this.subagentOffsetY,
-        this.source.toUpperCase(),
+        this.sourceLabel ?? this.source.toUpperCase(),
         {
           fontSize: '9px',
           color: SOURCE_BADGE_COLOR[this.source],

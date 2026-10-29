@@ -1,5 +1,6 @@
 import type { AgentActivity, JsonlLine, JsonlToolResult, JsonlToolUse, ToolCall } from '../types';
 import { parsePluginTool } from './plugin-tool';
+import { xcodeToolActivity, xcodeToolFile } from './xcode-tools';
 
 /**
  * First line of the synthetic user message Claude Code injects right after a
@@ -25,7 +26,7 @@ const TOOL_ACTIVITY_MAP: Record<string, AgentActivity> = {
 const GIT_COMMAND_PATTERN = /\bgit\s+(commit|push|merge|rebase|cherry-pick)\b/;
 
 export function toolNameToActivity(toolName: string): AgentActivity {
-  return TOOL_ACTIVITY_MAP[toolName] ?? 'thinking';
+  return TOOL_ACTIVITY_MAP[toolName] ?? xcodeToolActivity(toolName) ?? 'thinking';
 }
 
 function asNonNegInt(v: unknown): number {
@@ -63,7 +64,7 @@ export function extractFileFromToolUse(
     return typeof cmd === 'string' ? cmd : undefined;
   }
   const filePath = input['file_path'];
-  return typeof filePath === 'string' ? filePath : undefined;
+  return typeof filePath === 'string' ? filePath : xcodeToolFile(toolName, input);
 }
 
 export interface ParsedEvent {
@@ -294,6 +295,14 @@ export function parseJsonlLine(raw: string): ParsedEvent | null {
         const path = text.slice(SKILL_BODY_PREFIX.length, pathEnd === -1 ? undefined : pathEnd).trim();
         return telemetryEvent(userLine, { skillLoad: { path, chars: text.length } });
       }
+    }
+    if (userLine.isMeta !== true) {
+      // Xcode's Claude agent writes ordinary prompts as text blocks, not strings.
+      // Reuse the string path's slash-command/notification guards after excluding
+      // tool results and synthetic skill bodies above. Images remain unparsed.
+      const text = blocks.filter((b) => b !== null && typeof b === 'object' && b.type === 'text' && 'text' in b && typeof b.text === 'string')
+        .map((b) => (b as { text: string }).text).join('\n');
+      if (text.length > 0) return parseJsonlLine(JSON.stringify({ ...userLine, message: { ...userLine.message, content: text } }));
     }
     return null;
   }
