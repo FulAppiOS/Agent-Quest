@@ -5,7 +5,7 @@
 <p align="center">
   <strong>A fantasy village dashboard for Claude Code and Codex.</strong>
   <br />
-  Follow your agents across terminals, apps and IDEs. Also supports Xcode on macOS.
+  Follow your agents across terminals, apps and IDEs.
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 
 ---
 
-> **Use Claude Code or Codex as usual — in your terminal, app or IDE. Each supported local session becomes a hero in the village. Xcode on macOS is supported too.**
+> **Use Claude Code or Codex as usual — in your terminal, app or IDE. Each supported local session becomes a hero in the village.**
 
 Agent Quest is an open-source, browser-based monitoring dashboard that visualizes active Claude Code and Codex sessions as fantasy heroes in a 2D village. It follows compatible local session logs from terminals, apps and IDE integrations. On macOS, this also includes Claude Agent and Codex sessions started inside Xcode.
 
