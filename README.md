@@ -3,13 +3,20 @@
 </p>
 
 <p align="center">
-  <strong>A fantasy village dashboard for Claude Code and Codex — including agents started inside Xcode on macOS.</strong>
+  <strong>A fantasy village dashboard for Claude Code and Codex.</strong>
+  <br />
+  Follow your agents across terminals, apps and IDEs. Also supports Xcode on macOS.
+</p>
+
+<p align="center">
+  <a href="#features"><img src="https://img.shields.io/badge/Claude_Code-supported-D97757" alt="Claude Code supported" /></a>
+  <a href="#features"><img src="https://img.shields.io/badge/Codex-supported-412991" alt="Codex supported" /></a>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <a href="#xcode-macos"><img src="https://img.shields.io/badge/Xcode-Claude%20%26%20Codex-147EFB?logo=xcode&logoColor=white" alt="Xcode: Claude and Codex on macOS" /></a>
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-%E2%89%A51.1-black.svg" alt="Bun ≥ 1.1" /></a>
+  <a href="#xcode-macos"><img src="https://img.shields.io/badge/Also_in-Xcode_(macOS)-147EFB?logo=xcode&logoColor=white" alt="Also in Xcode on macOS" /></a>
   <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.shields.io/badge/Buy%20me%20a%20beer-%F0%9F%8D%BA-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a beer" /></a>
 </p>
 
@@ -19,9 +26,11 @@
 
 ---
 
-> **Use Claude Code or Codex as usual — in your terminal, app, or inside Xcode on macOS. Each supported local session becomes a hero in the village.**
+> **Use Claude Code or Codex as usual — in your terminal, app or IDE. Each supported local session becomes a hero in the village. Xcode on macOS is supported too.**
 
-Agent Quest is an open-source, browser-based monitoring dashboard that visualizes active Claude Code and Codex sessions as fantasy heroes in a 2D village, including Claude Agent and Codex sessions started inside Xcode on macOS. Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on. Every hero also shows how much of its context window it has used, which skills and plugins it is running under, and which subagents are working for it — with a one-click export you can hand to another AI to review the session.
+Agent Quest is an open-source, browser-based monitoring dashboard that visualizes active Claude Code and Codex sessions as fantasy heroes in a 2D village. It follows compatible local session logs from terminals, apps and IDE integrations. On macOS, this also includes Claude Agent and Codex sessions started inside Xcode.
+
+Each running agent becomes a hero who walks between buildings based on what it's doing: `Read` sends it to the Library, `Edit` to the Forge, `Bash` to the Arena, and so on. Every hero also shows how much of its context window it has used, which skills and plugins it is running under, and which subagents are working for it — with a one-click export you can hand to another AI to review the session.
 
 <p align="center">
   <img src="docs/media/day.gif" alt="Agent Quest — main view" width="820" />
@@ -66,7 +75,7 @@ Agent Quest is an open-source, browser-based monitoring dashboard that visualize
 
 ## Why?
 
-Claude Code and Codex sessions happen in terminals, apps, and Xcode — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations and `~/.codex`), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
+Claude Code and Codex sessions happen across terminals, apps and IDEs — useful, but not very *alive*. When you run several agents at once (across projects, across `~/.claude*` installations and `~/.codex`), it's hard to feel what they're actually doing. Agent Quest turns that invisible activity into something you can glance at: a little village where every hero is an agent, and where they walk tells you what they're up to.
 
 ## Features
 
@@ -83,7 +92,7 @@ Claude Code and Codex sessions happen in terminals, apps, and Xcode — useful, 
 
 ## Xcode (macOS)
 
-Start a prompt with **Claude Agent or Codex inside Xcode** and follow it in the same village as your terminal and app sessions. Agent Quest discovers Xcode’s compatible local session logs automatically. Reading and searching send a hero to the Library, edits to the Forge, builds and tests to the Arena, and issue diagnostics to the Alchemist.
+Xcode is an additional supported environment for your agents. Start a prompt with **Claude Agent or Codex inside Xcode** and follow it in the same village as your other Claude Code and Codex sessions. Agent Quest discovers Xcode’s compatible local session logs automatically. Reading and searching send a hero to the Library, edits to the Forge, builds and tests to the Arena, and issue diagnostics to the Alchemist.
 
 Each Xcode session carries an **Xcode** badge, even when it is the only provider in the village. Its project name is derived from the session’s working directory; the profile identifies **Xcode · Claude** or **Xcode · Codex**. Sessions using Xcode tools from an external terminal keep their original source identity.
 
