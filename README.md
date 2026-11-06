@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.fulvioscichilone.it/agent-quest/">Website</a>
+  <a href="https://www.fulvioscichilone.it/agent-quest/"><img src="https://img.shields.io/badge/Explore_Agent_Quest-Visit_Website-7C3AED?style=for-the-badge&amp;labelColor=1F2937" alt="Explore Agent Quest — Visit website" /></a>
 </p>
 
 ---
