@@ -9,7 +9,7 @@
   "scripts": {
     "dev:server": "cd server && bun run dev",
     "dev:client": "cd client && bun run dev",
-    "start": "concurrently -n server,client -c blue,green --kill-others-on-fail \"bun run dev:server\" \"bun run dev:client\"",
+    "start": "bash bin/agentquest banner && concurrently -n server,client -c blue,green --kill-others-on-fail \"bun run dev:server\" \"bun run dev:client\"",
     "check:assets": "bun run scripts/check-assets.ts"
   },
   "devDependencies": {

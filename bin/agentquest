@@ -125,6 +125,63 @@ prompt_yn() {
   [[ "$ans" =~ ^[Yy]$ ]]
 }
 
+# ------------------------------------------------------------------ banner
+# ASCII-art title shown by `agentquest start` and `bun start`. Picks the widest layout that fits
+# the terminal (one line ≥ 92 cols, two lines ≥ 46 cols, plain text otherwise).
+# Disable with AGENTQUEST_NO_BANNER=1.
+print_banner() {
+  [[ -n "${AGENTQUEST_NO_BANNER:-}" ]] && return 0
+
+  local cols="${COLUMNS:-}"
+  if [[ -z "$cols" && -t 1 ]]; then cols="$(tput cols 2>/dev/null || true)"; fi
+  [[ "$cols" =~ ^[0-9]+$ ]] || cols=80
+
+  local -a rows
+  if (( cols >= 92 )); then
+    rows=(
+      ' █████╗  ██████╗ ███████╗███╗   ██╗████████╗   ██████╗ ██╗   ██╗███████╗███████╗████████╗'
+      '██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝  ██╔═══██╗██║   ██║██╔════╝██╔════╝╚══██╔══╝'
+      '███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║     ██║   ██║██║   ██║█████╗  ███████╗   ██║'
+      '██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║     ██║▄▄ ██║██║   ██║██╔══╝  ╚════██║   ██║'
+      '██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║     ╚██████╔╝╚██████╔╝███████╗███████║   ██║'
+      '╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝      ╚══▀▀═╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝'
+    )
+  elif (( cols >= 46 )); then
+    rows=(
+      ' █████╗  ██████╗ ███████╗███╗   ██╗████████╗'
+      '██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝'
+      '███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║'
+      '██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║'
+      '██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║'
+      '╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝'
+      ' ██████╗ ██╗   ██╗███████╗███████╗████████╗'
+      '██╔═══██╗██║   ██║██╔════╝██╔════╝╚══██╔══╝'
+      '██║   ██║██║   ██║█████╗  ███████╗   ██║'
+      '██║▄▄ ██║██║   ██║██╔══╝  ╚════██║   ██║'
+      '╚██████╔╝╚██████╔╝███████╗███████║   ██║'
+      ' ╚══▀▀═╝  ╚═════╝ ╚══════╝╚══════╝   ╚═╝'
+    )
+  else
+    rows=('⚔  AGENT QUEST  ⚔')
+  fi
+
+  # Gold → amber gradient (xterm-256 colours), top to bottom.
+  local -a palette=(226 220 220 214 214 208)
+  local n=${#rows[@]} i idx
+  printf '\n'
+  for (( i = 0; i < n; i++ )); do
+    if [[ -n "$C_RESET" ]]; then
+      idx=$(( i * ${#palette[@]} / n ))
+      printf '  \033[1;38;5;%sm%s%s\n' "${palette[idx]}" "${rows[i]}" "$C_RESET"
+    else
+      printf '  %s\n' "${rows[i]}"
+    fi
+  done
+  local tagline='Fantasy village dashboard for Claude Code & Codex agents'
+  (( cols < 72 )) && tagline='Claude Code & Codex agent village'
+  printf '\n  %s⚔  %s  ·  v%s%s\n\n' "$C_DIM" "$tagline" "$(read_pkg_version)" "$C_RESET"
+}
+
 # ------------------------------------------------------------------ sub-commands
 cmd_help() {
   cat <<USAGE
@@ -156,6 +213,7 @@ cmd_version() {
 }
 
 cmd_start() {
+  print_banner
   check_bun_runtime
   check_ports
   check_claude_dirs
@@ -163,7 +221,8 @@ cmd_start() {
   open_browser_later
   info "Starting Agent Quest (Ctrl+C to stop) ..."
   cd "$REPO_ROOT"
-  exec bun start
+  # Banner already shown above; `bun start` would print it again.
+  AGENTQUEST_NO_BANNER=1 exec bun start
 }
 
 cmd_update() {
@@ -234,6 +293,7 @@ cmd_update() {
 # ------------------------------------------------------------------ dispatch
 case "${1:-start}" in
   start)                cmd_start ;;
+  banner)               print_banner ;;  # used by `bun start`
   update)               cmd_update ;;
   --help|-h|help)       cmd_help ;;
   --version|-v|version) cmd_version ;;
