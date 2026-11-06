@@ -16,7 +16,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
   <a href="https://bun.sh"><img src="https://img.shields.io/badge/bun-%E2%89%A51.1-black.svg" alt="Bun ≥ 1.1" /></a>
-  <a href="#xcode-macos"><img src="https://img.shields.io/badge/Also_in-Xcode_(macOS)-147EFB?logo=xcode&logoColor=white" alt="Also in Xcode on macOS" /></a>
   <a href="https://www.buymeacoffee.com/fulvio"><img src="https://img.shields.io/badge/Buy%20me%20a%20beer-%F0%9F%8D%BA-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a beer" /></a>
 </p>
 
@@ -81,7 +80,6 @@ Claude Code and Codex sessions happen across terminals, apps and IDEs — useful
 
 - Real-time visualization of active Claude Code and Codex sessions
 - Auto-discovery of every `~/.claude*` directory (supports multiple installations like `~/.claude-work`, `~/.claude-personale`) and of `~/.codex` if present
-- On macOS, automatically discovers Claude Agent and Codex sessions started inside Xcode, with Xcode source labels and activity mapping for reading, editing, builds, tests, and diagnostics
 - Activity feed, party bar, and detail panel alongside the village scene
 - Context-window gauge per hero (how close each conversation is to a compaction), plus the hottest main agent in the top bar and an optional "context nearly full" alert
 - Skill & plugin telemetry: which skill a hero is running under, how many tokens each loaded skill or plugin result pushed into the context, and what the installed skills would cost if they were always loaded
@@ -89,22 +87,6 @@ Claude Code and Codex sessions happen across terminals, apps and IDEs — useful
 - Built-in map editor for customizing the village layout
 - Session polling every 2–3 seconds with live WebSocket updates (optional lower-latency path via Claude Code `postToolUse` hooks — Claude Code only; Codex doesn't expose hooks)
 - Works with both the legacy Codex rollout format and the `item_completed` format of Codex ≥ 0.160, including Codex subagents spawned with `spawn_agent`
-
-## Xcode (macOS)
-
-Xcode is an additional supported environment for your agents. Start a prompt with **Claude Agent or Codex inside Xcode** and follow it in the same village as your other Claude Code and Codex sessions. Agent Quest discovers Xcode’s compatible local session logs automatically. Reading and searching send a hero to the Library, edits to the Forge, builds and tests to the Arena, and issue diagnostics to the Alchemist.
-
-Each Xcode session carries an **Xcode** badge, even when it is the only provider in the village. Its project name is derived from the session’s working directory; the profile identifies **Xcode · Claude** or **Xcode · Codex**. Sessions using Xcode tools from an external terminal keep their original source identity.
-
-<p align="center">
-  <img src="docs/media/xcode-agents.jpg" alt="Agent Quest with Claude and Codex Xcode sessions alongside terminal sessions" width="820" />
-  <br />
-  <sub><em>Xcode and terminal sessions in one village. Demonstration data; no private sessions shown.</em></sub>
-</p>
-
-Run Agent Quest under the same macOS account as Xcode and send a first prompt to create the session logs. Newly created folders are discovered while Agent Quest is running. See [troubleshooting](#troubleshooting) if an agent does not appear.
-
-This is log-based monitoring of compatible Claude/Codex sessions; it does not control Xcode, check agent sign-in, or cover every Xcode chat provider. The open-source dashboard runs with Bun in your browser.
 
 ## Requirements
 
