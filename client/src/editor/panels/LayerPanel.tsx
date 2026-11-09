@@ -1,12 +1,13 @@
 import { editorBridge } from '../EditorBridge';
 import { editorStore, useEditorStore } from '../state/editor-store';
 import type { EraseScope, Layer, PathStyle } from '../types/editor-events';
+import { useI18n } from '../../i18n';
 
-const LAYERS: Array<{ key: Layer; label: string }> = [
-  { key: 'terrain',     label: 'Terrain' },
-  { key: 'paths',       label: 'Paths' },
-  { key: 'decorations', label: 'Decorations' },
-  { key: 'buildings',   label: 'Buildings' },
+const LAYERS: Array<{ key: Layer; labelKey: string }> = [
+  { key: 'terrain',     labelKey: 'editor.layers.terrain' },
+  { key: 'paths',       labelKey: 'editor.layers.paths' },
+  { key: 'decorations', labelKey: 'editor.layers.decorations' },
+  { key: 'buildings',   labelKey: 'editor.layers.buildings' },
 ];
 
 const PATH_STYLES: PathStyle[] = ['main', 'secondary', 'trail', 'plaza'];
@@ -14,6 +15,7 @@ const PATH_STYLES: PathStyle[] = ['main', 'secondary', 'trail', 'plaza'];
 const ERASE_SCOPES: EraseScope[] = ['all', 'terrain', 'decorations', 'paths'];
 
 export function LayerPanel() {
+  const { t } = useI18n();
   const layers = useEditorStore((s) => s.layers);
   const pathBrush = useEditorStore((s) => s.pathBrush);
   const paintTile = useEditorStore((s) => s.paintTile);
@@ -45,14 +47,14 @@ export function LayerPanel() {
   };
 
   const onClear = (what: 'clear-terrain' | 'clear-decorations' | 'clear-paths' | 'reset-buildings') => {
-    if (confirm(`Are you sure you want to run "${what}"?`)) {
+    if (confirm(t('editor.layers.confirmAction', { action: what }))) {
       editorBridge.emit('ed:action', what);
     }
   };
 
   return (
     <div className="editor-layers">
-      <div className="editor-palette-header">Layers</div>
+      <div className="editor-palette-header">{t('editor.layers.title')}</div>
       {LAYERS.map((l) => (
         <div key={l.key} className="editor-row">
           <label>
@@ -60,20 +62,20 @@ export function LayerPanel() {
               type="checkbox"
               checked={layers[l.key]}
               onChange={() => onToggle(l.key)}
-            /> {l.label}
+            /> {t(l.labelKey)}
           </label>
         </div>
       ))}
 
-      <div className="editor-palette-header" style={{ marginTop: 6 }}>Path Brush</div>
+      <div className="editor-palette-header" style={{ marginTop: 6 }}>{t('editor.layers.pathBrush')}</div>
       <div className="editor-row">
-        <label>Style</label>
+        <label>{t('editor.layers.style')}</label>
         <select value={pathBrush.style} onChange={(e) => onPathStyle(e.target.value as PathStyle)}>
           {PATH_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
       <div className="editor-row">
-        <label>Width {pathBrush.width}</label>
+        <label>{t('editor.layers.width', { width: pathBrush.width })}</label>
         <input
           type="range"
           min={16}
@@ -84,17 +86,17 @@ export function LayerPanel() {
         />
       </div>
 
-      <div className="editor-palette-header" style={{ marginTop: 6 }}>Paint Brush</div>
+      <div className="editor-palette-header" style={{ marginTop: 6 }}>{t('editor.layers.paintBrush')}</div>
       <div className="editor-row">
         <label>
           <input type="checkbox" checked={paintTile.walkable} onChange={(e) => onWalkable(e.target.checked)} />
-          {' '}Walkable
+          {' '}{t('editor.layers.walkable')}
         </label>
       </div>
 
       {tool === 'erase' && (
         <>
-          <div className="editor-palette-header" style={{ marginTop: 6 }}>Erase Scope</div>
+          <div className="editor-palette-header" style={{ marginTop: 6 }}>{t('editor.layers.eraseScope')}</div>
           <div className="editor-row">
             <select
               defaultValue="all"
@@ -107,11 +109,11 @@ export function LayerPanel() {
         </>
       )}
 
-      <div className="editor-palette-header" style={{ marginTop: 6 }}>Clear</div>
-      <button className="editor-btn" onClick={() => onClear('clear-terrain')}>Clear terrain</button>
-      <button className="editor-btn" onClick={() => onClear('clear-decorations')}>Clear decorations</button>
-      <button className="editor-btn" onClick={() => onClear('clear-paths')}>Clear paths</button>
-      <button className="editor-btn" onClick={() => onClear('reset-buildings')}>Reset buildings</button>
+      <div className="editor-palette-header" style={{ marginTop: 6 }}>{t('editor.layers.clear')}</div>
+      <button className="editor-btn" onClick={() => onClear('clear-terrain')}>{t('editor.layers.clearTerrain')}</button>
+      <button className="editor-btn" onClick={() => onClear('clear-decorations')}>{t('editor.layers.clearDecorations')}</button>
+      <button className="editor-btn" onClick={() => onClear('clear-paths')}>{t('editor.layers.clearPaths')}</button>
+      <button className="editor-btn" onClick={() => onClear('reset-buildings')}>{t('editor.layers.resetBuildings')}</button>
     </div>
   );
 }

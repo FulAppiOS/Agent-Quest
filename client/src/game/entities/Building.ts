@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
-import type { BuildingDef } from '../data/building-layout';
+import { buildingName, type BuildingDef } from '../data/building-layout';
+import { t } from '../../i18n';
 import { eventBridge } from '../EventBridge';
 import { addCrispText } from '../text';
 import { getActiveTheme } from '../themes/registry';
@@ -8,6 +9,7 @@ export class Building {
   readonly def: BuildingDef;
   readonly image: Phaser.GameObjects.Image;
   readonly label: Phaser.GameObjects.Text;
+  readonly subtitle: Phaser.GameObjects.Text;
   readonly doorX: number;
   readonly doorY: number;
 
@@ -50,8 +52,8 @@ export class Building {
 
     // Label above building — image top is at y - displayHeight (since origin is bottom)
     const labelY = def.y - this.image.displayHeight - 8;
-    const labelFont = '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
-    this.label = addCrispText(scene, def.x, labelY, def.label, {
+    const labelFont = '"Inter", "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif';
+    this.label = addCrispText(scene, def.x, labelY, buildingName(def), {
       fontSize: '15px',
       fontStyle: '600',
       color: '#F5E6C8',
@@ -63,7 +65,7 @@ export class Building {
 
     // Subtitle (description) below the label — pushed 5px down to clear the
     // title's descenders and avoid muddiness in the overlap zone.
-    addCrispText(scene, def.x, labelY + 5, def.activity, {
+    this.subtitle = addCrispText(scene, def.x, labelY + 5, t(`activity.${def.activity}`), {
       fontSize: '11px',
       color: '#d8d8d8',
       fontFamily: labelFont,
@@ -71,5 +73,11 @@ export class Building {
       strokeThickness: 1,
       shadow: { offsetX: 0, offsetY: 1, color: '#000', blur: 2, fill: true },
     }).setOrigin(0.5, 0).setDepth(this.doorY + 0.1);
+  }
+
+  /** Re-render the name and activity subtitle after a locale change. */
+  refreshLabels(): void {
+    this.label.setText(buildingName(this.def));
+    this.subtitle.setText(t(`activity.${this.def.activity}`));
   }
 }

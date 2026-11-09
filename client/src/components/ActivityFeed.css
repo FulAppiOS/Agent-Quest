@@ -19,7 +19,7 @@
   right: 0;
   background: var(--feed-bg);
   border-top: 1px solid var(--feed-border);
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   font-size: 14px;
   color: var(--feed-pergamena);
   z-index: 25;
@@ -54,7 +54,7 @@
 }
 
 .feed-title {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: var(--feed-gold);
   font-size: 14px;
   font-weight: bold;
@@ -70,7 +70,7 @@
   border-radius: 8px;
   font-size: 10px;
   font-weight: bold;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   animation: feed-pulse 1.6s ease-in-out infinite;
 }
 @keyframes feed-pulse {
@@ -294,7 +294,7 @@
 
 .feed-source-badge,
 .feed-model-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -370,7 +370,7 @@
   background: rgba(255, 255, 255, 0.08);
   padding: 0 4px;
   border-radius: 3px;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
 }
 .feed-detail.is-message pre {
   margin: 4px 0;
@@ -433,7 +433,7 @@
 .feed-group-name {
   color: var(--feed-gold);
   font-weight: bold;
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   font-size: 13px;
 }
 .feed-group-activity {

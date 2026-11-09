@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 export const HERO_CLASSES = ['warrior', 'archer', 'pawn'] as const;
 export type HeroClass = (typeof HERO_CLASSES)[number];
 
@@ -238,13 +239,28 @@ export function isSubagentAgent(a: Pick<AgentState, 'id' | 'isSubagent'>): boole
  * a `waiting`/`completed` agent (whose `currentActivity` the server sets to
  * `idle`) would read as "idle" everywhere except the hero label.
  */
+/** Localized label for an activity key (see i18n `activity.*`). */
+export function activityLabel(activity: AgentActivity): string {
+  return t(`activity.${activity}`);
+}
+
+/** Localized label for a session status (see i18n `status.*`). */
+export function statusLabel(status: AgentState['status']): string {
+  return t(`status.${status}`);
+}
+
+/** Localized label for a hero class (see i18n `heroClass.*`). */
+export function heroClassLabel(heroClass: HeroClass): string {
+  return t(`heroClass.${heroClass}`);
+}
+
 export function displayActivity(agent: Pick<AgentState, 'status' | 'currentActivity'>): string {
   switch (agent.status) {
-    case 'waiting': return 'waiting';
-    case 'completed': return 'completed';
-    case 'error': return 'error';
-    case 'idle': return 'idle';
-    case 'active': return agent.currentActivity;
+    case 'waiting': return statusLabel('waiting');
+    case 'completed': return statusLabel('completed');
+    case 'error': return statusLabel('error');
+    case 'idle': return statusLabel('idle');
+    case 'active': return activityLabel(agent.currentActivity);
   }
 }
 

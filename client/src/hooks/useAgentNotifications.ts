@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { AgentState } from '../types/agent';
 import type { AppSettings } from './useSettings';
+import { t } from '../i18n';
 import { playChime, type ChimeKind } from '../notifications/sound';
 import { computeAlerts, type AgentAlert, type AgentSnapshot } from '../notifications/transitions';
 
@@ -24,19 +25,19 @@ function categoryEnabled(s: AppSettings, c: ChimeKind): boolean {
 
 function titleFor(a: AgentAlert): string {
   switch (a.category) {
-    case 'waiting': return `${a.name} — your turn`;
-    case 'error': return `${a.name} — error`;
-    case 'completed': return `${a.name} — done`;
-    case 'context': return `${a.name} — context nearly full`;
+    case 'waiting': return t('notifications.titleWaiting', { name: a.name });
+    case 'error': return t('notifications.titleError', { name: a.name });
+    case 'completed': return t('notifications.titleCompleted', { name: a.name });
+    case 'context': return t('notifications.titleContext', { name: a.name });
   }
 }
 
 function bodyFor(a: AgentAlert): string {
   switch (a.category) {
-    case 'waiting': return 'Finished its turn and is waiting for you.';
-    case 'error': return 'Hit an error.';
-    case 'completed': return 'Session completed.';
-    case 'context': return 'Context window is above 85% — expect a compaction soon.';
+    case 'waiting': return t('notifications.bodyWaiting');
+    case 'error': return t('notifications.bodyError');
+    case 'completed': return t('notifications.bodyCompleted');
+    case 'context': return t('notifications.bodyContext');
   }
 }
 

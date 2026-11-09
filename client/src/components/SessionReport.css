@@ -43,7 +43,7 @@
 .report-stat-k { font-size: 9.5px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
 
 .report-section-title {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 10.5px;
   letter-spacing: 1px;

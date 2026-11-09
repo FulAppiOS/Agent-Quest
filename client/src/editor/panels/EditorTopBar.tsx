@@ -1,8 +1,10 @@
 import { editorBridge } from '../EditorBridge';
 import { editorStore, useEditorStore } from '../state/editor-store';
 import type { SlotInfo } from '../types/map';
+import { useI18n } from '../../i18n';
 
 export function EditorTopBar() {
+  const { t } = useI18n();
   const dirty = useEditorStore((s) => s.dirty);
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
   const saveError = useEditorStore((s) => s.saveError);
@@ -17,11 +19,11 @@ export function EditorTopBar() {
   };
 
   const statusText = (() => {
-    if (saveError !== null) return `Save error: ${saveError}`;
-    if (saving) return 'Saving...';
-    if (dirty) return 'Unsaved changes';
-    if (lastSavedAt !== null) return `Saved ${formatTime(lastSavedAt)}`;
-    return 'Ready';
+    if (saveError !== null) return t('editor.topbar.saveError', { error: saveError });
+    if (saving) return t('editor.topbar.saving');
+    if (dirty) return t('editor.topbar.unsavedChanges');
+    if (lastSavedAt !== null) return t('editor.topbar.savedAt', { time: formatTime(lastSavedAt) });
+    return t('editor.topbar.ready');
   })();
 
   const statusClass = saveError !== null
@@ -38,13 +40,13 @@ export function EditorTopBar() {
   };
 
   const onClearMap = () => {
-    if (confirm('Clear the map? Terrain, decorations, paths, and NPCs will be wiped. You will still need to Save to persist.')) {
+    if (confirm(t('editor.topbar.confirmClearMap'))) {
       editorBridge.emit('ed:action', 'reset-all');
     }
   };
 
   const onLoadTemplate = () => {
-    if (confirm('Load the shipped template into this slot? Unsaved changes will be lost. You will still need to Save to persist.')) {
+    if (confirm(t('editor.topbar.confirmLoadTemplate'))) {
       editorBridge.emit('ed:action', 'load-template');
     }
   };
@@ -64,7 +66,7 @@ export function EditorTopBar() {
   return (
     <div className="editor-topbar">
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div className="editor-topbar-title">Map Editor</div>
+        <div className="editor-topbar-title">{t('editor.topbar.title')}</div>
         <div className="editor-slot-tabs">
           {slotInfo.map((info) => {
             const isCurrentSlot = info.slot === currentSlot;
@@ -77,7 +79,7 @@ export function EditorTopBar() {
               <button
                 key={info.slot}
                 className={classes}
-                title={info.isEmpty ? `Slot ${info.slot} (empty)` : `${info.name}${info.isActive ? ' (active)' : ''}`}
+                title={info.isEmpty ? t('editor.topbar.slotEmpty', { slot: info.slot }) : info.isActive ? t('editor.topbar.slotActive', { name: info.name }) : info.name}
                 onClick={() => onSlotClick(info)}
               >
                 {getSlotLabel(info)}
@@ -88,23 +90,23 @@ export function EditorTopBar() {
       </div>
       <div className="editor-topbar-actions">
         <span className={statusClass}>{statusText}</span>
-        <button className="editor-btn primary" onClick={onSave} disabled={saving}>Save</button>
+        <button className="editor-btn primary" onClick={onSave} disabled={saving}>{t('common.save')}</button>
         <button
           className="editor-btn"
           onClick={onSetActive}
-          title="Set this slot as the active map for the dashboard"
+          title={t('editor.topbar.setActiveTitle')}
         >
-          Set Active {currentSlot === activeSlot ? '\u2605' : ''}
+          {t('editor.topbar.setActive')} {currentSlot === activeSlot ? '\u2605' : ''}
         </button>
         <button
           className="editor-btn"
           onClick={onLoadTemplate}
-          title="Load the shipped template map into this slot (replaces current content)"
+          title={t('editor.topbar.loadTemplateTitle')}
         >
-          Load Template
+          {t('editor.topbar.loadTemplate')}
         </button>
-        <button className="editor-btn danger" onClick={onClearMap}>Clear Map</button>
-        <a className="editor-btn" href="/" style={{ textDecoration: 'none' }}>Back to Village</a>
+        <button className="editor-btn danger" onClick={onClearMap}>{t('editor.topbar.clearMap')}</button>
+        <a className="editor-btn" href="/" style={{ textDecoration: 'none' }}>{t('editor.topbar.backToVillage')}</a>
       </div>
     </div>
   );

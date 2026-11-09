@@ -1,6 +1,7 @@
 import { editorBridge } from '../EditorBridge';
 import { editorStore, useEditorStore } from '../state/editor-store';
 import type { UnitColor, UnitType } from '../types/map';
+import { useI18n } from '../../i18n';
 
 // Kept as fallbacks only — the actual option lists shown in the NPC
 // dropdowns are derived from the active manifest's npcSprites so themes
@@ -10,6 +11,7 @@ const NPC_UNITS_FALLBACK: UnitType[] = ['warrior', 'archer', 'pawn'];
 const NPC_COLORS_FALLBACK: UnitColor[] = ['blue', 'red', 'black', 'yellow', 'purple'];
 
 export function Inspector() {
+  const { t } = useI18n();
   const selection = useEditorStore((s) => s.selection);
   const stats = useEditorStore((s) => s.stats);
   const heroScale = useEditorStore((s) => s.heroScale);
@@ -20,31 +22,31 @@ export function Inspector() {
   if (selection === null) {
     return (
       <div className="editor-inspector">
-        <div className="editor-palette-header">Statistics</div>
+        <div className="editor-palette-header">{t('editor.inspector.statistics')}</div>
         <div className="editor-stat">
-          <span className="editor-stat-label">Terrain cells</span>
+          <span className="editor-stat-label">{t('editor.inspector.terrainCells')}</span>
           <span className="editor-stat-value">{stats.terrainCells}</span>
         </div>
         <div className="editor-stat">
-          <span className="editor-stat-label">Decorations</span>
+          <span className="editor-stat-label">{t('editor.inspector.decorations')}</span>
           <span className="editor-stat-value">{stats.decorations}</span>
         </div>
         <div className="editor-stat">
-          <span className="editor-stat-label">Paths</span>
+          <span className="editor-stat-label">{t('editor.inspector.paths')}</span>
           <span className="editor-stat-value">{stats.paths}</span>
         </div>
         <div className="editor-stat">
-          <span className="editor-stat-label">Buildings</span>
+          <span className="editor-stat-label">{t('editor.inspector.buildings')}</span>
           <span className="editor-stat-value">{stats.buildings}</span>
         </div>
         <div className="editor-stat">
-          <span className="editor-stat-label">NPCs</span>
+          <span className="editor-stat-label">{t('editor.inspector.npcs')}</span>
           <span className="editor-stat-value">{stats.npcs}</span>
         </div>
 
-        <div className="editor-palette-header" style={{ marginTop: 8 }}>Settings</div>
+        <div className="editor-palette-header" style={{ marginTop: 8 }}>{t('editor.inspector.settings')}</div>
         <div className="editor-row">
-          <label>Hero Scale</label>
+          <label>{t('editor.inspector.heroScale')}</label>
           <input
             type="range"
             min="0.15"
@@ -66,14 +68,14 @@ export function Inspector() {
   if (selection.kind === 'decoration') {
     return (
       <div className="editor-inspector">
-        <div className="editor-palette-header">Decoration</div>
-        <div className="editor-inspector-label">ID</div>
+        <div className="editor-palette-header">{t('editor.inspector.decoration')}</div>
+        <div className="editor-inspector-label">{t('editor.inspector.id')}</div>
         <div className="editor-inspector-value" style={{ fontSize: 10 }}>{selection.id}</div>
-        <div className="editor-inspector-label">Texture</div>
+        <div className="editor-inspector-label">{t('editor.inspector.texture')}</div>
         <div className="editor-inspector-value">{selection.textureKey}</div>
-        <div className="editor-inspector-label">Position</div>
+        <div className="editor-inspector-label">{t('editor.inspector.position')}</div>
         <div className="editor-inspector-value">{Math.round(selection.x)}, {Math.round(selection.y)}</div>
-        <div className="editor-inspector-label">Scale</div>
+        <div className="editor-inspector-label">{t('editor.inspector.scale')}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             type="range"
@@ -86,7 +88,7 @@ export function Inspector() {
           />
           <span className="editor-inspector-value">{selection.scale.toFixed(2)}</span>
         </div>
-        <button className="editor-btn danger" onClick={onDelete}>Delete</button>
+        <button className="editor-btn danger" onClick={onDelete}>{t('common.delete')}</button>
       </div>
     );
   }
@@ -94,14 +96,14 @@ export function Inspector() {
   if (selection.kind === 'building') {
     return (
       <div className="editor-inspector">
-        <div className="editor-palette-header">Building</div>
-        <div className="editor-inspector-label">ID</div>
+        <div className="editor-palette-header">{t('editor.inspector.building')}</div>
+        <div className="editor-inspector-label">{t('editor.inspector.id')}</div>
         <div className="editor-inspector-value">{selection.id}</div>
-        <div className="editor-inspector-label">Label</div>
+        <div className="editor-inspector-label">{t('editor.inspector.label')}</div>
         <div className="editor-inspector-value">{selection.label}</div>
-        <div className="editor-inspector-label">Position</div>
+        <div className="editor-inspector-label">{t('editor.inspector.position')}</div>
         <div className="editor-inspector-value">{Math.round(selection.x)}, {Math.round(selection.y)}</div>
-        <div style={{ fontSize: 10, color: '#888' }}>Use the "Move building" tool to reposition.</div>
+        <div style={{ fontSize: 10, color: '#888' }}>{t('editor.inspector.moveBuildingHint')}</div>
       </div>
     );
   }
@@ -138,11 +140,11 @@ export function Inspector() {
 
     return (
       <div className="editor-inspector">
-        <div className="editor-palette-header">NPC</div>
-        <div className="editor-inspector-label">ID</div>
+        <div className="editor-palette-header">{t('editor.inspector.npc')}</div>
+        <div className="editor-inspector-label">{t('editor.inspector.id')}</div>
         <div className="editor-inspector-value" style={{ fontSize: 10 }}>{selection.id}</div>
 
-        <div className="editor-inspector-label">Unit Type</div>
+        <div className="editor-inspector-label">{t('editor.inspector.unitType')}</div>
         <select
           value={selection.unit}
           onChange={(e) => onNpcChange({ unit: e.target.value as UnitType })}
@@ -152,7 +154,7 @@ export function Inspector() {
           ))}
         </select>
 
-        <div className="editor-inspector-label">Color</div>
+        <div className="editor-inspector-label">{t('editor.inspector.color')}</div>
         <select
           value={selection.color}
           onChange={(e) => onNpcChange({ color: e.target.value as UnitColor })}
@@ -162,10 +164,10 @@ export function Inspector() {
           ))}
         </select>
 
-        <div className="editor-inspector-label">Position</div>
+        <div className="editor-inspector-label">{t('editor.inspector.position')}</div>
         <div className="editor-inspector-value">{Math.round(selection.x)}, {Math.round(selection.y)}</div>
 
-        <div className="editor-inspector-label">Scale</div>
+        <div className="editor-inspector-label">{t('editor.inspector.scale')}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             type="range"
@@ -179,7 +181,7 @@ export function Inspector() {
           <span className="editor-inspector-value">{selection.scale.toFixed(2)}</span>
         </div>
 
-        <div className="editor-inspector-label">Wander Radius</div>
+        <div className="editor-inspector-label">{t('editor.inspector.wanderRadius')}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             type="range"
@@ -193,7 +195,7 @@ export function Inspector() {
           <span className="editor-inspector-value">{selection.wanderRadius}</span>
         </div>
 
-        <button className="editor-btn danger" onClick={onDelete}>Delete</button>
+        <button className="editor-btn danger" onClick={onDelete}>{t('common.delete')}</button>
       </div>
     );
   }
@@ -202,21 +204,21 @@ export function Inspector() {
     const onReset = () => editorBridge.emit('ed:spawn:clear');
     return (
       <div className="editor-inspector">
-        <div className="editor-palette-header">Hero Spawn</div>
-        <div className="editor-inspector-label">Status</div>
+        <div className="editor-palette-header">{t('editor.inspector.heroSpawn')}</div>
+        <div className="editor-inspector-label">{t('editor.inspector.status')}</div>
         <div className="editor-inspector-value">
-          {selection.isSet ? 'Custom' : 'Default (not set)'}
+          {selection.isSet ? t('editor.inspector.spawnCustom') : t('editor.inspector.spawnDefault')}
         </div>
-        <div className="editor-inspector-label">Position</div>
+        <div className="editor-inspector-label">{t('editor.inspector.position')}</div>
         <div className="editor-inspector-value">
           {Math.round(selection.x)}, {Math.round(selection.y)}
         </div>
         <div style={{ fontSize: 10, color: '#888', marginTop: 4 }}>
-          Heroes appear here before walking to their first building. Use the 🚩 tool to move.
+          {t('editor.inspector.spawnHint')}
         </div>
         {selection.isSet && (
           <button className="editor-btn" onClick={onReset} style={{ marginTop: 8 }}>
-            Reset to default
+            {t('editor.inspector.resetToDefault')}
           </button>
         )}
       </div>
@@ -226,16 +228,16 @@ export function Inspector() {
   // path
   return (
     <div className="editor-inspector">
-      <div className="editor-palette-header">Path</div>
-      <div className="editor-inspector-label">ID</div>
+      <div className="editor-palette-header">{t('editor.inspector.path')}</div>
+      <div className="editor-inspector-label">{t('editor.inspector.id')}</div>
       <div className="editor-inspector-value" style={{ fontSize: 10 }}>{selection.id}</div>
-      <div className="editor-inspector-label">Style</div>
+      <div className="editor-inspector-label">{t('editor.inspector.style')}</div>
       <div className="editor-inspector-value">{selection.style}</div>
-      <div className="editor-inspector-label">Points</div>
+      <div className="editor-inspector-label">{t('editor.inspector.points')}</div>
       <div className="editor-inspector-value">{selection.pointCount}</div>
-      <div className="editor-inspector-label">Width</div>
+      <div className="editor-inspector-label">{t('editor.inspector.width')}</div>
       <div className="editor-inspector-value">{selection.width}</div>
-      <button className="editor-btn danger" onClick={onDelete}>Delete</button>
+      <button className="editor-btn danger" onClick={onDelete}>{t('common.delete')}</button>
     </div>
   );
 }

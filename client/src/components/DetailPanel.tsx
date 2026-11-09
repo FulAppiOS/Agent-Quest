@@ -2,7 +2,7 @@ import { isXcodeAgent, sourceBadgeLabel } from '../types/sessionIdentity';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
-  HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, formatTokens, isSubagentAgent, skillShortName,
+  heroClassLabel, HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, displayActivity, formatTokens, isSubagentAgent, skillShortName,
   type AgentSource, type AgentState, type ContextUsage, type SkillInventory,
 } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
@@ -12,6 +12,7 @@ import { configDirLabel } from './configDirLabel';
 import { isPath, resolvePath } from './activityFeedUtils';
 import { buildSessionJson, buildSessionMarkdown, exportFileName } from '../report/sessionExport';
 import { copyText, downloadText } from '../report/download';
+import { t, useI18n } from '../i18n';
 import './DetailPanel.css';
 
 interface DetailPanelProps {
@@ -30,16 +31,16 @@ function formatDuration(startMs: number): string {
   const elapsed = Math.floor((Date.now() - startMs) / 1000);
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
-  return `${mins}m ${secs}s`;
+  return t('detail.duration', { mins, secs });
 }
 
 /** One line explaining where the context window figure comes from. */
 function windowSourceNote(c: ContextUsage, source: AgentSource): string {
   switch (c.windowSource) {
-    case 'reported': return `Window reported by ${source === 'codex' ? 'Codex' : 'the CLI'}.`;
-    case 'configured': return 'Window from your settings ([1m] model) or AGENT_QUEST_CLAUDE_CONTEXT_WINDOW.';
-    case 'inferred': return 'Window inferred from usage: more than 200k tokens in use means the 1M window.';
-    case 'default': return 'Default 200k window assumed — set AGENT_QUEST_CLAUDE_CONTEXT_WINDOW if yours differs.';
+    case 'reported': return source === 'codex' ? t('detail.windowReportedCodex') : t('detail.windowReportedCli');
+    case 'configured': return t('detail.windowConfigured');
+    case 'inferred': return t('detail.windowInferred');
+    case 'default': return t('detail.windowDefault');
   }
 }
 
@@ -61,6 +62,7 @@ function PathValue({ path, cwd, className }: { path: string; cwd: string; classN
 }
 
 export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAgent, showSourceBadge }: DetailPanelProps) {
+  const { t } = useI18n();
   // Tick every second so duration-derived values refresh between server pushes.
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -127,7 +129,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
         <div className="detail-topbar-body">
           <div className="detail-name-row">
             <span className="detail-name" style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}>{agent.name}</span>
-            {isSubagentAgent(agent) && <span className="detail-sub-badge" title={agent.subagentType ?? 'subagent'}>SUBAGENT</span>}
+            {isSubagentAgent(agent) && <span className="detail-sub-badge" title={agent.subagentType ?? t('hero.subagent')}>SUBAGENT</span>}
             {(showSourceBadge || isXcodeAgent(agent)) && (
               <span
                 className="detail-source-badge"
@@ -136,7 +138,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
                   borderColor: `${SOURCE_BADGE_COLOR[agent.source]}80`,
                   background: `${SOURCE_BADGE_COLOR[agent.source]}14`,
                 }}
-                aria-label={`source ${sourceBadgeLabel(agent)} · ${agent.source}`}
+                aria-label={t('detail.sourceAria', { label: sourceBadgeLabel(agent), source: agent.source })}
               >
                 {sourceBadgeLabel(agent)}
               </span>
@@ -144,11 +146,11 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
           </div>
           <div className="detail-class">
             {isSubagentAgent(agent)
-              ? <>{'⚔'} {agent.subagentType ?? 'subagent'} <span className="detail-class-muted">· {agent.heroClass}</span></>
-              : agent.heroClass}
+              ? <>{'⚔'} {agent.subagentType ?? t('hero.subagent')} <span className="detail-class-muted">· {heroClassLabel(agent.heroClass)}</span></>
+              : heroClassLabel(agent.heroClass)}
           </div>
         </div>
-        <button className="detail-close" onClick={onClose} aria-label="Close panel">✕</button>
+        <button className="detail-close" onClick={onClose} aria-label={t('detail.closePanel')}>✕</button>
       </div>
 
       <div className="detail-tabs" role="tablist">
@@ -158,20 +160,20 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
           aria-selected={tab === 'live'}
           className={`detail-tab ${tab === 'live' ? 'active' : ''}`}
           onClick={() => setTab('live')}
-        >Live</button>
+        >{t('detail.tabLive')}</button>
         <button
           type="button"
           role="tab"
           aria-selected={tab === 'report'}
           className={`detail-tab ${tab === 'report' ? 'active' : ''}`}
           onClick={() => setTab('report')}
-        >Report</button>
-        <span className="detail-export" aria-label="Export this session for AI review">
-          <button type="button" className="detail-export-btn" onClick={() => { void onCopyExport(); }} title="Copy a Markdown report of this session to paste into another AI">
-            {copied ? 'Copied ✓' : 'Copy MD'}
+        >{t('detail.tabReport')}</button>
+        <span className="detail-export" aria-label={t('detail.exportAria')}>
+          <button type="button" className="detail-export-btn" onClick={() => { void onCopyExport(); }} title={t('detail.copyMdTitle')}>
+            {copied ? t('common.copied') : t('detail.copyMd')}
           </button>
-          <button type="button" className="detail-export-btn" onClick={onDownloadMd} title="Download the Markdown report">.md</button>
-          <button type="button" className="detail-export-btn" onClick={onDownloadJson} title="Download the raw data as JSON">.json</button>
+          <button type="button" className="detail-export-btn" onClick={onDownloadMd} title={t('detail.downloadMdTitle')}>.md</button>
+          <button type="button" className="detail-export-btn" onClick={onDownloadJson} title={t('detail.downloadJsonTitle')}>.json</button>
         </span>
       </div>
 
@@ -180,21 +182,21 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
       ) : (
       <div className="detail-body">
         <div className="detail-section">
-          <div className="detail-section-title">Status</div>
+          <div className="detail-section-title">{t('detail.sectionStatus')}</div>
           <div className="detail-row">
-            <span className="detail-label">State</span>
+            <span className="detail-label">{t('detail.labelState')}</span>
             <span className={`detail-value detail-state status-${agent.status}`}>{displayActivity(agent)}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Session</span>
+            <span className="detail-label">{t('detail.labelSession')}</span>
             <span className="detail-value detail-value--num">{formatDuration(agent.sessionStart)}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Tool Calls</span>
+            <span className="detail-label">{t('detail.labelToolCalls')}</span>
             <span className="detail-value detail-value--num">{agent.toolCalls.length}</span>
           </div>
           <div className="detail-row">
-            <span className="detail-label">Profile</span>
+            <span className="detail-label">{t('detail.labelProfile')}</span>
             <span className="detail-value">{configDirLabel(agent.configDir)}</span>
           </div>
           {(() => {
@@ -202,7 +204,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
             if (badge === null) return null;
             return (
               <div className="detail-row">
-                <span className="detail-label">Model</span>
+                <span className="detail-label">{t('detail.labelModel')}</span>
                 <span className="detail-value detail-model-value">
                   <span
                     className="detail-model-badge"
@@ -223,21 +225,21 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
 
         {agent.context !== undefined && (
           <div className="detail-section">
-            <div className="detail-section-title">Context</div>
+            <div className="detail-section-title">{t('detail.sectionContext')}</div>
             <ContextMeter context={agent.context} />
             <div className="detail-row detail-row--spaced">
-              <span className="detail-label">In use</span>
+              <span className="detail-label">{t('detail.labelInUse')}</span>
               <span className="detail-value detail-value--num">
                 {formatTokens(agent.context.used)}
                 {agent.context.window !== null && <span className="detail-value-suffix">/ {formatTokens(agent.context.window)}</span>}
               </span>
             </div>
             <div className="detail-row">
-              <span className="detail-label">Peak</span>
+              <span className="detail-label">{t('detail.labelPeak')}</span>
               <span className="detail-value detail-value--num">{formatTokens(agent.context.peak)}</span>
             </div>
             <div className="detail-row">
-              <span className="detail-label">Compactions</span>
+              <span className="detail-label">{t('detail.labelCompactions')}</span>
               <span className={`detail-value detail-value--num ${agent.context.compactions > 0 ? 'detail-value--warn' : ''}`}>{agent.context.compactions}</span>
             </div>
             <div className="detail-note">{windowSourceNote(agent.context, agent.source)}</div>
@@ -246,10 +248,10 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
 
         {(agent.activeSkill !== undefined || skills.length > 0 || plugins.length > 0 || inventory !== undefined) && (
           <div className="detail-section">
-            <div className="detail-section-title">Skills &amp; Plugins</div>
+            <div className="detail-section-title">{t('detail.sectionSkills')}</div>
             {agent.activeSkill !== undefined && (
               <div className="detail-row">
-                <span className="detail-label">Active skill</span>
+                <span className="detail-label">{t('detail.labelActiveSkill')}</span>
                 <span className="detail-skill-pill" title={agent.activeSkill}>{'✦'} {skillShortName(agent.activeSkill)}</span>
               </div>
             )}
@@ -262,7 +264,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
                       {s.plugin !== undefined && <span className="detail-usage-tag">{s.plugin}</span>}
                     </span>
                     <span className="detail-usage-stat">
-                      {s.loads}× · ~{formatTokens(s.loadTokens)} tok
+                      {t('detail.skillLoads', { loads: s.loads, tokens: formatTokens(s.loadTokens) })}
                     </span>
                   </li>
                 ))}
@@ -277,19 +279,18 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
                       <span className="detail-usage-tag">{p.kind}</span>
                     </span>
                     <span className="detail-usage-stat">
-                      {p.calls} call{p.calls === 1 ? '' : 's'} · ~{formatTokens(p.resultTokens)} tok
+                      {t('detail.pluginCalls', { count: p.calls, tokens: formatTokens(p.resultTokens) })}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
             {skills.length === 0 && plugins.length === 0 && agent.activeSkill === undefined && (
-              <div className="detail-note">No skills or plugins used yet.</div>
+              <div className="detail-note">{t('detail.noSkillsYet')}</div>
             )}
             {inventory !== undefined && inventory.count > 0 && (
               <div className="detail-note">
-                {inventory.count} skills installed (~{formatTokens(inventory.tokens)} tokens if always loaded) ·
-                loaded here: {skills.length} (~{formatTokens(loadedTokens)}).
+                {t('detail.inventoryNote', { count: inventory.count, tokens: formatTokens(inventory.tokens), loaded: skills.length, loadedTokens: formatTokens(loadedTokens) })}
               </div>
             )}
           </div>
@@ -301,22 +302,22 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
           const returned = children.reduce((sum, c) => sum + (c.returnedTokens ?? 0), 0);
           return (
             <div className="detail-section">
-              <div className="detail-section-title">Delegation</div>
+              <div className="detail-section-title">{t('detail.sectionDelegation')}</div>
               <div className="detail-row">
-                <span className="detail-label">Subagents</span>
-                <span className="detail-value detail-value--num">{live} live <span className="detail-value-suffix">/ {children.length}</span></span>
+                <span className="detail-label">{t('detail.labelSubagents')}</span>
+                <span className="detail-value detail-value--num">{t('detail.subagentsLive', { count: live })} <span className="detail-value-suffix">/ {children.length}</span></span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">Processed by them</span>
-                <span className="detail-value detail-value--num">~{formatTokens(processed)} tok</span>
+                <span className="detail-label">{t('detail.labelProcessedByThem')}</span>
+                <span className="detail-value detail-value--num">{t('detail.approxTokens', { tokens: formatTokens(processed) })}</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">Returned here</span>
-                <span className="detail-value detail-value--num">~{formatTokens(returned)} tok</span>
+                <span className="detail-label">{t('detail.labelReturnedHere')}</span>
+                <span className="detail-value detail-value--num">{t('detail.approxTokens', { tokens: formatTokens(returned) })}</span>
               </div>
               <div className="detail-row">
-                <span className="detail-label">Kept out of this context</span>
-                <span className="detail-value detail-value--num detail-value--good">~{formatTokens(Math.max(0, processed - returned))} tok</span>
+                <span className="detail-label">{t('detail.labelKeptOut')}</span>
+                <span className="detail-value detail-value--num detail-value--good">{t('detail.approxTokens', { tokens: formatTokens(Math.max(0, processed - returned)) })}</span>
               </div>
               <ul className="detail-usage-list">
                 {children.map((c) => (
@@ -334,10 +335,10 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
 
         {isSubagentAgent(agent) && (parent !== undefined || agent.returnedTokens !== undefined) && (
           <div className="detail-section">
-            <div className="detail-section-title">Parent</div>
+            <div className="detail-section-title">{t('detail.sectionParent')}</div>
             {parent !== undefined && (
               <div className="detail-row">
-                <span className="detail-label">Spawned by</span>
+                <span className="detail-label">{t('detail.labelSpawnedBy')}</span>
                 <button type="button" className="detail-link-btn" onClick={() => onSelectAgent(parent.id)} style={{ color: HERO_LABEL_COLOR[parent.heroColor] }}>
                   {parent.name}
                 </button>
@@ -345,14 +346,14 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
             )}
             {agent.context !== undefined && (
               <div className="detail-row">
-                <span className="detail-label">Own context peak</span>
-                <span className="detail-value detail-value--num">~{formatTokens(agent.context.peak)} tok</span>
+                <span className="detail-label">{t('detail.labelOwnContextPeak')}</span>
+                <span className="detail-value detail-value--num">{t('detail.approxTokens', { tokens: formatTokens(agent.context.peak) })}</span>
               </div>
             )}
             {agent.returnedTokens !== undefined && (
               <div className="detail-row">
-                <span className="detail-label">Returned to parent</span>
-                <span className="detail-value detail-value--num">~{formatTokens(agent.returnedTokens)} tok</span>
+                <span className="detail-label">{t('detail.labelReturnedToParent')}</span>
+                <span className="detail-value detail-value--num">{t('detail.approxTokens', { tokens: formatTokens(agent.returnedTokens) })}</span>
               </div>
             )}
           </div>
@@ -360,26 +361,26 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
 
         {currentFile !== undefined && (
           <div className="detail-section">
-            <div className="detail-section-title">Current File</div>
+            <div className="detail-section-title">{t('detail.sectionCurrentFile')}</div>
             <PathValue path={currentFile} cwd={agent.cwd} className="detail-value detail-value--path" />
           </div>
         )}
 
         {currentCommand !== undefined && (
           <div className="detail-section">
-            <div className="detail-section-title">Current Command</div>
+            <div className="detail-section-title">{t('detail.sectionCurrentCommand')}</div>
             <div className="detail-value detail-value--path">{currentCommand}</div>
           </div>
         )}
 
         <div className="detail-section">
-          <div className="detail-section-title">Project</div>
+          <div className="detail-section-title">{t('detail.sectionProject')}</div>
           <PathValue path={agent.cwd} cwd={agent.cwd} className="detail-value detail-value--path" />
         </div>
 
         {lastMessage !== undefined && (
           <div className="detail-section">
-            <div className="detail-section-title">Last Message</div>
+            <div className="detail-section-title">{t('detail.sectionLastMessage')}</div>
             <div ref={lastMessageRef} className="detail-last-message collapsed">
               <ReactMarkdown>{lastMessage}</ReactMarkdown>
             </div>
@@ -389,7 +390,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
                 className="detail-last-message-toggle"
                 onClick={() => setModalOpen(true)}
               >
-                Show full message
+                {t('detail.showFullMessage')}
               </button>
             )}
           </div>
@@ -397,7 +398,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
 
         {agent.filesModified.length > 0 && (
           <div className="detail-section">
-            <div className="detail-section-title">Files Modified ({agent.filesModified.length})</div>
+            <div className="detail-section-title">{t('detail.sectionFilesModified', { count: agent.filesModified.length })}</div>
             <ul className="detail-file-list">
               {agent.filesModified.slice(-10).map((f) => (
                 <li key={f} title={f}>
@@ -410,7 +411,7 @@ export function DetailPanel({ agent, agents, skillInventory, onClose, onSelectAg
 
         {agent.errors.length > 0 && (
           <div className="detail-section detail-section--errors">
-            <div className="detail-section-title">Errors ({agent.errors.length})</div>
+            <div className="detail-section-title">{t('detail.sectionErrors', { count: agent.errors.length })}</div>
             {agent.errors.slice(-3).map((e, i) => (
               <div key={i} className="detail-value detail-value--error">{e}</div>
             ))}
@@ -437,6 +438,7 @@ interface LastMessageModalProps {
 }
 
 function LastMessageModal({ agentName, message, onClose }: LastMessageModalProps) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -449,11 +451,11 @@ function LastMessageModal({ agentName, message, onClose }: LastMessageModalProps
         className="lastmsg-modal"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label={`Last message from ${agentName}`}
+        aria-label={t('detail.lastMessageAria', { name: agentName })}
       >
-        <button className="lastmsg-close" onClick={onClose} title="Close (Esc)" aria-label="Close">×</button>
+        <button className="lastmsg-close" onClick={onClose} title={t('common.closeEsc')} aria-label={t('common.close')}>×</button>
         <div className="lastmsg-header">
-          <span className="lastmsg-header-label">Last message from</span>
+          <span className="lastmsg-header-label">{t('detail.lastMessageFrom')}</span>
           <span className="lastmsg-header-name">{agentName}</span>
         </div>
         <div className="lastmsg-body">

@@ -3,6 +3,7 @@ import type { AgentState } from '../types/agent';
 import { eventBridge } from '../game/EventBridge';
 import { NotificationMenu, type NotificationEntry } from './NotificationMenu';
 import { ContextDropdown } from './ContextDropdown';
+import { useI18n } from '../i18n';
 import './TopBar.css';
 
 interface TopBarNotifications {
@@ -21,6 +22,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ agents, connected, notifications }: TopBarProps) {
+  const { t } = useI18n();
   const active = agents.filter((a) => a.status === 'active').length;
   const waiting = agents.filter((a) => a.status === 'waiting').length;
   const idle = agents.filter((a) => a.status === 'idle').length;
@@ -78,8 +80,8 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
           type="button"
           className="topbar-logo-button"
           onClick={() => eventBridge.emit('tutorial:open')}
-          title="Show tutorial"
-          aria-label="Show tutorial"
+          title={t('topbar.showTutorial')}
+          aria-label={t('topbar.showTutorial')}
         >
           <img src="assets/logo.png" alt="Agent Quest" className="topbar-logo" />
         </button>
@@ -87,49 +89,49 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
         <span
           className={`topbar-status-dot ${connected ? 'online' : 'offline'}`}
           role="status"
-          aria-label={connected ? 'Online' : 'Offline'}
-          title={connected ? 'Online' : 'Offline'}
+          aria-label={connected ? t('topbar.online') : t('topbar.offline')}
+          title={connected ? t('topbar.online') : t('topbar.offline')}
         />
 
         <div
           id="topbar-tools"
           className="topbar-tools"
           role="region"
-          aria-label="Topbar menu"
+          aria-label={t('topbar.menuRegion')}
         >
           <div className="topbar-stats">
             <div className="topbar-stat">
-              <span className="topbar-stat-label">Status:</span>
+              <span className="topbar-stat-label">{t('topbar.status')}</span>
               <span className={`topbar-stat-value ${connected ? 'active' : 'error'}`}>
-                {connected ? 'Online' : 'Offline'}
+                {connected ? t('topbar.online') : t('topbar.offline')}
               </span>
             </div>
             <div className="topbar-stat">
-              <span className="topbar-stat-label">Active:</span>
+              <span className="topbar-stat-label">{t('topbar.active')}</span>
               <span className="topbar-stat-value active">{active}</span>
             </div>
             {waiting > 0 && (
               <div className="topbar-stat">
-                <span className="topbar-stat-label">Waiting:</span>
+                <span className="topbar-stat-label">{t('topbar.waiting')}</span>
                 <span className="topbar-stat-value waiting">{waiting}</span>
               </div>
             )}
             <div className="topbar-stat">
-              <span className="topbar-stat-label">Idle:</span>
+              <span className="topbar-stat-label">{t('topbar.idle')}</span>
               <span className="topbar-stat-value idle">{idle}</span>
             </div>
             <div className="topbar-stat">
-              <span className="topbar-stat-label">Done:</span>
+              <span className="topbar-stat-label">{t('topbar.done')}</span>
               <span className="topbar-stat-value">{completed}</span>
             </div>
             {errors > 0 && (
               <div className="topbar-stat">
-                <span className="topbar-stat-label">Errors:</span>
+                <span className="topbar-stat-label">{t('topbar.errors')}</span>
                 <span className="topbar-stat-value error">{errors}</span>
               </div>
             )}
             <div className="topbar-stat">
-              <span className="topbar-stat-label">Total:</span>
+              <span className="topbar-stat-label">{t('topbar.total')}</span>
               <span className="topbar-stat-value">{agents.length}</span>
             </div>
             <ContextDropdown
@@ -152,14 +154,14 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
             <button
               className={`topbar-effect-btn ${nightOn ? 'active' : ''}`}
               onClick={toggleNight}
-              title={nightOn ? 'Day mode' : 'Night mode'}
+              title={nightOn ? t('topbar.dayMode') : t('topbar.nightMode')}
             >
               {nightOn ? '\u{1F319}' : '\u{2600}\u{FE0F}'}
             </button>
             <button
               className={`topbar-effect-btn ${rainOn ? 'active' : ''}`}
               onClick={toggleRain}
-              title={rainOn ? 'Stop rain' : 'Start rain'}
+              title={rainOn ? t('topbar.stopRain') : t('topbar.startRain')}
             >
               {'\u{1F327}\u{FE0F}'}
             </button>
@@ -169,7 +171,7 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
               href="/?mode=editor"
               target="_blank"
               rel="noopener"
-              title="Open Map Editor"
+              title={t('topbar.openMapEditor')}
               style={{ textDecoration: 'none' }}
             >
               {'\u{1F5FA}\u{FE0F}'}
@@ -177,23 +179,23 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
             <button
               className="topbar-effect-btn topbar-skills-btn"
               onClick={() => eventBridge.emit('skills:open')}
-              title="Skills & Plugins — fleet view and AI-review export"
-              aria-label="Skills and plugins"
+              title={t('topbar.skillsTitle')}
+              aria-label={t('topbar.skillsLabel')}
             >
               {'\u2726'}
             </button>
             <button
               className="topbar-effect-btn"
               onClick={() => eventBridge.emit('settings:open')}
-              title="Settings"
-              aria-label="Settings"
+              title={t('topbar.settings')}
+              aria-label={t('topbar.settings')}
             >
               {'\u{2699}\u{FE0F}'}
             </button>
             <button
               className="topbar-effect-btn"
               onClick={() => eventBridge.emit('tutorial:open')}
-              title="Show tutorial"
+              title={t('topbar.showTutorial')}
             >
               {'\u{2753}'}
             </button>
@@ -206,7 +208,7 @@ export function TopBar({ agents, connected, notifications }: TopBarProps) {
           className="topbar-menu-toggle"
           aria-expanded={menuOpen}
           aria-controls="topbar-tools"
-          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-label={menuOpen ? t('topbar.closeMenu') : t('topbar.openMenu')}
           onClick={() => setMenuOpen((v) => !v)}
         >
           <span className="topbar-menu-toggle-bar" />

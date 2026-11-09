@@ -5,6 +5,7 @@ import { SERVER_URL } from '../../../config';
 import { getActiveThemeId } from '../../../game/themes/registry';
 import { registerAnimations } from '../../../game/data/asset-loader';
 import { groupMissingByCategory } from '../../../game/data/asset-diagnostics';
+import { t } from '../../../i18n';
 
 export class EditorBootScene extends Phaser.Scene {
   private statusText: Phaser.GameObjects.Text | null = null;
@@ -23,7 +24,7 @@ export class EditorBootScene extends Phaser.Scene {
     this.statusText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
-      'Loading editor\u2026',
+      t('editor.boot.loadingEditor'),
       { fontSize: '18px', color: '#C4A35A', fontFamily: 'Cinzel, serif', resolution: 2 },
     ).setOrigin(0.5);
 
@@ -67,7 +68,7 @@ export class EditorBootScene extends Phaser.Scene {
       if (!this.initialMap.settings) this.initialMap.settings = { heroScale: 0.50 };
 
       // 4. Queue asset loads based on manifest
-      if (this.statusText !== null) this.statusText.setText('Loading textures\u2026');
+      if (this.statusText !== null) this.statusText.setText(t('editor.boot.loadingTextures'));
       this.queueAssets(this.manifest);
 
       this.load.once(Phaser.Loader.Events.COMPLETE, () => {
@@ -91,7 +92,7 @@ export class EditorBootScene extends Phaser.Scene {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (this.statusText !== null) {
-        this.statusText.setText(`Failed to load: ${msg}`);
+        this.statusText.setText(t('editor.boot.loadFailed', { error: msg }));
         this.statusText.setColor('#8B2500');
       }
     }

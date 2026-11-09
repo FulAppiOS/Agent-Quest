@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActivityLogEntry, AgentState } from '../types/agent';
 import { useFeedPrefs, type FoldState } from '../hooks/useFeedPrefs';
+import { useI18n } from '../i18n';
 import { ActivityFeedHeader } from './ActivityFeedHeader';
 import { ActivityRow } from './ActivityRow';
 import {
@@ -20,6 +21,7 @@ interface ActivityFeedProps {
 const SCROLL_PIN_THRESHOLD_PX = 8;
 
 export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent, showSourceBadge }: ActivityFeedProps) {
+  const { t } = useI18n();
   const [prefs, updatePrefs] = useFeedPrefs();
   const { foldState, activeHighlights, agentFilter } = prefs;
 
@@ -162,15 +164,15 @@ export function ActivityFeed({ log, agents, selectedAgentId, onSelectAgent, show
         <div className="feed-list-wrap">
           {!pinned && newSinceUnpin > 0 && (
             <button type="button" className="feed-jump-latest" onClick={jumpToLatest}>
-              ↑ Jump to latest ({newSinceUnpin} new)
+              {t('activityFeed.jumpToLatest', { count: newSinceUnpin })}
             </button>
           )}
 
           <div className="feed-list" role="list" ref={listRef} onScroll={onScroll}>
             {filtered.length === 0 ? (
               <div className="feed-empty">
-                <div>Waiting for agent activity...</div>
-                <div className="feed-empty-hint">Launch Claude Code or Codex in any project — it'll appear here.</div>
+                <div>{t('activityFeed.emptyTitle')}</div>
+                <div className="feed-empty-hint">{t('activityFeed.emptyHint')}</div>
               </div>
             ) : (
               filtered.map((entry) => {

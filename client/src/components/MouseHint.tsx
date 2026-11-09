@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useI18n } from '../i18n';
 import './MouseHint.css';
 
 const LS_KEY = 'ag-quest-mouse-hint-dismissed';
 
 export function MouseHint() {
+  const { t } = useI18n();
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try { return localStorage.getItem(LS_KEY) === '1'; } catch { return false; }
   });
@@ -16,8 +18,8 @@ export function MouseHint() {
   };
 
   return (
-    <div className="mouse-hint" role="note" aria-label="Mouse controls">
-      <button className="mouse-hint-close" onClick={onDismiss} aria-label="Dismiss">×</button>
+    <div className="mouse-hint" role="note" aria-label={t('mouseHint.label')}>
+      <button className="mouse-hint-close" onClick={onDismiss} aria-label={t('common.dismiss')}>×</button>
       <div className="mouse-hint-row">
         <Mouse highlight="left" />
         <Arrow kind="tap" />

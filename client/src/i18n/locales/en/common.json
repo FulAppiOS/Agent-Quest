@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "name": "English",
+    "code": "en"
+  },
+  "common": {
+    "close": "Close",
+    "closeEsc": "Close (Esc)",
+    "dismiss": "Dismiss",
+    "save": "Save",
+    "delete": "Delete",
+    "copied": "Copied ✓",
+    "justNow": "just now",
+    "secondsAgo": "{count}s ago",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "more": "+ {count} more",
+    "showLess": "Show less"
+  },
+  "activity": {
+    "reading": "reading",
+    "editing": "editing",
+    "bash": "bash",
+    "thinking": "thinking",
+    "git": "git",
+    "idle": "idle",
+    "debugging": "debugging",
+    "reviewing": "reviewing"
+  },
+  "status": {
+    "active": "active",
+    "waiting": "waiting",
+    "idle": "idle",
+    "completed": "completed",
+    "error": "error"
+  },
+  "heroClass": {
+    "warrior": "warrior",
+    "archer": "archer",
+    "pawn": "pawn"
+  },
+  "hero": {
+    "waiting": "waiting…",
+    "error": "error",
+    "subagent": "subagent"
+  },
+  "building": {
+    "library": {
+      "name": "Library",
+      "description": "Agents come here to read and search code"
+    },
+    "alchemist": {
+      "name": "Alchemist",
+      "description": "Agents come here to debug and fix errors"
+    },
+    "castle": {
+      "name": "Castle",
+      "description": "Agents come here to think and reason"
+    },
+    "watchtower": {
+      "name": "Watchtower",
+      "description": "Agents come here to review code and dispatch subagents"
+    },
+    "chapel": {
+      "name": "Chapel",
+      "description": "Agents come here to commit and push code"
+    },
+    "tavern": {
+      "name": "Tavern",
+      "description": "Agents rest here while waiting for user input"
+    },
+    "forge": {
+      "name": "Forge",
+      "description": "Agents come here to write and edit code"
+    },
+    "arena": {
+      "name": "Arena",
+      "description": "Agents come here to run commands and tests"
+    }
+  },
+  "village": {
+    "sign": {
+      "welcome": "Welcome",
+      "plaza": "Plaza"
+    }
+  },
+  "boot": {
+    "loadingAssets": "Loading village assets…",
+    "connecting": "Connecting to server…",
+    "connected": "Connected! Entering village...",
+    "preparing": "Preparing your village…",
+    "loadFailed": "Unable to load the village. Please reload the page to try again.",
+    "missingHeadline_one": "Bundled asset pack is missing {count} file.",
+    "missingHeadline_other": "Bundled asset pack is missing {count} files.",
+    "andMore": "…and {count} more",
+    "restoreHint": "Restore with:\n   git checkout -- client/public/assets/themes/tiny-swords-cc0/\nor re-clone the repository.",
+    "reload": "↻  Reload page"
+  },
+  "assets": {
+    "category": {
+      "hero": "Hero sprites",
+      "building": "Buildings",
+      "terrain": "Terrain tiles",
+      "decoration": "Decorations (trees, rocks, bushes)",
+      "ui": "UI / logo",
+      "other": "Other"
+    }
+  },
+  "language": {
+    "title": "Language",
+    "label": "Interface language",
+    "hint": "English is the base; any string missing from another language falls back to it.",
+    "custom": "Custom",
+    "upload": "Load translation JSON…",
+    "uploadHint": "Download the English template, translate the values, then load the file here. Add \"meta\": { \"name\": \"…\", \"code\": \"xx\" } to name it.",
+    "downloadTemplate": "Download English template",
+    "removeCustom": "Remove custom language",
+    "reportLoaded": "Loaded “{name}”: {matched} of {total} strings translated.",
+    "reportMissing_one": "{count} string falls back to English.",
+    "reportMissing_other": "{count} strings fall back to English.",
+    "reportUnknown_one": "{count} unknown key ignored.",
+    "reportUnknown_other": "{count} unknown keys ignored.",
+    "errorInvalidJson": "That file is not valid JSON.",
+    "errorNotObject": "The JSON must be an object of translations.",
+    "errorNoStrings": "No known translation keys were found in that file.",
+    "errorRead": "The file could not be read."
+  }
+}

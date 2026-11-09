@@ -1,12 +1,14 @@
 import { editorBridge } from '../EditorBridge';
 import { editorStore, useEditorStore } from '../state/editor-store';
 import type { DecorationManifest } from '../types/map';
+import { useI18n } from '../../i18n';
 
 interface Props {
   decoration: DecorationManifest;
 }
 
 export function DecorationDetail({ decoration }: Props) {
+  const { t } = useI18n();
   const brush = useEditorStore((s) => s.decorationBrush);
   const animated = brush?.animated ?? false;
   const chosen = brush?.animation ?? decoration.animations?.[0]?.name ?? 'idle';
@@ -28,11 +30,11 @@ export function DecorationDetail({ decoration }: Props) {
           checked={animated}
           onChange={(e) => updateBrush({ animated: e.target.checked })}
         />
-        <span>Animate on place</span>
+        <span>{t('editor.palette.animateOnPlace')}</span>
       </label>
       {animated && (
         <label className="decoration-detail-row">
-          <span>Animation</span>
+          <span>{t('editor.palette.animation')}</span>
           <select
             value={chosen}
             onChange={(e) => updateBrush({ animation: e.target.value })}

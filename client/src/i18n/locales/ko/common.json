@@ -1,0 +1,125 @@
+{
+  "meta": {
+    "name": "한국어",
+    "code": "ko"
+  },
+  "common": {
+    "close": "닫기",
+    "closeEsc": "닫기 (Esc)",
+    "dismiss": "닫기",
+    "save": "저장",
+    "delete": "삭제",
+    "copied": "복사됨 ✓",
+    "justNow": "방금 전",
+    "secondsAgo": "{count}초 전",
+    "minutesAgo": "{count}분 전",
+    "hoursAgo": "{count}시간 전",
+    "more": "+ {count}개 더 보기",
+    "showLess": "접기"
+  },
+  "activity": {
+    "reading": "읽는 중",
+    "editing": "편집 중",
+    "bash": "명령 실행 중",
+    "thinking": "생각 중",
+    "git": "Git 작업 중",
+    "idle": "휴식 중",
+    "debugging": "디버깅 중",
+    "reviewing": "검토 중"
+  },
+  "status": {
+    "active": "활동 중",
+    "waiting": "대기 중",
+    "idle": "유휴",
+    "completed": "완료",
+    "error": "오류"
+  },
+  "heroClass": {
+    "warrior": "전사",
+    "archer": "궁수",
+    "pawn": "폰"
+  },
+  "hero": {
+    "waiting": "대기 중…",
+    "error": "오류",
+    "subagent": "서브에이전트"
+  },
+  "building": {
+    "library": {
+      "name": "도서관",
+      "description": "에이전트가 코드를 읽고 검색하러 오는 곳"
+    },
+    "alchemist": {
+      "name": "연금술사",
+      "description": "에이전트가 디버깅하고 오류를 고치러 오는 곳"
+    },
+    "castle": {
+      "name": "성",
+      "description": "에이전트가 생각하고 추론하러 오는 곳"
+    },
+    "watchtower": {
+      "name": "망루",
+      "description": "에이전트가 코드를 검토하고 서브에이전트를 보내는 곳"
+    },
+    "chapel": {
+      "name": "예배당",
+      "description": "에이전트가 코드를 커밋하고 푸시하러 오는 곳"
+    },
+    "tavern": {
+      "name": "선술집",
+      "description": "에이전트가 사용자 입력을 기다리며 쉬는 곳"
+    },
+    "forge": {
+      "name": "대장간",
+      "description": "에이전트가 코드를 작성하고 편집하러 오는 곳"
+    },
+    "arena": {
+      "name": "투기장",
+      "description": "에이전트가 명령과 테스트를 실행하러 오는 곳"
+    }
+  },
+  "village": {
+    "sign": {
+      "welcome": "환영",
+      "plaza": "광장"
+    }
+  },
+  "boot": {
+    "loadingAssets": "마을 에셋을 불러오는 중…",
+    "connecting": "서버에 연결하는 중…",
+    "connected": "연결됨! 마을로 들어갑니다...",
+    "preparing": "마을을 준비하는 중…",
+    "loadFailed": "마을을 불러올 수 없습니다. 페이지를 새로 고쳐 다시 시도해 주세요.",
+    "missingHeadline_other": "번들된 에셋 팩에서 파일 {count}개가 누락되었습니다.",
+    "andMore": "…외 {count}개",
+    "restoreHint": "다음 명령으로 복구하세요:\n   git checkout -- client/public/assets/themes/tiny-swords-cc0/\n또는 저장소를 다시 클론하세요.",
+    "reload": "↻  페이지 새로 고침"
+  },
+  "assets": {
+    "category": {
+      "hero": "영웅 스프라이트",
+      "building": "건물",
+      "terrain": "지형 타일",
+      "decoration": "장식 (나무, 바위, 덤불)",
+      "ui": "UI / 로고",
+      "other": "기타"
+    }
+  },
+  "language": {
+    "title": "언어",
+    "label": "인터페이스 언어",
+    "hint": "영어가 기본입니다. 다른 언어에 없는 문자열은 영어로 표시됩니다.",
+    "custom": "사용자 지정",
+    "upload": "번역 JSON 불러오기…",
+    "uploadHint": "영어 템플릿을 내려받아 값을 번역한 뒤 여기서 파일을 불러오세요. \"meta\": { \"name\": \"…\", \"code\": \"xx\" }를 넣으면 이름이 표시됩니다.",
+    "downloadTemplate": "영어 템플릿 다운로드",
+    "removeCustom": "사용자 지정 언어 제거",
+    "reportLoaded": "“{name}” 불러옴: 전체 {total}개 중 {matched}개 번역됨.",
+    "reportMissing_other": "{count}개 문자열은 영어로 표시됩니다.",
+    "reportUnknown_other": "알 수 없는 키 {count}개는 무시했습니다.",
+    "errorInvalidJson": "올바른 JSON 파일이 아닙니다.",
+    "errorNotObject": "JSON은 번역 문자열을 담은 객체여야 합니다.",
+    "errorNoStrings": "파일에서 알려진 번역 키를 찾지 못했습니다.",
+    "errorRead": "파일을 읽을 수 없습니다."
+  }
+}

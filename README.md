@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <strong>English</strong> · <a href="README.ko.md">한국어</a>
+</p>
+
+<p align="center">
   <a href="#features"><img src="https://img.shields.io/badge/Claude_Code-supported-D97757" alt="Claude Code supported" /></a>
   <a href="#features"><img src="https://img.shields.io/badge/Codex-supported-412991" alt="Codex supported" /></a>
 </p>
@@ -85,6 +89,7 @@ Claude Code and Codex sessions happen across terminals, apps and IDEs — useful
 - Skill & plugin telemetry: which skill a hero is running under, how many tokens each loaded skill or plugin result pushed into the context, and what the installed skills would cost if they were always loaded
 - Subagent hierarchy: knights are main sessions, pawns are subagents — smaller, in the parent's color with a `SUBAGENT · role` badge; they nest under the parent in the party bar, and the parent's panel shows how much context delegation kept out of the main conversation
 - Built-in map editor for customizing the village layout
+- Multilingual UI: English and Korean built in, switchable in Settings, plus a JSON upload to add any other language without rebuilding
 - Session polling every 2–3 seconds with live WebSocket updates (optional lower-latency path via Claude Code `postToolUse` hooks — Claude Code only; Codex doesn't expose hooks)
 - Works with both the legacy Codex rollout format and the `item_completed` format of Codex ≥ 0.160, including Codex subagents spawned with `spawn_agent`
 
@@ -192,6 +197,20 @@ window size to its logs, so Agent Quest reads the `model` configured in your `se
 otherwise assumes 200k. Override it with `AGENT_QUEST_CLAUDE_CONTEXT_WINDOW=<tokens>` when
 starting the server. Context bars and the context alert can be toggled in
 Settings.
+
+## Language
+
+The dashboard ships in **English** (the base language) and **Korean**. Switch between them under *Settings → Language*; the choice is stored in your browser.
+
+To add another language you don't need to touch the code:
+
+1. In *Settings → Language*, click **Download English template**. You get `agent-quest.en.json`, a nested JSON object with every UI string.
+2. Translate the values (leave the keys alone). Optionally set `"meta": { "name": "Deutsch", "code": "de" }` so the language shows up by name and gets the right plural rules.
+3. Click **Load translation JSON…** and pick the file. The UI switches immediately; the file is kept in your browser's local storage and offered as a *Custom* entry in the language picker.
+
+Any key missing from your file falls back to English, and the panel tells you how many strings were matched. Plural forms use `key_one` / `key_other` (or any other [CLDR plural category](https://cldr.unicode.org/index/cldr-spec/plural-rules)) and placeholders look like `{count}`.
+
+Built-in languages live in `client/src/i18n/locales/<code>/*.json`. To contribute one, copy the `en` folder, translate, and register the code in `client/src/i18n/index.ts`.
 
 ## Troubleshooting
 

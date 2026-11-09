@@ -1,6 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { getActiveTheme } from '../game/themes/registry';
-import { HERO_COLOR_SPRITE_BASE, type AgentState } from '../types/agent';
+import { heroClassLabel, HERO_COLOR_SPRITE_BASE, type AgentState } from '../types/agent';
+import { useI18n } from '../i18n';
 
 interface HeroAvatarProps {
   agent: AgentState;
@@ -24,6 +25,8 @@ interface HeroAvatarProps {
 const DEFAULT_SIZE = 24;
 
 export function HeroAvatar({ agent, size = DEFAULT_SIZE, className, title }: HeroAvatarProps) {
+  // Subscribe so the class label re-renders when the locale changes.
+  useI18n();
   // Map expanded palette to the 5-color sprite set the theme actually ships.
   // Extra palette colors (teal/orange/green) show up here untinted — the
   // avatar is small enough that the Phaser-canvas tint would be invisible
@@ -56,9 +59,9 @@ export function HeroAvatar({ agent, size = DEFAULT_SIZE, className, title }: Her
     <div
       ref={ref}
       className={className}
-      title={title ?? agent.heroClass}
+      title={title ?? heroClassLabel(agent.heroClass)}
       role="img"
-      aria-label={`${agent.heroClass} ${agent.name}`}
+      aria-label={`${heroClassLabel(agent.heroClass)} ${agent.name}`}
       style={{
         backgroundImage: `url('${preview.url}')`,
         backgroundSize,

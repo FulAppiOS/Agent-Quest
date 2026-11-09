@@ -2,6 +2,7 @@ import { StrictMode, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { dismissStartupLoader } from './game/startupLoader';
+import { t } from './i18n';
 
 const EditorApp = lazy(() => import('./editor/EditorApp'));
 
@@ -13,7 +14,7 @@ if (isEditor) dismissStartupLoader();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {isEditor ? (
-      <Suspense fallback={<div style={{ color: '#C4A35A', fontFamily: 'monospace', padding: 40 }}>Loading editor…</div>}>
+      <Suspense fallback={<div style={{ color: '#C4A35A', fontFamily: 'monospace', padding: 40 }}>{t('app.loadingEditor')}</div>}>
         <EditorApp />
       </Suspense>
     ) : (

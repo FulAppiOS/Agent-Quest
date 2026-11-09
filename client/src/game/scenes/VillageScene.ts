@@ -14,6 +14,7 @@ import type { AssetManifest, MapConfig, BuildingPosition, NpcPlacement } from '.
 import { SERVER_URL as API_BASE } from '../../config';
 import { getActiveTheme, rebaseSavedScale } from '../themes/registry';
 import { sceneRenderScale } from '../dpr';
+import { I18N_CHANGED_EVENT, t } from '../../i18n';
 
 /** Set `cam.zoom` to `newZoom` while keeping the world point currently
  * under screen coordinates (sx, sy) pinned to the same screen spot.
@@ -36,6 +37,7 @@ const GRID_SPACING_Y = 35;
 
 export class VillageScene extends Phaser.Scene {
   private buildings: Building[] = [];
+  private onLocaleChanged: (() => void) | null = null;
   private heroes = new Map<string, HeroSprite>();
   private onAgentsUpdated: ((agents: unknown) => void) | null = null;
   private onCameraFollow: ((agentId: unknown) => void) | null = null;
@@ -99,7 +101,7 @@ export class VillageScene extends Phaser.Scene {
     // the rest of create() (input, overlays, listeners) doesn't depend on it.
     void this.bootstrapWorld().catch((error: unknown) => {
       console.error('[VillageScene] World initialization failed', error);
-      setStartupStatus('Unable to load the village. Please reload the page to try again.');
+      setStartupStatus(t('boot.loadFailed'));
     });
 
     // Set world bounds and fit the village into the viewport, then center the
@@ -322,6 +324,12 @@ export class VillageScene extends Phaser.Scene {
     };
     eventBridge.on('settings:updated', this.onSettingsUpdated);
 
+    this.onLocaleChanged = () => {
+      for (const b of this.buildings) b.refreshLabels();
+      for (const hero of this.heroes.values()) hero.refreshLocale();
+    };
+    eventBridge.on(I18N_CHANGED_EVENT, this.onLocaleChanged);
+
     // Listen for agent updates from React
     this.onAgentsUpdated = (agents: unknown) => {
       try { if (!this.sys.isActive()) return; } catch { return; }
@@ -390,6 +398,10 @@ export class VillageScene extends Phaser.Scene {
       if (this.onSettingsUpdated !== null) {
         eventBridge.off('settings:updated', this.onSettingsUpdated);
         this.onSettingsUpdated = null;
+      }
+      if (this.onLocaleChanged !== null) {
+        eventBridge.off(I18N_CHANGED_EVENT, this.onLocaleChanged);
+        this.onLocaleChanged = null;
       }
       this.agentsById.clear();
       this.lightningTimer?.remove();

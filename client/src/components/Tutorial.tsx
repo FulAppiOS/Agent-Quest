@@ -1,22 +1,30 @@
 import { useEffect } from 'react';
+import { useI18n } from '../i18n';
 import './Tutorial.css';
 
 interface TutorialProps {
   onClose: () => void;
 }
 
-const ACTIVITY_LEGEND: { activity: string; building: string; tools: string }[] = [
-  { activity: 'Read / Grep / Glob',     building: 'Library',     tools: 'search & read code' },
-  { activity: 'Edit / Write',           building: 'Forge',       tools: 'write & edit code' },
-  { activity: 'Bash',                   building: 'Arena',       tools: 'run commands & tests' },
-  { activity: 'Thinking',               building: 'Castle',      tools: 'reason & plan' },
-  { activity: 'Reviewing / subagents',  building: 'Watchtower',  tools: 'dispatch review' },
-  { activity: 'Git commit / push',      building: 'Chapel',      tools: 'commit & push' },
-  { activity: 'Debugging',              building: 'Alchemist',   tools: 'fix errors' },
-  { activity: 'Idle / waiting',         building: 'Tavern',      tools: 'rest between tasks' },
+/**
+ * One row per building. `tool` is a literal tool-name cell (Read / Edit / Bash…)
+ * that is never translated; rows without one take their activity label from
+ * `tutorial.legend.<id>.activity`. Building names come from `building.<id>.name`.
+ */
+const ACTIVITY_LEGEND: { id: string; tool: string | null }[] = [
+  { id: 'library',    tool: 'Read / Grep / Glob' },
+  { id: 'forge',      tool: 'Edit / Write' },
+  { id: 'arena',      tool: 'Bash' },
+  { id: 'castle',     tool: null },
+  { id: 'watchtower', tool: null },
+  { id: 'chapel',     tool: null },
+  { id: 'alchemist',  tool: null },
+  { id: 'tavern',     tool: null },
 ];
 
 export function Tutorial({ onClose }: TutorialProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -26,14 +34,14 @@ export function Tutorial({ onClose }: TutorialProps) {
   return (
     <div className="tutorial-backdrop" onClick={onClose}>
       <div className="tutorial-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="tutorial-close" onClick={onClose} title="Close (Esc)">×</button>
+        <button className="tutorial-close" onClick={onClose} title={t('common.closeEsc')}>×</button>
 
         <img src="assets/logo.png" alt="Agent Quest" className="tutorial-logo" />
 
-        <h2 className="tutorial-title">Welcome to Agent Quest</h2>
+        <h2 className="tutorial-title">{t('tutorial.title')}</h2>
 
         <div className="tutorial-tagline">
-          Use <strong>Claude Code CLI</strong> or <strong>Codex</strong> as usual — each session auto-spawns a hero on the dashboard, live.
+          {t('tutorial.taglineBefore')}<strong>Claude Code CLI</strong>{t('tutorial.taglineBetween')}<strong>Codex</strong>{t('tutorial.taglineAfter')}
         </div>
 
         <a
@@ -41,158 +49,131 @@ export function Tutorial({ onClose }: TutorialProps) {
           href="https://buymeacoffee.com/fulvio"
           target="_blank"
           rel="noreferrer"
-          title="Support the project — buy me a beer"
+          title={t('tutorial.tipJarTitle')}
         >
           <span className="tutorial-tip-jar-icon" aria-hidden="true">🍺</span>
-          <span className="tutorial-tip-jar-text">Buy me a beer</span>
+          <span className="tutorial-tip-jar-text">{t('tutorial.tipJar')}</span>
         </a>
 
         <p className="tutorial-text">
-          Agent Quest is a live dashboard that turns your{' '}
-          <strong>Claude Code</strong> and <strong>Codex</strong> sessions into a 2D
-          fantasy village. Every running agent becomes a <strong>hero</strong> who
-          walks between buildings based on what it's doing.
+          {t('tutorial.introBefore')}<strong>Claude Code</strong>{t('tutorial.introBetween')}<strong>Codex</strong>
+          {t('tutorial.introAfterCodex')}<strong>{t('tutorial.introHero')}</strong>{t('tutorial.introAfter')}
         </p>
         <p className="tutorial-text">
-          Works with{' '}
+          {t('tutorial.worksWithBefore')}
           <a
             className="tutorial-link"
             href="https://docs.claude.com/en/docs/claude-code/overview"
             target="_blank"
             rel="noreferrer"
           >Claude Code</a>
-          {' '}in any form that writes session logs locally — the terminal CLI and
-          the official IDE extensions (VS Code, JetBrains). Also works with{' '}
+          {t('tutorial.worksWithAfterClaude')}
           <a
             className="tutorial-link"
             href="https://github.com/openai/codex"
             target="_blank"
             rel="noreferrer"
           >Codex</a>
-          , reading rollout logs from{' '}
-          <code>~/.codex/sessions/</code>. It doesn't work with the Claude desktop
-          app or claude.ai in the browser, since those don't expose local session files.
+          {t('tutorial.worksWithAfterCodex')}<code>~/.codex/sessions/</code>{t('tutorial.worksWithAfterPath')}
         </p>
 
         <p className="tutorial-text">
-          On macOS, sessions started with <strong>Claude Agent or Codex inside Xcode</strong> also
-          appear automatically after the first prompt. They carry an <strong>Xcode</strong> badge
-          and a name derived from the project folder. Reading, editing, builds, tests and issue
-          diagnostics move their heroes between the corresponding buildings. Agent Quest reads
-          compatible local logs; it does not control Xcode or cover every chat provider.
+          {t('tutorial.xcodeBefore')}<strong>{t('tutorial.xcodeStrong')}</strong>{t('tutorial.xcodeMiddle')}
+          <strong>Xcode</strong>{t('tutorial.xcodeAfter')}
         </p>
 
-        <div className="tutorial-section-label">Activity → Building</div>
+        <div className="tutorial-section-label">{t('tutorial.legendTitle')}</div>
         <table className="tutorial-legend">
           <tbody>
             {ACTIVITY_LEGEND.map((row) => (
-              <tr key={row.building}>
-                <td className="tutorial-legend-k">{row.activity}</td>
-                <td className="tutorial-legend-v">{row.building}</td>
-                <td className="tutorial-legend-desc">{row.tools}</td>
+              <tr key={row.id}>
+                <td className="tutorial-legend-k">{row.tool ?? t(`tutorial.legend.${row.id}.activity`)}</td>
+                <td className="tutorial-legend-v">{t(`building.${row.id}.name`)}</td>
+                <td className="tutorial-legend-desc">{t(`tutorial.legend.${row.id}.tools`)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         <p className="tutorial-text">
-          When both Claude Code and Codex have active agents, each hero shows a small{' '}
-          <strong>CLAUDE</strong> or <strong>CODEX</strong> badge so you can tell which
-          CLI it came from.
+          {t('tutorial.badgesBefore')}<strong>CLAUDE</strong>{t('tutorial.badgesBetween')}<strong>CODEX</strong>{t('tutorial.badgesAfter')}
         </p>
 
-        <div className="tutorial-section-label">Context, skills & subagents</div>
+        <div className="tutorial-section-label">{t('tutorial.contextTitle')}</div>
         <p className="tutorial-text">
-          The bar above a hero is its <strong>context window</strong>: green is roomy, red
-          (pulsing) means a compaction is near; the <strong>Ctx</strong> stat in the top bar
-          follows the hottest main conversation and opens a list of every live agent's window. A <strong>✦ skill</strong> tag shows which
-          skill the agent is running under; the detail panel lists every skill and plugin used
-          with the tokens they pushed into the context.
+          {t('tutorial.contextBarBefore')}<strong>{t('tutorial.contextWindow')}</strong>{t('tutorial.contextBarAfter')}
+          <strong>Ctx</strong>{t('tutorial.contextCtxAfter')}<strong>✦ {t('tutorial.skillTag')}</strong>{t('tutorial.contextSkillAfter')}
         </p>
         <p className="tutorial-text">
-          <strong>Knights are your main sessions.</strong> <strong>Subagents</strong> are pawns
-          (archers for ultra-mode workflow squads): smaller, in the parent's color with a dimmer
-          italic name and a <strong>SUBAGENT · role</strong> badge, while the knight that spawned
-          them wears a <strong>⚑ N</strong> badge. They nest under their parent in the Party Bar, and the parent's
-          panel shows how much context the delegation kept out of the main conversation. Context
-          bars can be switched off in Settings.
+          <strong>{t('tutorial.knightsLead')}</strong> <strong>{t('tutorial.subagentsWord')}</strong>{t('tutorial.subagentsBefore')}
+          <strong>SUBAGENT · {t('tutorial.subagentRole')}</strong>{t('tutorial.subagentsMiddle')}<strong>⚑ N</strong>{t('tutorial.subagentsAfter')}
         </p>
         <p className="tutorial-text">
-          The <strong>✦</strong> button in the top bar opens the fleet-wide <strong>Skills &amp; Plugins</strong>{' '}
-          view. From there, or from any hero's panel, <strong>Export</strong> produces a Markdown or JSON
-          report you can hand to another AI to review a session: context budget, tools, skills, plugins
-          and delegation.
+          {t('tutorial.exportBefore')}<strong>✦</strong>{t('tutorial.exportAfterStar')}<strong>{t('tutorial.skillsPlugins')}</strong>
+          {t('tutorial.exportAfterView')}<strong>{t('tutorial.exportWord')}</strong>{t('tutorial.exportAfter')}
         </p>
 
-        <div className="tutorial-section-label">How to use it</div>
+        <div className="tutorial-section-label">{t('tutorial.howToTitle')}</div>
         <p className="tutorial-text">
-          Heroes appear in real time as you spawn new Claude Code or Codex sessions. Click a
-          hero in the <em>Party Bar</em> (bottom) to see what it's doing; click any
-          building to see which heroes are there. The 🗺️ icon in the top bar opens
-          the map editor. Reopen this tutorial any time with the{' '}
-          <strong>❓</strong> button, or press <code>Esc</code> to close it.
+          {t('tutorial.howToBefore')}<em>{t('tutorial.partyBar')}</em>{t('tutorial.howToAfterPartyBar')}
+          <strong>❓</strong>{t('tutorial.howToAfterButton')}<code>Esc</code>{t('tutorial.howToAfterEsc')}
         </p>
 
-        <div className="tutorial-section-label">Getting started</div>
+        <div className="tutorial-section-label">{t('tutorial.gettingStartedTitle')}</div>
         <p className="tutorial-text">
-          Requires <code>bun ≥ 1.1.0</code>. Two equivalent ways to run it:
+          {t('tutorial.requiresBefore')}<code>bun ≥ 1.1.0</code>{t('tutorial.requiresAfter')}
         </p>
         <ul className="tutorial-list">
-          <li><code>agentquest</code> — if you installed via the one-line installer (<code>curl&nbsp;|&nbsp;bash</code>)</li>
-          <li><code>bun start</code> — classic form, server + client together from the project root</li>
-          <li><code>bun run dev:server</code> — server only on <code>:4444</code></li>
-          <li><code>bun run dev:client</code> — client only on <code>:4445</code></li>
+          <li><code>agentquest</code>{t('tutorial.runAgentquestBefore')}<code>curl&nbsp;|&nbsp;bash</code>{t('tutorial.runAgentquestAfter')}</li>
+          <li><code>bun start</code>{t('tutorial.runBunStart')}</li>
+          <li><code>bun run dev:server</code>{t('tutorial.runServerOnly')}<code>:4444</code>{t('tutorial.runServerOnlyAfter')}</li>
+          <li><code>bun run dev:client</code>{t('tutorial.runClientOnly')}<code>:4445</code>{t('tutorial.runClientOnlyAfter')}</li>
         </ul>
         <p className="tutorial-text">
-          Once running, open <code>http://localhost:4445</code> in your browser to see the
-          village. To pull upstream changes later: <code>agentquest update</code> (or{' '}
-          <code>git pull --ff-only && bun install</code>).
+          {t('tutorial.openBefore')}<code>http://localhost:4445</code>{t('tutorial.openAfterUrl')}<code>agentquest update</code>
+          {t('tutorial.openOr')}<code>git pull --ff-only && bun install</code>{t('tutorial.openAfter')}
         </p>
         <p className="tutorial-text">
-          To share the village with other devices on the same Wi-Fi, prefix either form with{' '}
-          <code>AGENT_QUEST_LAN=1</code> (e.g. <code>AGENT_QUEST_LAN=1 agentquest</code>) —
-          the server will print the reachable LAN URLs at boot.
+          {t('tutorial.lanBefore')}<code>AGENT_QUEST_LAN=1</code>{t('tutorial.lanExample')}<code>AGENT_QUEST_LAN=1 agentquest</code>{t('tutorial.lanAfter')}
         </p>
 
-        <div className="tutorial-section-label">Tech stack</div>
+        <div className="tutorial-section-label">{t('tutorial.techStackTitle')}</div>
         <p className="tutorial-text">
           Bun · Hono · WebSocket · React 19 · Phaser 4 · TypeScript · Vite
         </p>
 
-        <div className="tutorial-section-label">Privacy</div>
+        <div className="tutorial-section-label">{t('tutorial.privacyTitle')}</div>
         <p className="tutorial-text">
-          Agent Quest reads agent logs locally; their contents are never uploaded.
-          The app contacts GitHub to check for new releases, without sending your
-          logs or prompts. Preferences and update reminders stay in your browser.
+          {t('tutorial.privacyText')}
         </p>
 
-        <div className="tutorial-section-label">Platform</div>
+        <div className="tutorial-section-label">{t('tutorial.platformTitle')}</div>
         <p className="tutorial-text">
-          <strong>Claude Code:</strong> tested on macOS and Windows (via <strong>WSL2</strong> — see the README).
+          <strong>Claude Code:</strong>{t('tutorial.platformClaudeBefore')}<strong>WSL2</strong>{t('tutorial.platformClaudeAfter')}
         </p>
         <p className="tutorial-text">
-          <strong>Codex:</strong> macOS tested. Windows not yet verified.
+          <strong>Codex:</strong>{t('tutorial.platformCodex')}
         </p>
         <p className="tutorial-text">
-          <strong>Linux:</strong> should work for both, but not routinely tested.
+          <strong>Linux:</strong>{t('tutorial.platformLinux')}
         </p>
 
-        <div className="tutorial-section-label">About</div>
+        <div className="tutorial-section-label">{t('tutorial.aboutTitle')}</div>
         <p className="tutorial-text">
-          Built by <strong>Fulvio Scichilone</strong> (
+          {t('tutorial.aboutBefore')}<strong>Fulvio Scichilone</strong>{t('tutorial.aboutAfterName')}
           <a
             className="tutorial-link"
             href="https://github.com/FulAppiOS"
             target="_blank"
             rel="noreferrer"
           >@FulAppiOS</a>
-          {' '}on GitHub). Open source under the MIT license —{' '}
+          {t('tutorial.aboutAfterHandle')}
           <a
             className="tutorial-link"
             href="https://github.com/FulAppiOS/agent-quest"
             target="_blank"
             rel="noreferrer"
-          >source on GitHub</a>.
+          >{t('tutorial.aboutSourceLink')}</a>.
         </p>
       </div>
     </div>

@@ -12,7 +12,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 30;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   color: #F5E6C8;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .editor-topbar-title {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 18px;
   font-weight: 700;
@@ -56,7 +56,7 @@
   color: #F5E6C8;
   padding: 6px 12px;
   font-size: 12px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   cursor: pointer;
   border-radius: 3px;
   transition: background 0.15s, border-color 0.15s;
@@ -106,7 +106,7 @@
   border-radius: 4px;
   padding: 8px 12px;
   color: #F5E6C8;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 12px;
   z-index: 45;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
@@ -251,7 +251,7 @@
 }
 
 .editor-palette-header {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 12px;
   letter-spacing: 1px;
@@ -458,7 +458,7 @@ button.editor-palette-header-toggle:hover {
   color: #888;
   padding: 4px 12px;
   font-size: 11px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   cursor: pointer;
   border-radius: 3px;
   white-space: nowrap;

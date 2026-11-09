@@ -1,4 +1,5 @@
 import type { AgentActivity } from '../../types/agent';
+import { hasMessage, t } from '../../i18n';
 
 export interface BuildingDef {
   id: string;
@@ -57,4 +58,16 @@ export const NPC_VILLAGE = { x: 2420, y: 1430, radius: 180 };
 export function getBuildingForActivity(activity: AgentActivity): BuildingDef {
   const building = BUILDING_DEFS.find((b) => b.activity === activity);
   return building ?? BUILDING_DEFS.find((b) => b.activity === 'idle')!;
+}
+
+/** Localized building name; falls back to the English `label` for ids without translations. */
+export function buildingName(def: Pick<BuildingDef, 'id' | 'label'>): string {
+  const key = `building.${def.id}.name`;
+  return hasMessage(key) ? t(key) : def.label;
+}
+
+/** Localized building description; falls back to the English `description`. */
+export function buildingDescription(def: Pick<BuildingDef, 'id' | 'description'>): string {
+  const key = `building.${def.id}.description`;
+  return hasMessage(key) ? t(key) : def.description;
 }

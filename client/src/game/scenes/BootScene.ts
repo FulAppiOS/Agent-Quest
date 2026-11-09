@@ -6,6 +6,7 @@ import { addCrispText } from '../text';
 import { getActiveTheme } from '../themes/registry';
 import { groupMissingByCategory } from '../data/asset-diagnostics';
 import { sceneRenderScale } from '../dpr';
+import { t } from '../../i18n';
 
 
 
@@ -20,7 +21,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    setStartupStatus('Loading village assets…');
+    setStartupStatus(t('boot.loadingAssets'));
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
       this.missingAssets.push(file.src);
     });
@@ -114,7 +115,7 @@ export class BootScene extends Phaser.Scene {
       const n = this.missingAssets.length;
       const grouped = groupMissingByCategory(this.missingAssets);
 
-      const headline = `Bundled asset pack is missing ${n} file${n === 1 ? '' : 's'}.`;
+      const headline = t('boot.missingHeadline', { count: n });
       this.statusText = addCrispText(this, cx, statusY, headline, {
         fontSize: '16px',
         color: '#f0d89a',
@@ -144,7 +145,7 @@ export class BootScene extends Phaser.Scene {
       const overflow = n - samples.length;
       const sampleLines =
         samples.map((p) => `  ${p}`).join('\n') +
-        (overflow > 0 ? `\n  …and ${overflow} more` : '');
+        (overflow > 0 ? `\n  ${t('boot.andMore', { count: overflow })}` : '');
       const sample = addCrispText(this, cx, summary.y + summary.displayHeight + 16, sampleLines, {
         fontSize: '11px',
         color: '#8ea0b4',
@@ -153,9 +154,7 @@ export class BootScene extends Phaser.Scene {
         wordWrap: { width: Math.min(vw * 0.9, 780) },
       }).setOrigin(0.5, 0);
 
-      const hintText =
-        'Restore with:\n   git checkout -- client/public/assets/themes/tiny-swords-cc0/\n' +
-        'or re-clone the repository.';
+      const hintText = t('boot.restoreHint');
       const hint = addCrispText(this, cx, sample.y + sample.displayHeight + 20, hintText, {
         fontSize: '12px',
         color: '#aabbcc',
@@ -164,7 +163,7 @@ export class BootScene extends Phaser.Scene {
         wordWrap: { width: Math.min(vw * 0.9, 720) },
       }).setOrigin(0.5, 0);
 
-      const primary = addCrispText(this, cx, hint.y + hint.displayHeight + 24, '↻  Reload page', {
+      const primary = addCrispText(this, cx, hint.y + hint.displayHeight + 24, t('boot.reload'), {
           fontSize: '16px',
           color: '#1a1a2e',
           fontFamily: 'monospace',
@@ -179,8 +178,8 @@ export class BootScene extends Phaser.Scene {
       return;
     }
 
-    setStartupStatus('Connecting to server…');
-    this.statusText = addCrispText(this, cx, statusY, 'Connecting to server...', {
+    setStartupStatus(t('boot.connecting'));
+    this.statusText = addCrispText(this, cx, statusY, t('boot.connecting'), {
       fontSize: '18px',
       color: '#888888',
       fontFamily: 'monospace',
@@ -190,8 +189,8 @@ export class BootScene extends Phaser.Scene {
       if (this.hasTransitioned) return;
       this.hasTransitioned = true;
       try {
-        setStartupStatus('Preparing your village…');
-        this.statusText.setText('Connected! Entering village...');
+        setStartupStatus(t('boot.preparing'));
+        this.statusText.setText(t('boot.connected'));
         this.time.delayedCall(800, () => {
           this.scene.start('VillageScene');
         });
