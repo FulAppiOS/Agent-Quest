@@ -1,0 +1,32 @@
+.settings-select {
+  min-width: 160px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #4a4a6a;
+  background: #1f1f33;
+  color: #e8e8f0;
+  font: inherit;
+  font-size: 13px;
+}
+
+.settings-select:focus-visible {
+  outline: 2px solid #c4a35a;
+  outline-offset: 1px;
+}
+
+.language-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.language-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.language-report {
+  line-height: 1.5;
+}

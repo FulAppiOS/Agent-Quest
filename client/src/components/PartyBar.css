@@ -8,7 +8,7 @@
   border-radius: 4px;
   overflow: hidden;
   z-index: 25;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   display: flex;
   flex-direction: column;
   transition: width 0.18s ease;
@@ -26,7 +26,7 @@
   flex-shrink: 0;
 }
 .partybar-title {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 13px;
   font-weight: 700;
@@ -38,7 +38,7 @@
 }
 .partybar-title-compact {
   color: #C4A35A;
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   font-size: 14px;
   font-weight: 700;
   text-align: center;
@@ -95,7 +95,7 @@
   border: none;
   cursor: pointer;
   color: #9a937e;
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -200,7 +200,7 @@
   min-width: 0;
 }
 .partybar-agent-name {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 14px;
   font-weight: 700;
   color: #F5E6C8;
@@ -212,7 +212,7 @@
 }
 .partybar-source-badge,
 .partybar-model-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -322,7 +322,7 @@
 }
 .partybar-role-name { overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
 .partybar-sub-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -335,7 +335,7 @@
   flex-shrink: 0;
 }
 .partybar-child-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 10px;
   font-weight: 700;
   color: #FFD27A;
@@ -349,7 +349,7 @@
 
 /* === Skill chip + context meter === */
 .partybar-skill-chip {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 9.5px;
   font-weight: 700;
   color: #7BD4C5;

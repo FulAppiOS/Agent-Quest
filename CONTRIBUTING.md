@@ -1,5 +1,9 @@
 # Contributing to Agent Quest
 
+<p>
+  <strong>English</strong> · <a href="CONTRIBUTING.ko.md">한국어</a>
+</p>
+
 Thanks for your interest — issues and pull requests are very welcome.
 
 ## Ways to help
@@ -23,7 +27,7 @@ Open <http://localhost:4445>. See the [README](README.md) for the full architect
 ## Before opening a PR
 
 - Keep TypeScript strict — no `any`.
-- Code and identifiers in English.
+- Code and identifiers in English. UI strings go through `t()` / `useI18n()` (`client/src/i18n`); add new keys to `locales/en/*.json` (base) and `locales/ko/*.json`.
 - Commit messages follow conventional style: `feat:`, `fix:`, `refactor:`, `docs:`, etc.
 - Run `cd server && bun test` if you touched server code.
 - If you change UI, include a screenshot or short clip in the PR description.

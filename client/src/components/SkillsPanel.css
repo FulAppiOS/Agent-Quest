@@ -13,7 +13,7 @@
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(196, 163, 90, 0.3);
   color: #D6CBB0;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   font-size: 11px;
   padding: 4px 10px;
   border-radius: 4px;
@@ -109,7 +109,7 @@
 .skills-agent-ctx { min-width: 0; }
 .skills-agent-meta { display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-size: 10.5px; min-width: 0; flex-wrap: wrap; }
 .skills-chip {
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   font-size: 10px;
   font-weight: 700;
   color: #7BD4C5;

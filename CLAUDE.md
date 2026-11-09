@@ -39,7 +39,7 @@ These are fixed. Do NOT use 3000, 3333, 5173, 5174, 8000 — reserved by other p
 ## Code Conventions
 
 - TypeScript strict everywhere, no `any`
-- Code and identifiers in English, UI labels in English
+- Code and identifiers in English. UI text is never hardcoded: every user-visible string goes through `t('ns.key')` / `useI18n()` from `client/src/i18n`, with English as the base locale in `client/src/i18n/locales/en/*.json` and Korean in `locales/ko/`. Users can also load a custom locale JSON at runtime (Settings → Language).
 - Commit messages: conventional style (`feat:`, `fix:`, `refactor:`)
 
 ## Git Workflow

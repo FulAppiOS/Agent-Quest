@@ -11,7 +11,7 @@
   display: flex;
   flex-direction: column;
   z-index: 25;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
 }
 
 .detail-body {
@@ -73,7 +73,7 @@
 }
 
 .detail-name {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 19px;
   font-weight: 700;
@@ -85,7 +85,7 @@
 
 .detail-source-badge,
 .detail-model-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -103,7 +103,7 @@
   min-width: 0;
 }
 .detail-model-id {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 11px;
   color: #9FB7D4;
   overflow: hidden;
@@ -142,7 +142,7 @@
 .detail-section:last-child { border-bottom: none; }
 
 .detail-section-title {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   font-size: 12px;
   color: #C4A35A;
   text-transform: uppercase;
@@ -233,7 +233,7 @@
   background: none;
   border: 1px solid rgba(196, 163, 90, 0.35);
   color: #C4A35A;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   font-size: 11px;
   padding: 3px 10px;
   border-radius: 3px;
@@ -261,7 +261,7 @@
   align-items: center;
   justify-content: center;
   z-index: 120;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
 }
 .lastmsg-modal {
   position: relative;
@@ -309,7 +309,7 @@
   opacity: 0.8;
 }
 .lastmsg-header-name {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 18px;
   font-weight: 700;
@@ -334,7 +334,7 @@
 .lastmsg-body p { margin: 0 0 10px; }
 .lastmsg-body p:last-child { margin-bottom: 0; }
 .lastmsg-body h1, .lastmsg-body h2, .lastmsg-body h3 {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 15px;
   margin: 10px 0 6px;
@@ -344,7 +344,7 @@
   color: #9ec4f5;
   padding: 1px 5px;
   border-radius: 3px;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   font-size: 12.5px;
 }
 .lastmsg-body pre {
@@ -371,7 +371,7 @@
 .detail-last-message p { margin: 0 0 8px; }
 .detail-last-message p:last-child { margin-bottom: 0; }
 .detail-last-message h1, .detail-last-message h2, .detail-last-message h3 {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   color: #C4A35A;
   font-size: 13px;
   margin: 8px 0 4px;
@@ -381,7 +381,7 @@
   border: 1px solid rgba(196, 163, 90, 0.25);
   border-radius: 3px;
   padding: 1px 5px;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 12px;
   color: #7BD4C5;
 }
@@ -424,7 +424,7 @@
   border-bottom: none;
   border-radius: 4px 4px 0 0;
   color: #9a937e;
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -478,7 +478,7 @@
 .detail-value--good { color: #7ED9A0; }
 .detail-class-muted { color: #777; }
 .detail-skill-pill {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 11px;
   font-weight: 700;
   color: #7BD4C5;
@@ -560,7 +560,7 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(196, 163, 90, 0.3);
   color: #C4A35A;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   font-size: 10px;
   padding: 2px 7px;
   border-radius: 3px;
@@ -571,7 +571,7 @@
 .detail-export-btn:focus-visible { outline: 2px solid #C4A35A; outline-offset: 1px; }
 
 .detail-sub-badge {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;

@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { isSubagentAgent, type AgentState } from '../types/agent';
 import { BUILDING_DEFS, VILLAGE_GATE } from '../game/data/building-layout';
+import { useI18n } from '../i18n';
 import './Minimap.css';
 
 interface MinimapProps {
@@ -27,6 +28,7 @@ const BUILDING_COLORS: Record<string, string> = {
 const BUILDING_SIZE = 60;
 
 export function Minimap({ agents }: MinimapProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function Minimap({ agents }: MinimapProps) {
 
   return (
     <div className="minimap">
-      <div className="minimap-title">Map</div>
+      <div className="minimap-title">{t('minimap.title')}</div>
       <canvas ref={canvasRef} className="minimap-canvas" width={180} height={120} />
     </div>
   );

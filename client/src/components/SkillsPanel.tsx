@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  HERO_LABEL_COLOR, formatTokens, skillShortName,
+  HERO_LABEL_COLOR, formatTokens, skillShortName, statusLabel,
   type AgentSource, type AgentState, type SkillInventory,
 } from '../types/agent';
 import { aggregateFleetUsage } from '../report/fleetUsage';
@@ -8,6 +8,7 @@ import { buildFleetJson, buildFleetMarkdown, exportFileName } from '../report/se
 import { copyText, downloadText } from '../report/download';
 import { HeroAvatar } from './HeroAvatar';
 import { ContextMeter } from './ContextMeter';
+import { useI18n } from '../i18n';
 import './SettingsPanel.css';
 import './SkillsPanel.css';
 
@@ -27,6 +28,7 @@ const SOURCE_LABEL: Record<AgentSource, string> = { claude: 'Claude Code', codex
  * agent's window is doing — plus the AI-review export for the whole fleet.
  */
 export function SkillsPanel({ agents, skillInventory, onClose, onSelectAgent }: SkillsPanelProps) {
+  const { t } = useI18n();
   const [scope, setScope] = useState<'live' | 'all'>('live');
   const [copied, setCopied] = useState(false);
 
@@ -60,44 +62,44 @@ export function SkillsPanel({ agents, skillInventory, onClose, onSelectAgent }: 
 
   return (
     <div className="settings-backdrop" onClick={onClose}>
-      <div className="settings-modal skills-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Skills and plugins">
-        <button className="settings-close" onClick={onClose} title="Close (Esc)">×</button>
-        <h2 className="settings-title">{'✦'} Skills &amp; Plugins</h2>
+      <div className="settings-modal skills-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t('skillsPanel.ariaLabel')}>
+        <button className="settings-close" onClick={onClose} title={t('common.closeEsc')}>×</button>
+        <h2 className="settings-title">{'✦'} {t('skillsPanel.title')}</h2>
 
         <div className="skills-toolbar">
-          <div className="skills-scope" role="radiogroup" aria-label="Agents in scope">
-            <button type="button" role="radio" aria-checked={scope === 'live'} className={`skills-scope-btn ${scope === 'live' ? 'on' : ''}`} onClick={() => setScope('live')}>Live agents</button>
-            <button type="button" role="radio" aria-checked={scope === 'all'} className={`skills-scope-btn ${scope === 'all' ? 'on' : ''}`} onClick={() => setScope('all')}>All ({agents.length})</button>
+          <div className="skills-scope" role="radiogroup" aria-label={t('skillsPanel.scopeLabel')}>
+            <button type="button" role="radio" aria-checked={scope === 'live'} className={`skills-scope-btn ${scope === 'live' ? 'on' : ''}`} onClick={() => setScope('live')}>{t('skillsPanel.scopeLive')}</button>
+            <button type="button" role="radio" aria-checked={scope === 'all'} className={`skills-scope-btn ${scope === 'all' ? 'on' : ''}`} onClick={() => setScope('all')}>{t('skillsPanel.scopeAll', { count: agents.length })}</button>
           </div>
-          <div className="skills-export" aria-label="Export for AI review">
-            <span className="skills-export-label">Export for AI review</span>
-            <button type="button" className="settings-btn" onClick={() => { void onCopy(); }} title="Copy a Markdown report of every agent in scope">
-              {copied ? 'Copied ✓' : 'Copy Markdown'}
+          <div className="skills-export" aria-label={t('skillsPanel.exportLabel')}>
+            <span className="skills-export-label">{t('skillsPanel.exportLabel')}</span>
+            <button type="button" className="settings-btn" onClick={() => { void onCopy(); }} title={t('skillsPanel.copyMarkdownTitle')}>
+              {copied ? t('common.copied') : t('skillsPanel.copyMarkdown')}
             </button>
-            <button type="button" className="settings-btn" onClick={onDownloadMd} title="Download the Markdown report">.md</button>
-            <button type="button" className="settings-btn" onClick={onDownloadJson} title="Download the raw data as JSON">.json</button>
+            <button type="button" className="settings-btn" onClick={onDownloadMd} title={t('skillsPanel.downloadMdTitle')}>.md</button>
+            <button type="button" className="settings-btn" onClick={onDownloadJson} title={t('skillsPanel.downloadJsonTitle')}>.json</button>
           </div>
         </div>
 
         <div className="skills-tiles">
-          <div className="skills-tile"><span className="skills-tile-v">{usage.skills.length}</span><span className="skills-tile-k">skills in use</span></div>
-          <div className="skills-tile"><span className="skills-tile-v">~{formatTokens(usage.totals.skillTokens)}</span><span className="skills-tile-k">tokens from skills</span></div>
-          <div className="skills-tile"><span className="skills-tile-v">{usage.totals.pluginCalls}</span><span className="skills-tile-k">plugin calls</span></div>
-          <div className="skills-tile"><span className="skills-tile-v">~{formatTokens(usage.totals.pluginTokens)}</span><span className="skills-tile-k">tokens from plugins</span></div>
+          <div className="skills-tile"><span className="skills-tile-v">{usage.skills.length}</span><span className="skills-tile-k">{t('skillsPanel.tileSkillsInUse')}</span></div>
+          <div className="skills-tile"><span className="skills-tile-v">~{formatTokens(usage.totals.skillTokens)}</span><span className="skills-tile-k">{t('skillsPanel.tileSkillTokens')}</span></div>
+          <div className="skills-tile"><span className="skills-tile-v">{usage.totals.pluginCalls}</span><span className="skills-tile-k">{t('skillsPanel.tilePluginCalls')}</span></div>
+          <div className="skills-tile"><span className="skills-tile-v">~{formatTokens(usage.totals.pluginTokens)}</span><span className="skills-tile-k">{t('skillsPanel.tilePluginTokens')}</span></div>
         </div>
         {inventories.length > 0 && (
           <p className="settings-muted skills-inventory">
-            {inventories.map((s) => `${SOURCE_LABEL[s]}: ${skillInventory[s]!.count} skills installed (~${formatTokens(skillInventory[s]!.tokens)} tokens if always loaded)`).join(' · ')}.
-            {' '}Loading skills on demand kept ~{formatTokens(Math.max(0, inventories.reduce((sum, s) => sum + skillInventory[s]!.tokens, 0) - usage.totals.skillTokens))} tokens out of the contexts in scope.
+            {inventories.map((s) => t('skillsPanel.inventoryLine', { source: SOURCE_LABEL[s], count: skillInventory[s]!.count, tokens: formatTokens(skillInventory[s]!.tokens) })).join(' · ')}.
+            {' '}{t('skillsPanel.inventorySaved', { tokens: formatTokens(Math.max(0, inventories.reduce((sum, s) => sum + skillInventory[s]!.tokens, 0) - usage.totals.skillTokens)) })}
           </p>
         )}
 
-        <div className="settings-section-label">Skills</div>
+        <div className="settings-section-label">{t('skillsPanel.sectionSkills')}</div>
         {usage.skills.length === 0 ? (
-          <p className="settings-muted">No skills loaded by the agents in scope.</p>
+          <p className="settings-muted">{t('skillsPanel.noSkills')}</p>
         ) : (
           <table className="skills-table">
-            <thead><tr><th>Skill</th><th>Plugin</th><th className="num">Loads</th><th className="num">~Tokens</th><th className="num">Agents</th></tr></thead>
+            <thead><tr><th>{t('skillsPanel.colSkill')}</th><th>{t('skillsPanel.colPlugin')}</th><th className="num">{t('skillsPanel.colLoads')}</th><th className="num">{t('skillsPanel.colTokens')}</th><th className="num">{t('skillsPanel.colAgents')}</th></tr></thead>
             <tbody>
               {usage.skills.map((s) => (
                 <tr key={s.name} title={s.name}>
@@ -112,12 +114,12 @@ export function SkillsPanel({ agents, skillInventory, onClose, onSelectAgent }: 
           </table>
         )}
 
-        <div className="settings-section-label">Plugins &amp; MCP</div>
+        <div className="settings-section-label">{t('skillsPanel.sectionPlugins')}</div>
         {usage.plugins.length === 0 ? (
-          <p className="settings-muted">No plugin or MCP calls by the agents in scope.</p>
+          <p className="settings-muted">{t('skillsPanel.noPlugins')}</p>
         ) : (
           <table className="skills-table">
-            <thead><tr><th>Plugin / server</th><th>Kind</th><th className="num">Calls</th><th className="num">~Tokens</th><th className="num">Agents</th></tr></thead>
+            <thead><tr><th>{t('skillsPanel.colPluginServer')}</th><th>{t('skillsPanel.colKind')}</th><th className="num">{t('skillsPanel.colCalls')}</th><th className="num">{t('skillsPanel.colTokens')}</th><th className="num">{t('skillsPanel.colAgents')}</th></tr></thead>
             <tbody>
               {usage.plugins.map((p) => (
                 <tr key={`${p.kind}:${p.name}`} title={`${p.kind}: ${p.name}`}>
@@ -132,9 +134,9 @@ export function SkillsPanel({ agents, skillInventory, onClose, onSelectAgent }: 
           </table>
         )}
 
-        <div className="settings-section-label">Agents</div>
+        <div className="settings-section-label">{t('skillsPanel.sectionAgents')}</div>
         {usage.agents.length === 0 ? (
-          <p className="settings-muted">No agents in scope.</p>
+          <p className="settings-muted">{t('skillsPanel.noAgents')}</p>
         ) : (
           <ul className="skills-agents">
             {usage.agents.map((row) => {
@@ -143,18 +145,18 @@ export function SkillsPanel({ agents, skillInventory, onClose, onSelectAgent }: 
               const parent = row.parentId !== undefined ? byId.get(row.parentId) : undefined;
               return (
                 <li key={row.id} className={`skills-agent ${row.isSubagent ? 'is-sub' : ''}`}>
-                  <button type="button" className="skills-agent-main" onClick={() => onSelectAgent(row.id)} title={`Select ${row.name}`}>
+                  <button type="button" className="skills-agent-main" onClick={() => onSelectAgent(row.id)} title={t('skillsPanel.selectAgent', { name: row.name })}>
                     <HeroAvatar agent={agent} size={28} />
                     <span className="skills-agent-name" style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}>
                       {row.isSubagent ? '⚔ ' : ''}{row.name}
                     </span>
-                    {row.isSubagent && parent !== undefined && <span className="skills-agent-parent">for {parent.name}</span>}
-                    <span className={`skills-agent-status status-${row.status}`}>{row.status}</span>
+                    {row.isSubagent && parent !== undefined && <span className="skills-agent-parent">{t('skillsPanel.forParent', { name: parent.name })}</span>}
+                    <span className={`skills-agent-status status-${row.status}`}>{statusLabel(row.status)}</span>
                   </button>
                   <span className="skills-agent-ctx"><ContextMeter context={agent.context} size="mini" /></span>
                   <span className="skills-agent-meta">
                     {row.activeSkill !== undefined && <span className="skills-chip" title={row.activeSkill}>{'✦'} {skillShortName(row.activeSkill)}</span>}
-                    <span className="muted">skills ~{formatTokens(row.skillTokens)} · plugins ~{formatTokens(row.pluginTokens)}</span>
+                    <span className="muted">{t('skillsPanel.agentTokens', { skills: formatTokens(row.skillTokens), plugins: formatTokens(row.pluginTokens) })}</span>
                   </span>
                 </li>
               );
@@ -163,7 +165,7 @@ export function SkillsPanel({ agents, skillInventory, onClose, onSelectAgent }: 
         )}
 
         <p className="settings-foot">
-          Figures marked ~ are estimates (characters ÷ 4). The export bundles the same data as Markdown or JSON so an AI outside Agent Quest can review the sessions.
+          {t('skillsPanel.footnote')}
         </p>
       </div>
     </div>

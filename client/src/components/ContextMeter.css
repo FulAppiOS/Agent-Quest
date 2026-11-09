@@ -3,7 +3,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
 }
 .ctx-meter-track {
   flex: 1;

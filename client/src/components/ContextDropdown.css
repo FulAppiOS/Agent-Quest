@@ -32,7 +32,7 @@
   border-radius: 6px;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
   z-index: 60;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   overflow: hidden;
 }
 .ctx-dropdown-header {
@@ -41,13 +41,13 @@
   justify-content: space-between;
   padding: 8px 12px;
   border-bottom: 1px solid rgba(196, 163, 90, 0.25);
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   font-size: 12px;
   font-weight: 700;
   color: #C4A35A;
   flex-shrink: 0;
 }
-.ctx-dropdown-sub { font-family: 'Fira Code', ui-monospace, monospace; font-size: 10px; font-weight: 400; color: #9a937e; }
+.ctx-dropdown-sub { font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace; font-size: 10px; font-weight: 400; color: #9a937e; }
 
 .ctx-list {
   list-style: none;

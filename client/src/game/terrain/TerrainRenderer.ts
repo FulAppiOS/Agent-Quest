@@ -3,6 +3,7 @@ import { WORLD_WIDTH, WORLD_HEIGHT, BUILDING_DEFS, VILLAGE_GATE, PLAZA, NPC_VILL
 import { getRoadSegments } from '../data/road-network';
 import { addCrispText } from '../text';
 import { getActiveTheme } from '../themes/registry';
+import { t } from '../../i18n';
 
 function createRng(seed: number): () => number {
   return () => {
@@ -773,8 +774,8 @@ export class TerrainRenderer {
 
   private drawSignposts(): void {
     const spots = [
-      { x: 1400, y: 1120, label: 'Welcome' },
-      { x: PLAZA.x + 120, y: PLAZA.y - 10, label: 'Plaza' },
+      { x: 1400, y: 1120, label: t('village.sign.welcome') },
+      { x: PLAZA.x + 120, y: PLAZA.y - 10, label: t('village.sign.plaza') },
     ];
     for (const s of spots) {
       if (this.onRoad(s.x, s.y, 8)) continue;

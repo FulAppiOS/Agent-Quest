@@ -28,6 +28,7 @@ import type {
 import { TILE_SIZE } from '../../types/map';
 import { cellKey, distPointToPolyline, worldToCell } from '../../utils/geometry';
 import { makeDecorationId, makeNpcId, makePathId } from '../../utils/ids';
+import { t } from '../../../i18n';
 import { VILLAGE_GATE } from '../../../game/data/building-layout';
 import { SERVER_URL } from '../../../config';
 import { getActiveThemeId } from '../../../game/themes/registry';
@@ -298,7 +299,7 @@ export class EditorScene extends Phaser.Scene {
     g.lineStyle(2, stroke, 1);
     g.strokeCircle(x, y, 5);
 
-    const label = this.add.text(x, y + 10, isSet ? 'SPAWN' : 'SPAWN (default)', {
+    const label = this.add.text(x, y + 10, isSet ? t('editor.scene.spawn') : t('editor.scene.spawnDefault'), {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: isSet ? '#F5E4B0' : '#BBBBBB',
@@ -1363,7 +1364,7 @@ export class EditorScene extends Phaser.Scene {
       }
       const body = (await res.json()) as { ok: boolean; updatedAt?: number; error?: string };
       if (body.ok === false) {
-        editorBridge.emit('ed:save:error', body.error ?? 'unknown error');
+        editorBridge.emit('ed:save:error', body.error ?? t('editor.scene.unknownError'));
         return;
       }
       this.dirty = false;
@@ -1440,7 +1441,7 @@ export class EditorScene extends Phaser.Scene {
   private async loadTemplate(): Promise<void> {
     try {
       const res = await fetch(`${SERVER_URL}/api/map/template`);
-      if (res.status === 204) throw new Error('No template available');
+      if (res.status === 204) throw new Error(t('editor.scene.noTemplate'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       this.mapConfig = (await res.json()) as MapConfig;
       if (!this.mapConfig.npcs) this.mapConfig.npcs = [];

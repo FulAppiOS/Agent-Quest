@@ -1,9 +1,10 @@
 import { isXcodeAgent } from '../types/sessionIdentity';
 import { useState } from 'react';
-import { HERO_LABEL_COLOR, modelBadge, type ActivityLogEntry, type AgentState } from '../types/agent';
+import { activityLabel, HERO_LABEL_COLOR, modelBadge, type ActivityLogEntry, type AgentState } from '../types/agent';
 import { HeroAvatar } from './HeroAvatar';
 import { ActivityRow } from './ActivityRow';
 import { categorizeEntry, type ActionFilter } from './activityFeedUtils';
+import { useI18n } from '../i18n';
 
 interface AgentGroupProps {
   agentId: string;
@@ -24,6 +25,7 @@ export function AgentGroup({
   activeHighlights, selectedEntryKey,
   onSelectAgent, onSelectEntry, onFilterAgent,
 }: AgentGroupProps) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? entries : entries.slice(0, COLLAPSED_VISIBLE);
   const hidden = entries.length - visible.length;
@@ -34,13 +36,13 @@ export function AgentGroup({
   };
 
   return (
-    <section className="feed-group" aria-label={`Activity for ${agentName}`}>
+    <section className="feed-group" aria-label={t('feedGroup.activityFor', { name: agentName })}>
       <header className="feed-group-header">
         {agent !== undefined ? (
           <button
             type="button"
             className="feed-group-avatar"
-            aria-label={`Select agent ${agentName}`}
+            aria-label={t('feedGroup.selectAgent', { name: agentName })}
             onClick={() => onSelectAgent(agentId)}
           >
             <HeroAvatar agent={agent} size="inherit" />
@@ -51,7 +53,7 @@ export function AgentGroup({
           style={agent !== undefined ? { color: HERO_LABEL_COLOR[agent.heroColor] } : undefined}
         >{agentName}</span>
         {agent !== undefined && (
-          <span className="feed-group-activity">· {agent.currentActivity}</span>
+          <span className="feed-group-activity">· {activityLabel(agent.currentActivity)}</span>
         )}
         {agent !== undefined && isXcodeAgent(agent) && <span className="feed-model-badge" style={{ color: '#88BBFF', background: '#88BBFF26' }}>Xcode</span>}
         {agent !== undefined && (() => {
@@ -61,7 +63,7 @@ export function AgentGroup({
             <span
               className="feed-model-badge"
               style={{ color: badge.color, background: `${badge.color}26` }}
-              aria-label={`model ${agent.model ?? ''}`}
+              aria-label={t('feedGroup.modelAria', { model: agent.model ?? '' })}
               title={agent.model}
             >
               {badge.short}
@@ -92,12 +94,12 @@ export function AgentGroup({
         })}
         {hidden > 0 && (
           <button type="button" className="feed-group-more" onClick={() => setExpanded(true)}>
-            + {hidden} more
+            {t('common.more', { count: hidden })}
           </button>
         )}
         {expanded && entries.length > COLLAPSED_VISIBLE && (
           <button type="button" className="feed-group-less" onClick={() => setExpanded(false)}>
-            Show less
+            {t('common.showLess')}
           </button>
         )}
       </div>

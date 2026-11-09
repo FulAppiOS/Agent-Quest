@@ -1,4 +1,5 @@
 import { editorStore, useEditorStore } from '../state/editor-store';
+import { useI18n } from '../../i18n';
 
 /**
  * Non-blocking banner that appears at the top of the editor when one or
@@ -7,6 +8,7 @@ import { editorStore, useEditorStore } from '../state/editor-store';
  * points to a restore command. Dismissible per session.
  */
 export function AssetWarningBanner() {
+  const { t } = useI18n();
   const errors = useEditorStore((s) => s.assetErrors);
   const dismissed = useEditorStore((s) => s.assetErrorsDismissed);
 
@@ -21,13 +23,13 @@ export function AssetWarningBanner() {
       <div className="editor-asset-banner-head">
         <span className="editor-asset-banner-icon" aria-hidden>⚠</span>
         <span className="editor-asset-banner-title">
-          {errors.total} asset{errors.total === 1 ? '' : 's'} failed to load
+          {t('editor.assets.failed', { count: errors.total })}
         </span>
         <button
           className="editor-asset-banner-dismiss"
           type="button"
           onClick={() => editorStore.dismissAssetErrors()}
-          aria-label="Dismiss"
+          aria-label={t('common.dismiss')}
         >
           ×
         </button>
@@ -41,15 +43,15 @@ export function AssetWarningBanner() {
           ))}
         </ul>
         <details className="editor-asset-banner-details">
-          <summary>Show missing files</summary>
+          <summary>{t('editor.assets.showMissing')}</summary>
           <ul>
             {samples.map((p) => (
               <li key={p}><code>{p}</code></li>
             ))}
-            {overflow > 0 && <li>…and {overflow} more</li>}
+            {overflow > 0 && <li>{t('editor.assets.andMore', { count: overflow })}</li>}
           </ul>
           <p className="editor-asset-banner-hint">
-            Restore with <code>git checkout -- client/public/assets/themes/tiny-swords-cc0/</code>
+            {t('editor.assets.restorePrefix')}<code>git checkout -- client/public/assets/themes/tiny-swords-cc0/</code>{t('editor.assets.restoreSuffix')}
           </p>
         </details>
       </div>

@@ -13,7 +13,7 @@
   border-radius: 6px;
   padding: 10px 14px;
   color: #F5E6C8;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 13px;
   z-index: 35;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);

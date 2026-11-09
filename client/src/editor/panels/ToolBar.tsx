@@ -1,34 +1,36 @@
 import { editorBridge } from '../EditorBridge';
 import { editorStore, useEditorStore } from '../state/editor-store';
 import type { ToolName } from '../types/editor-events';
+import { useI18n } from '../../i18n';
 
 interface ToolDef {
   id: ToolName;
   icon: string;
-  /** Tooltip on hover — keeps the full description. */
-  label: string;
-  /** One-word subtitle shown under the icon in the sidebar. */
-  caption: string;
+  /** i18n key of the tooltip on hover — keeps the full description. */
+  labelKey: string;
+  /** i18n key of the one-word subtitle shown under the icon in the sidebar. */
+  captionKey: string;
 }
 
 const TOOLS: ToolDef[] = [
-  { id: 'select',         icon: '↖',  label: 'Select',            caption: 'Select' },
-  { id: 'paint',          icon: '🖌', label: 'Paint terrain',     caption: 'Paint'  },
-  { id: 'erase',          icon: '🩹', label: 'Erase',             caption: 'Erase'  },
-  { id: 'decoration',     icon: '🌳', label: 'Decoration',        caption: 'Decor'  },
-  { id: 'path',           icon: '〰', label: 'Path',              caption: 'Path'   },
-  { id: 'move-building',  icon: '🏰', label: 'Move building',     caption: 'Move'   },
-  { id: 'npc',            icon: '👤', label: 'Place NPC',         caption: 'NPC'    },
-  { id: 'spawn',          icon: '🚩', label: 'Hero spawn point',  caption: 'Spawn'  },
+  { id: 'select',         icon: '↖',  labelKey: 'editor.toolbar.select',         captionKey: 'editor.toolbar.caption.select' },
+  { id: 'paint',          icon: '🖌', labelKey: 'editor.toolbar.paintTerrain',   captionKey: 'editor.toolbar.caption.paint' },
+  { id: 'erase',          icon: '🩹', labelKey: 'editor.toolbar.erase',          captionKey: 'editor.toolbar.caption.erase' },
+  { id: 'decoration',     icon: '🌳', labelKey: 'editor.toolbar.decoration',     captionKey: 'editor.toolbar.caption.decoration' },
+  { id: 'path',           icon: '〰', labelKey: 'editor.toolbar.path',           captionKey: 'editor.toolbar.caption.path' },
+  { id: 'move-building',  icon: '🏰', labelKey: 'editor.toolbar.moveBuilding',   captionKey: 'editor.toolbar.caption.moveBuilding' },
+  { id: 'npc',            icon: '👤', labelKey: 'editor.toolbar.placeNpc',       captionKey: 'editor.toolbar.caption.npc' },
+  { id: 'spawn',          icon: '🚩', labelKey: 'editor.toolbar.heroSpawnPoint', captionKey: 'editor.toolbar.caption.spawn' },
 ];
 
 export function ToolBar() {
+  const { t } = useI18n();
   const activeTool = useEditorStore((s) => s.tool);
   const gridVisible = useEditorStore((s) => s.gridVisible);
 
-  const onSelectTool = (t: ToolName) => {
-    editorStore.setTool(t);
-    editorBridge.emit('ed:tool:set', t);
+  const onSelectTool = (tool: ToolName) => {
+    editorStore.setTool(tool);
+    editorBridge.emit('ed:tool:set', tool);
   };
 
   const onZoom = (dir: 'in' | 'out' | 'fit') => {
@@ -43,51 +45,51 @@ export function ToolBar() {
 
   return (
     <div className="editor-toolbar">
-      {TOOLS.map((t) => (
+      {TOOLS.map((tool) => (
         <button
-          key={t.id}
-          className={`editor-tool-btn${activeTool === t.id ? ' active' : ''}`}
-          title={t.label}
-          onClick={() => onSelectTool(t.id)}
+          key={tool.id}
+          className={`editor-tool-btn${activeTool === tool.id ? ' active' : ''}`}
+          title={t(tool.labelKey)}
+          onClick={() => onSelectTool(tool.id)}
         >
-          <span className="editor-tool-icon">{t.icon}</span>
-          <span className="editor-tool-caption">{t.caption}</span>
+          <span className="editor-tool-icon">{tool.icon}</span>
+          <span className="editor-tool-caption">{t(tool.captionKey)}</span>
         </button>
       ))}
       <div className="editor-tool-divider" />
-      <button className="editor-tool-btn" title="Zoom in" onClick={() => onZoom('in')}>
+      <button className="editor-tool-btn" title={t('editor.toolbar.zoomIn')} onClick={() => onZoom('in')}>
         <span className="editor-tool-icon">＋</span>
-        <span className="editor-tool-caption">In</span>
+        <span className="editor-tool-caption">{t('editor.toolbar.caption.zoomIn')}</span>
       </button>
-      <button className="editor-tool-btn" title="Zoom out" onClick={() => onZoom('out')}>
+      <button className="editor-tool-btn" title={t('editor.toolbar.zoomOut')} onClick={() => onZoom('out')}>
         <span className="editor-tool-icon">−</span>
-        <span className="editor-tool-caption">Out</span>
+        <span className="editor-tool-caption">{t('editor.toolbar.caption.zoomOut')}</span>
       </button>
-      <button className="editor-tool-btn" title="Fit to viewport" onClick={() => onZoom('fit')}>
+      <button className="editor-tool-btn" title={t('editor.toolbar.fitToViewport')} onClick={() => onZoom('fit')}>
         <span className="editor-tool-icon">⤢</span>
-        <span className="editor-tool-caption">Fit</span>
+        <span className="editor-tool-caption">{t('editor.toolbar.caption.fit')}</span>
       </button>
       {activeTool === 'paint' && (
         <>
           <div className="editor-tool-divider" />
           <button
             className="editor-tool-btn"
-            title="Fill all terrain (F)"
+            title={t('editor.toolbar.fillTerrain')}
             onClick={() => editorBridge.emit('ed:action', 'fill-terrain')}
           >
             <span className="editor-tool-icon">▧</span>
-            <span className="editor-tool-caption">Fill</span>
+            <span className="editor-tool-caption">{t('editor.toolbar.caption.fill')}</span>
           </button>
         </>
       )}
       <div className="editor-tool-divider" />
       <button
         className={`editor-tool-btn${gridVisible ? ' active' : ''}`}
-        title="Toggle grid"
+        title={t('editor.toolbar.toggleGrid')}
         onClick={onToggleGrid}
       >
         <span className="editor-tool-icon">#</span>
-        <span className="editor-tool-caption">Grid</span>
+        <span className="editor-tool-caption">{t('editor.toolbar.caption.grid')}</span>
       </button>
     </div>
   );

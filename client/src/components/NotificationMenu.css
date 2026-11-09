@@ -37,7 +37,7 @@
   border-radius: 6px;
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
   z-index: 60;
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   overflow: hidden;
 }
 
@@ -47,7 +47,7 @@
   justify-content: space-between;
   padding: 8px 12px;
   border-bottom: 1px solid rgba(196, 163, 90, 0.25);
-  font-family: 'Cinzel', serif;
+  font-family: 'Cinzel', 'Noto Serif KR', serif;
   font-size: 12px;
   font-weight: 700;
   color: #C4A35A;
@@ -59,7 +59,7 @@
   border: 1px solid rgba(196, 163, 90, 0.3);
   border-radius: 3px;
   color: #9a937e;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
   font-size: 10px;
   padding: 2px 8px;
   cursor: pointer;

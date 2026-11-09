@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 /**
  * Shared categorisation for asset-load failures. Used by BootScene (fatal
  * error screen) and EditorBootScene (non-blocking banner) so both surfaces
@@ -55,14 +56,9 @@ const CATEGORY_ORDER: AssetCategorySummary['id'][] = [
   'other',
 ];
 
-const CATEGORY_LABEL: Record<AssetCategorySummary['id'], string> = {
-  hero: 'Hero sprites',
-  building: 'Buildings',
-  terrain: 'Terrain tiles',
-  decoration: 'Decorations (trees, rocks, bushes)',
-  ui: 'UI / logo',
-  other: 'Other',
-};
+function categoryLabel(id: AssetCategorySummary['id']): string {
+  return t(`assets.category.${id}`);
+}
 
 export function groupMissingByCategory(rawPaths: readonly string[]): GroupedMissingAssets {
   const normalised = rawPaths.map(normalisePath);
@@ -76,7 +72,7 @@ export function groupMissingByCategory(rawPaths: readonly string[]): GroupedMiss
   // only shows categories that were actually affected.
   const categories: AssetCategorySummary[] = CATEGORY_ORDER
     .filter((id) => (counts.get(id) ?? 0) > 0)
-    .map((id) => ({ id, label: CATEGORY_LABEL[id], count: counts.get(id)! }));
+    .map((id) => ({ id, label: categoryLabel(id), count: counts.get(id)! }));
 
   return {
     total: normalised.length,

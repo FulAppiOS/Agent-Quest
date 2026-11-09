@@ -7,7 +7,7 @@
   flex-direction: column;
   gap: 8px;
   width: min(320px, calc(100vw - 16px));
-  font-family: 'Fira Code', ui-monospace, monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', ui-monospace, monospace;
   pointer-events: none; /* let clicks pass except on the toasts themselves */
 }
 

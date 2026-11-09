@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { SERVER_URL } from '../config';
+import { useI18n } from '../i18n';
 import { isReleaseSnoozed, parseReminder, RELEASE_REMINDER_KEY, REMIND_AFTER_MS, type ReleaseReminder } from './releaseReminder';
 import './ReleaseBanner.css';
 
@@ -14,6 +15,7 @@ function readReminder(): ReleaseReminder | null {
 }
 
 export function ReleaseBanner() {
+  const { t } = useI18n();
   const [update, setUpdate] = useState<Update | null>(null);
   const [reminder, setReminder] = useState(readReminder);
 
@@ -80,31 +82,31 @@ export function ReleaseBanner() {
   }
 
   return (
-    <section className="release-banner" aria-label="App update">
+    <section className="release-banner" aria-label={t('release.ariaLabel')}>
       <div className="release-banner-header">
-        <p role="status"><strong>Agent Quest {release.version} is available</strong><span>You’re using {currentVersion}.</span></p>
-        <button type="button" onClick={remindTomorrow}>Remind me tomorrow</button>
+        <p role="status"><strong>{t('release.available', { version: release.version })}</strong><span>{t('release.current', { version: currentVersion })}</span></p>
+        <button type="button" onClick={remindTomorrow}>{t('release.remindTomorrow')}</button>
       </div>
       <details key={release.version} className="release-banner-details">
-        <summary>What’s new &amp; how to update</summary>
-        <h2>What’s new</h2>
+        <summary>{t('release.summary')}</summary>
+        <h2>{t('release.whatsNew')}</h2>
         <div className="release-banner-notes">
           {release.notes.trim() ? (
             <ReactMarkdown skipHtml disallowedElements={['img']} components={{
               a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
             }}>{release.notes}</ReactMarkdown>
-          ) : <p>No release notes were provided.</p>}
+          ) : <p>{t('release.noNotes')}</p>}
         </div>
-        <a href={release.url} target="_blank" rel="noopener noreferrer">View release on GitHub ↗</a>
-        <h2>Update manually</h2>
+        <a href={release.url} target="_blank" rel="noopener noreferrer">{t('release.viewOnGitHub')} ↗</a>
+        <h2>{t('release.updateManually')}</h2>
         <ol>
-          <li>On the computer running Agent Quest, stop the app with <kbd>Ctrl+C</kbd> in its terminal.</li>
-          <li>Run <code>agentquest update</code>.</li>
-          <li>Start it again with <code>agentquest</code>, then refresh this page.</li>
+          <li>{t('release.step1Before')}<kbd>Ctrl+C</kbd>{t('release.step1After')}</li>
+          <li>{t('release.step2Before')}<code>agentquest update</code>{t('release.step2After')}</li>
+          <li>{t('release.step3Before')}<code>agentquest</code>{t('release.step3After')}</li>
         </ol>
-        <p>Without the shortcut, open your Agent Quest folder and run:</p>
+        <p>{t('release.withoutShortcut')}</p>
         <pre><code>{'git pull --ff-only && bun install\nbun start'}</code></pre>
-        <p className="release-banner-hint">The updater follows main. If Git reports local changes or a conflict, keep your changes and resolve it before continuing. Nothing updates automatically.</p>
+        <p className="release-banner-hint">{t('release.hint')}</p>
       </details>
     </section>
   );

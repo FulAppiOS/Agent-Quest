@@ -5,6 +5,7 @@ import { HERO_LABEL_COLOR, SOURCE_BADGE_COLOR, modelBadge, type ActivityLogEntry
 import { HeroAvatar } from './HeroAvatar';
 import { isError, isPath, resolvePath, categorizeEntry } from './activityFeedUtils';
 import type { ActionFilter } from './activityFeedUtils';
+import { useI18n } from '../i18n';
 
 // Message cells render detail as markdown (bold, italic, code, links). The
 // custom `p` renderer emits the children followed by a trailing space so
@@ -36,6 +37,7 @@ function ActivityRowImpl({
   entry, agent, agentName, inGroup, highlighted, isSelected, showSourceBadge,
   onSelectAgent, onFilterAgent,
 }: ActivityRowProps) {
+  const { t } = useI18n();
   const [menu, setMenu] = useState<MenuState | null>(null);
   const error = isError(entry.action, entry.detail);
   const isMessage = entry.action === 'Reply' || entry.action === 'Prompt';
@@ -73,7 +75,7 @@ function ActivityRowImpl({
         <button
           type="button"
           className="feed-row-avatar"
-          aria-label={`Select agent ${agentName}`}
+          aria-label={t('activityRow.selectAgent', { name: agentName })}
           onClick={() => onSelectAgent(agent.id)}
         >
           <HeroAvatar agent={agent} size="inherit" />
@@ -86,7 +88,7 @@ function ActivityRowImpl({
             <button
               type="button"
               className="feed-agent-name"
-              aria-label={`Filter feed to ${agentName}`}
+              aria-label={t('activityRow.filterToAgent', { name: agentName })}
               onClick={() => onFilterAgent(agent.id)}
               title={agentName}
               style={{ color: HERO_LABEL_COLOR[agent.heroColor] }}
@@ -100,7 +102,7 @@ function ActivityRowImpl({
                 color: SOURCE_BADGE_COLOR[agent.source],
                 background: `${SOURCE_BADGE_COLOR[agent.source]}26`,
               }}
-              aria-label={`source ${sourceBadgeLabel(agent)} · ${agent.source}`}
+              aria-label={t('activityRow.sourceLabel', { label: sourceBadgeLabel(agent), source: agent.source })}
             >
               {sourceBadgeLabel(agent)}
             </span>
@@ -115,7 +117,7 @@ function ActivityRowImpl({
                   color: badge.color,
                   background: `${badge.color}26`,
                 }}
-                aria-label={`model ${agent.model ?? ''}`}
+                aria-label={t('activityRow.modelLabel', { model: agent.model ?? '' })}
                 title={agent.model}
               >
                 {badge.short}
@@ -147,9 +149,9 @@ function ActivityRowImpl({
           y={menu.y}
           onClose={closeMenu}
           actions={[
-            { label: 'Copy path', onClick: () => copy(absolute ?? entry.detail), enabled: detailIsPath },
-            { label: 'Copy detail', onClick: () => copy(entry.detail), enabled: true },
-            { label: 'Filter to this agent', onClick: () => { if (agent !== undefined) onFilterAgent(agent.id); closeMenu(); }, enabled: agent !== undefined },
+            { label: t('activityRow.copyPath'), onClick: () => copy(absolute ?? entry.detail), enabled: detailIsPath },
+            { label: t('activityRow.copyDetail'), onClick: () => copy(entry.detail), enabled: true },
+            { label: t('activityRow.filterThisAgent'), onClick: () => { if (agent !== undefined) onFilterAgent(agent.id); closeMenu(); }, enabled: agent !== undefined },
           ]}
         />
       )}

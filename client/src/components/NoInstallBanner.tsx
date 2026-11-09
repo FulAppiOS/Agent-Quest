@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '../i18n';
 import './NoInstallBanner.css';
 import { isDismissed, setDismissed, resetDismissal } from './noInstallBannerStorage';
 
@@ -18,6 +19,7 @@ interface Props {
  * so returning users don't see it every load.
  */
 export function NoInstallBanner({ configDirs, connected }: Props) {
+  const { t } = useI18n();
   const [dismissed, setDismissedState] = useState<boolean>(() => isDismissed());
 
   // Reset dismissal if a config dir appears later (user installed Claude Code
@@ -43,17 +45,16 @@ export function NoInstallBanner({ configDirs, connected }: Props) {
     <div className="no-install-banner" role="status">
       <span className="no-install-icon" aria-hidden>⚠</span>
       <div className="no-install-body">
-        <div className="no-install-title">No Claude Code or Codex installation detected</div>
+        <div className="no-install-title">{t('noInstall.title')}</div>
         <div className="no-install-text">
-          The server found no <code>~/.claude*</code> or <code>~/.codex</code> directory with session logs.
-          {' '}Start a Claude Code or Codex session to see heroes appear here.
+          {t('noInstall.textBefore')}<code>~/.claude*</code>{t('noInstall.textOr')}<code>~/.codex</code>{t('noInstall.textAfter')}
         </div>
       </div>
       <button
         className="no-install-dismiss"
         type="button"
         onClick={onDismiss}
-        aria-label="Dismiss"
+        aria-label={t('common.dismiss')}
       >
         ×
       </button>

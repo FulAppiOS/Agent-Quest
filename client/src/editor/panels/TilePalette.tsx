@@ -4,12 +4,14 @@ import { editorStore, useEditorStore } from '../state/editor-store';
 import type { DecorationManifest, NpcSpriteManifest, TilesetManifest, UnitColor, UnitType } from '../types/map';
 import { TileTree } from './TileTree';
 import { DecorationDetail } from './DecorationDetail';
+import { useI18n } from '../../i18n';
 
 // NPC unit/color rows are derived per-render from the active manifest in
 // the NpcPalette sub-component so themes that introduce new units
 // (CC0 goblins) or drop colors flow through without editing this file.
 
 export function TilePalette() {
+  const { t } = useI18n();
   const manifest = useEditorStore((s) => s.manifest);
   const tilesetTab = useEditorStore((s) => s.tilesetTab);
   const decoGroup = useEditorStore((s) => s.decorationGroup);
@@ -23,8 +25,8 @@ export function TilePalette() {
   if (manifest === null) {
     return (
       <div className="editor-tile-palette">
-        <div className="editor-palette-header">Palette</div>
-        <div style={{ color: '#888', fontSize: 11 }}>Loading assets...</div>
+        <div className="editor-palette-header">{t('editor.palette.title')}</div>
+        <div style={{ color: '#888', fontSize: 11 }}>{t('editor.palette.loadingAssets')}</div>
       </div>
     );
   }
@@ -35,7 +37,7 @@ export function TilePalette() {
   }
 
   // --- Terrain + Decoration palette ---
-  const tileset = manifest.tilesets.find((t) => t.key === tilesetTab) ?? manifest.tilesets[0];
+  const tileset = manifest.tilesets.find((set) => set.key === tilesetTab) ?? manifest.tilesets[0];
   const selectedFolder = decoGroup;
   const decorations = manifest.decorations.filter((d) => {
     const segs = d.folderPath !== undefined && d.folderPath.length > 0 ? d.folderPath : [d.group];
@@ -94,18 +96,18 @@ export function TilePalette() {
         onClick={() => setTerrainExpanded((v) => !v)}
       >
         <span className="editor-palette-caret">{terrainExpanded ? '\u25BE' : '\u25B8'}</span>
-        Terrain Tileset
+        {t('editor.palette.terrainTilesets')}
       </button>
       {terrainExpanded && (
         <>
           <div className="editor-palette-tabs">
-            {manifest.tilesets.map((t) => (
+            {manifest.tilesets.map((set) => (
               <button
-                key={t.key}
-                className={`editor-palette-tab${t.key === tilesetTab ? ' active' : ''}`}
-                onClick={() => editorStore.setTilesetTab(t.key)}
+                key={set.key}
+                className={`editor-palette-tab${set.key === tilesetTab ? ' active' : ''}`}
+                onClick={() => editorStore.setTilesetTab(set.key)}
               >
-                {t.label.replace('Terrain \u2014 ', '')}
+                {set.label.replace('Terrain \u2014 ', '')}
               </button>
             ))}
           </div>
@@ -129,7 +131,7 @@ export function TilePalette() {
                       backgroundSize: bgSize,
                       backgroundPosition: bgPos,
                     }}
-                    title={`Frame ${frame}`}
+                    title={t('editor.palette.frame', { frame })}
                     onClick={() => onTileClick(tileset, frame)}
                   />
                 );
@@ -147,7 +149,7 @@ export function TilePalette() {
           onClick={() => setDecorationsExpanded((v) => !v)}
         >
           <span className="editor-palette-caret">{decorationsExpanded ? '\u25BE' : '\u25B8'}</span>
-          Decorations
+          {t('editor.palette.decorations')}
         </button>
         {decorationsExpanded && (
           <>
@@ -159,10 +161,10 @@ export function TilePalette() {
               />
               <div className="editor-palette-decorations-grid">
                 {selectedFolder === '' && (
-                  <p className="editor-palette-hint">Select a folder on the left to see assets.</p>
+                  <p className="editor-palette-hint">{t('editor.palette.selectFolderHint')}</p>
                 )}
                 {selectedFolder !== '' && decorations.length === 0 && (
-                  <p className="editor-palette-hint">No assets in this folder.</p>
+                  <p className="editor-palette-hint">{t('editor.palette.emptyFolder')}</p>
                 )}
                 {decorations.map((d) => {
                   const hasFrames = d.frameWidth !== undefined && d.frameHeight !== undefined && d.frameWidth > 0 && d.frameHeight > 0;
@@ -185,7 +187,7 @@ export function TilePalette() {
             </div>
             {decorationBrush !== null && (
               <div className="editor-row" style={{ marginTop: 4 }}>
-                <label>Scale</label>
+                <label>{t('editor.palette.scale')}</label>
                 <input
                   type="range"
                   min="0.1"
@@ -295,6 +297,7 @@ interface NpcPaletteProps {
 }
 
 function NpcPalette({ manifest, npcBrush }: NpcPaletteProps) {
+  const { t } = useI18n();
   const currentScale = npcBrush?.scale ?? 0.28;
   const currentWander = npcBrush?.wanderRadius ?? 120;
 
@@ -337,7 +340,7 @@ function NpcPalette({ manifest, npcBrush }: NpcPaletteProps) {
 
   return (
     <div className="editor-tile-palette">
-      <div className="editor-palette-header">NPC Units</div>
+      <div className="editor-palette-header">{t('editor.palette.npcUnits')}</div>
 
       {npcUnits.map((unit) => (
         <div key={unit}>
@@ -387,9 +390,9 @@ function NpcPalette({ manifest, npcBrush }: NpcPaletteProps) {
       ))}
 
       <div className="editor-palette-section" style={{ marginTop: 8 }}>
-        <div className="editor-palette-header">Brush Settings</div>
+        <div className="editor-palette-header">{t('editor.palette.brushSettings')}</div>
         <div className="editor-row" style={{ marginTop: 4 }}>
-          <label>Scale</label>
+          <label>{t('editor.palette.scale')}</label>
           <input
             type="range"
             min="0.1"
@@ -401,7 +404,7 @@ function NpcPalette({ manifest, npcBrush }: NpcPaletteProps) {
           <span style={{ fontSize: 11, minWidth: 32, textAlign: 'right' }}>{currentScale.toFixed(2)}</span>
         </div>
         <div className="editor-row" style={{ marginTop: 4 }}>
-          <label>Wander</label>
+          <label>{t('editor.palette.wander')}</label>
           <input
             type="range"
             min="50"

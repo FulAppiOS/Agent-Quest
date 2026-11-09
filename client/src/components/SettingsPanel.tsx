@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AppSettings } from '../hooks/useSettings';
 import { SERVER_URL } from '../config';
 import { playChime } from '../notifications/sound';
+import { useI18n } from '../i18n';
+import { LanguageSettings } from './LanguageSettings';
 import './SettingsPanel.css';
 
 interface SettingsPanelProps {
@@ -64,6 +66,7 @@ interface HookUiState {
 }
 
 export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProps) {
+  const { t } = useI18n();
   const [permission, setPermission] = useState<PermissionState>(() => readPermission());
   const [hook, setHook] = useState<HookUiState>({ loading: true, status: null, error: null, busy: false });
 
@@ -101,11 +104,11 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
   const sendTestNotification = useCallback(() => {
     try {
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification('Agent Quest', { body: 'Notifications are working \u{1F514}', tag: 'agentquest:test' });
+        new Notification('Agent Quest', { body: `${t('settings.testBody')} \u{1F514}`, tag: 'agentquest:test' });
       }
     } catch { /* ignore */ }
     if (settings.soundEnabled) playChime('waiting', settings.volume);
-  }, [settings.soundEnabled, settings.volume]);
+  }, [settings.soundEnabled, settings.volume, t]);
 
   const refreshHook = useCallback(async () => {
     try {
@@ -162,71 +165,69 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
 
   return (
     <div className="settings-backdrop" onClick={onClose}>
-      <div className="settings-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Settings">
-        <button className="settings-close" onClick={onClose} title="Close (Esc)">×</button>
+      <div className="settings-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={t('settings.title')}>
+        <button className="settings-close" onClick={onClose} title={t('common.closeEsc')}>×</button>
 
-        <h2 className="settings-title">Settings</h2>
+        <h2 className="settings-title">{t('settings.title')}</h2>
 
-        <div className="settings-section-label">Notifications</div>
+        <LanguageSettings />
+
+        <div className="settings-section-label">{t('settings.notifications')}</div>
         <Toggle
-          label="Desktop notifications"
-          hint="Alert me when an agent needs me or finishes"
+          label={t('settings.desktopNotifications')}
+          hint={t('settings.desktopNotificationsHint')}
           checked={notifyOn}
           onToggle={handleNotificationsToggle}
         />
         {permissionBlocked && (
           <p className="settings-warn">
-            Notifications are blocked by your browser. Enable them for this site in the
-            browser's site settings, then toggle this back on.
+            {t('settings.permissionBlocked')}
           </p>
         )}
         {notifyOn && permission === 'unsupported' && (
           <p className="settings-warn">
-            This browser doesn't support desktop notifications — sounds will still work.
+            {t('settings.unsupported')}
           </p>
         )}
         {notifyOn && permission === 'granted' && (
           <div className="settings-row">
-            <span className="settings-muted">Allowed by your browser.</span>
-            <button className="settings-btn" onClick={sendTestNotification}>Send a test</button>
+            <span className="settings-muted">{t('settings.allowed')}</span>
+            <button className="settings-btn" onClick={sendTestNotification}>{t('settings.sendTest')}</button>
           </div>
         )}
         <Toggle
-          label="In-app toasts"
-          hint="Dismissable banners inside the dashboard — works everywhere, no permission"
+          label={t('settings.inAppToasts')}
+          hint={t('settings.inAppToastsHint')}
           checked={settings.inAppToasts}
           onToggle={(v) => onChange({ inAppToasts: v })}
         />
 
         <div className="settings-hint-block settings-hook-blurb">
-          <strong>Reliable turn-end</strong> — let Claude tell Agent Quest the instant an
-          agent finishes, instead of inferring it from logs (fewer false alarms, no delay).
-          Optional, Claude-only. Enabling writes a small <code>Stop</code> hook into your
-          Claude <code>settings.json</code>; existing hooks are left untouched.
+          <strong>{t('settings.hookTitle')}</strong>{t('settings.hookBlurbBefore')}<code>Stop</code>{t('settings.hookBlurbMiddle')}<code>settings.json</code>{t('settings.hookBlurbAfter')}
         </div>
         {hook.loading ? (
-          <p className="settings-muted">Checking…</p>
+          <p className="settings-muted">{t('settings.checking')}</p>
         ) : hook.status === null ? (
-          <p className="settings-warn">Couldn't reach the server{hook.error !== null ? `: ${hook.error}` : ''}.</p>
+          <p className="settings-warn">{t('settings.serverUnreachable', { detail: hook.error !== null ? `: ${hook.error}` : '' })}</p>
         ) : hook.status.configDirs.length === 0 ? (
-          <p className="settings-muted">No Claude Code install detected.</p>
+          <p className="settings-muted">{t('settings.noInstall')}</p>
         ) : (
           <>
             <div className="settings-hook">
               <span className={`settings-hook-state ${hook.status.installed ? 'on' : ''}`}>
-                {hook.status.installed ? 'Reliable turn-end: on' : hook.status.anyInstalled ? 'Partially enabled' : 'Reliable turn-end: off'}
+                {hook.status.installed ? t('settings.hookOn') : hook.status.anyInstalled ? t('settings.hookPartial') : t('settings.hookOff')}
               </span>
               <button
                 className="settings-btn"
                 disabled={hook.busy}
                 onClick={() => { void setHookEnabled(!hook.status!.installed); }}
               >
-                {hook.busy ? '…' : hook.status.installed ? 'Disable' : 'Enable'}
+                {hook.busy ? '…' : hook.status.installed ? t('settings.disable') : t('settings.enable')}
               </button>
             </div>
             {hook.status.anyInstalled && (
               <p className="settings-muted">
-                Restart your Claude Code sessions (or start new ones) for the change to take effect.
+                {t('settings.restartHint')}
               </p>
             )}
             {hook.error !== null && <p className="settings-warn">{hook.error}</p>}
@@ -235,52 +236,52 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
 
         <div className="settings-subgroup" data-dim={!anyChannel}>
           <Toggle
-            label="Turn finished"
-            hint="Agent finished its turn and is waiting for you"
+            label={t('settings.turnFinished')}
+            hint={t('settings.turnFinishedHint')}
             checked={settings.notifyWaiting}
             disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyWaiting: v })}
           />
           <Toggle
-            label="Errors"
-            hint="Agent hit an error"
+            label={t('settings.errors')}
+            hint={t('settings.errorsHint')}
             checked={settings.notifyError}
             disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyError: v })}
           />
           <Toggle
-            label="Session completed"
-            hint="Agent session ended"
+            label={t('settings.sessionCompleted')}
+            hint={t('settings.sessionCompletedHint')}
             checked={settings.notifyCompleted}
             disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyCompleted: v })}
           />
           <Toggle
-            label="Context nearly full"
-            hint="Main agent's context window passed 85% — a compaction is coming"
+            label={t('settings.contextNearlyFull')}
+            hint={t('settings.contextNearlyFullHint')}
             checked={settings.notifyContext}
             disabled={!anyChannel}
             onToggle={(v) => onChange({ notifyContext: v })}
           />
         </div>
 
-        <div className="settings-section-label">Map</div>
+        <div className="settings-section-label">{t('settings.map')}</div>
         <Toggle
-          label="Context bars"
-          hint="Show each hero's context-window occupancy above its name"
+          label={t('settings.contextBars')}
+          hint={t('settings.contextBarsHint')}
           checked={settings.showContextBars}
           onToggle={(v) => onChange({ showContextBars: v })}
         />
 
-        <div className="settings-section-label">Sound</div>
+        <div className="settings-section-label">{t('settings.sound')}</div>
         <Toggle
-          label="Play a sound"
-          hint="Chime alongside notifications"
+          label={t('settings.playSound')}
+          hint={t('settings.playSoundHint')}
           checked={settings.soundEnabled}
           onToggle={(v) => onChange({ soundEnabled: v })}
         />
         <div className="settings-row" data-dim={!settings.soundEnabled}>
-          <span className="settings-toggle-label">Volume</span>
+          <span className="settings-toggle-label">{t('settings.volume')}</span>
           <input
             className="settings-volume"
             type="range"
@@ -290,21 +291,21 @@ export function SettingsPanel({ settings, onChange, onClose }: SettingsPanelProp
             value={settings.volume}
             disabled={!settings.soundEnabled}
             onChange={(e) => onChange({ volume: Number(e.target.value) })}
-            aria-label="Notification volume"
+            aria-label={t('settings.volumeLabel')}
           />
           <span className="settings-volume-value">{Math.round(settings.volume * 100)}%</span>
         </div>
 
-        <div className="settings-section-label">Do not disturb</div>
+        <div className="settings-section-label">{t('settings.doNotDisturb')}</div>
         <Toggle
-          label="Mute everything"
-          hint="Temporarily silence all notifications and sounds"
+          label={t('settings.muteEverything')}
+          hint={t('settings.muteEverythingHint')}
           checked={settings.doNotDisturb}
           onToggle={(v) => onChange({ doNotDisturb: v })}
         />
 
         <p className="settings-foot">
-          Preferences are saved locally in this browser. Nothing is uploaded.
+          {t('settings.footer')}
         </p>
       </div>
     </div>

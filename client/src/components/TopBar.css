@@ -11,7 +11,7 @@
   justify-content: flex-end;
   padding: 0 16px;
   z-index: 30;
-  font-family: 'Fira Code', monospace;
+  font-family: 'Fira Code', 'Noto Sans KR', monospace;
 }
 
 .topbar-logo-button {

@@ -8,6 +8,7 @@ import {
 import { getActiveTheme } from '../themes/registry';
 import { findRoadPath, type Point } from '../data/road-network';
 import { addCrispText } from '../text';
+import { t } from '../../i18n';
 
 const MOVE_SPEED = 150;
 /** Ground distance covered by one full run-cycle. Keeps legs synced to travel. */
@@ -245,7 +246,7 @@ export class HeroSprite {
     // only when the UI is in mixed-provider mode.
 
     // Activity label below hero
-    this.activityText = addCrispText(scene, x, y + this.activityOffsetY, 'idle', {
+    this.activityText = addCrispText(scene, x, y + this.activityOffsetY, t('activity.idle'), {
       fontSize: '12px',
       color: ACTIVITY_COLOR.idle,
       fontFamily: 'monospace',
@@ -364,6 +365,11 @@ export class HeroSprite {
     }
   }
 
+  /** Re-render locale-dependent labels after a language change. */
+  refreshLocale(): void {
+    this.refreshActivityVisual();
+  }
+
   /** Update the displayed activity label and internal state. */
   setActivity(activity: AgentActivity): void {
     this.currentActivity = activity;
@@ -411,13 +417,13 @@ export class HeroSprite {
 
   private refreshActivityVisual(): void {
     if (this.isErrorRecent) {
-      this.activityText.setText('error');
+      this.activityText.setText(t('hero.error'));
       this.activityText.setColor(ERROR_COLOR);
     } else if (this.isWaiting) {
-      this.activityText.setText('waiting…');
+      this.activityText.setText(t('hero.waiting'));
       this.activityText.setColor(WAITING_COLOR);
     } else {
-      this.activityText.setText(this.currentActivity);
+      this.activityText.setText(t(`activity.${this.currentActivity}`));
       this.activityText.setColor(ACTIVITY_COLOR[this.currentActivity]);
     }
     // Text width changed → re-center the activity/model pair on the hero.

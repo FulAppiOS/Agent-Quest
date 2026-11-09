@@ -5,7 +5,7 @@
   background: rgba(26, 26, 46, 0.96);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   color: #F5E6C8;
-  font: 12px/1.6 'Fira Code', monospace;
+  font: 12px/1.6 'Fira Code', 'Noto Sans KR', monospace;
   overflow-wrap: anywhere;
 }
 

@@ -1,5 +1,9 @@
 # Asset Themes
 
+<p>
+  <strong>English</strong> · <a href="themes.ko.md">한국어</a>
+</p>
+
 Agent Quest renders heroes from a **theme** — a manifest that tells
 Phaser which PNGs to preload and how to animate them. Themes are
 data-driven, so swapping in a new pack is a matter of dropping files
